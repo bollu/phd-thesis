@@ -24,16 +24,31 @@
 %
 % For more info see `README.md`
 \documentclass[withindex,glossary]{cam-thesis}
+% \usepackage{tufte-latex}
+\usepackage{classicthesis}
 
 % Citations using numbers
 \usepackage[numbers]{natbib}
+% dropcaps:
+% https://tex.stackexchange.com/questions/250474/how-to-use-fancy-dropcaps-with-pdflatex
+\usepackage{Carrickc,Typocaps,lettrine}
+\renewcommand\LettrineFontHook{\Typocapsfamily}
+
+%%% % https://tex.stackexchange.com/a/97128
+\usepackage[sc,osf]{mathpazo}   % With old-style figures and real smallcaps.
+%%% \linespread{1.025}              % Palatino leads a little more leading
+%%% % Euler for math and numbers
+%%% \usepackage[euler-digits,small]{eulervm}
+
+\usepackage{lmodern} % For a stylish font
+
 
 %%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%
 %% Thesis meta-information
 %%
 
 %% The title of the thesis:
-\title{Mechanized, Width-Independent Bitvector \\ Decision Procedures}
+\title{Mechanized  Finite Domain Decision Procedures}
 % spanning two lines}
 
 %% The full name of the author (e.g.: James Smith):
@@ -138,6 +153,8 @@
 %% Thesis body:
 %%
 \chapter{Introduction}
+
+\lettrine{O}{nce} upon a time
 % This document was created with the help of a custom class file~\cite{example}. A
 % {\em \LaTeX{} class file}\index{\LaTeX{} class file@LaTeX class file} is a file,
 % which holds style information for a particular \LaTeX{} class\footnote{You can
