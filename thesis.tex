@@ -165,9 +165,37 @@
 % This is an example glossary reference: \GLS{HOL}. \\
  
 
-\marginpar[Margin note.]{Margin par.}
+\chapter{2-adic algorithms for non-linear bit-vector arithmetic}
 
-\section{My Section}
+See that 2-adics are decidable by Dubashi et. al. and that we can use this to
+decide non-linear bit-vector arithmetic.
+
+\chapter{Better Model Guided Generalization for Exists Forall in QF\_BV}
+
+Hydra algorithm is naive, find better model guided generalization,
+using ideas from virtual substitution for the reals.
+
+\chapter{Ackermannization and Multiplication Abstraction}
+Steal from Bitwuzla, mechanize.
+
+\chapter{Reducing Bounded NLIA to QF\_BV}
+
+\chapter{Extending MBA to Inequational Fragment plus Disjunction}
+
+- Unsigned Inequations can be handled using the same idea, see hacker's delight, Ch2.2
+- Can disjunction be handled the same way? unclear
+
+\chapter{Multiple-Widths in Width Generic Automataion}
+
+Key idea: If we have widths $x : w$ and $ y : w+k$, note that this really means that
+if we are at width $w$, then the high bits of $x$ are zero when treated as a transducer.
+So this should allow us to exploit the structure to decide properties.
+
+\chapter{Exponentition, Modulus, and Monus}
+
+See that if we have $2^{w-k}$ and $2^{w - l}$, we really can work in a regime where $w \geq k, w \geq l$,
+and just bitblast the case where $w \leq max(k, l)$.
+WLOG, $k \geq l$, then we can set $k = l + \delta$, and pick $w' \geq l$.
 
 
 
