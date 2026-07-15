@@ -1,0 +1,64 @@
+\chapter{Background}
+\label{ch:background}
+
+\paragraph*{Attribution.} Parts of this chapter, in particular the account of
+Lean's bitvector library and the \bvdecide{} tactic, are based on
+\emph{Interactive Bitvector Reasoning using Verified
+Bit-Blasting}~\citep{leanbv} (OOPSLA 2025), joint work led by Henrik Böving on
+which I am a second author. That system is \emph{background} for this thesis:
+the decision procedures of \cref{ch:single-width-bv,ch:multi-width-bv} and the
+floating-point bitblaster of \cref{ch:floating-point} build on top of it.
+
+\lettrine{B}{itvectors} are the lingua franca of low-level verification.
+The pointer-free fragment of a programming language can be modelled by
+bitvectors, matching the memory representation of integers, enums, and
+structures; bitvectors likewise model integer operations in compiler IRs such
+as LLVM-IR~\citep{zhao2012formalizing}, machine
+code~\citep{armstrong2019isa,reid2016trustworthy}, combinational logic in
+hardware~\citep{bourgeat2020essence}, and the substrate on which
+floating-point arithmetic is defined~\citep{boldo2011flocq}. This chapter
+recalls the tools this thesis assumes: SMT solving over the theory of
+fixed-width bitvectors (\qfbv{}), bitblasting to SAT and certificate checking,
+the Lean 4 proof assistant, and Lean's verified bitblaster \bvdecide{}.
+
+\section{SMT Solving over Bitvectors}
+\label{sec:bg:smt}
+
+\sid{Port/summarize: \qfbv{}, bitblasting, AIGs, SAT solvers and LRAT
+certificates. Sources: collab paper \S 1--2
+(papers/collab-paper-lean-bitvectors/paper.tex, lines 433--626).}
+
+\section{The Lean 4 Proof Assistant}
+\label{sec:bg:lean}
+
+\sid{Port/summarize: Lean 4, kernel reduction, \texttt{Decidable}, FBIP
+(functional-but-in-place) execution. Source: collab paper \S 2--3.}
+
+\section{Lean's Bitvector Library}
+\label{sec:bg:bitvec}
+
+\sid{Port/summarize: the design of Lean's canonical
+\texttt{BitVec} library---SMT-LIB 2.7 coverage, fast execution,
+width-independent API. Source: collab paper \S 3
+(papers/collab-paper-lean-bitvectors/paper.tex, lines 627--920).}
+
+\section{\texorpdfstring{\bvdecide{}}{bv\_decide}: Verified Bitblasting for Fixed Widths}
+\label{sec:bg:bvdecide}
+
+\sid{Port/summarize: the \bvdecide{} pipeline---normalization, AIG
+construction, CaDiCaL, LRAT certificate checking; end-to-end theorem. Source:
+collab paper \S 4 (lines 921--1294). This is the engine that
+\cref{ch:single-width-bv,ch:multi-width-bv,ch:floating-point} extend.}
+
+\section{The Limits of Fixed-Width Reasoning}
+\label{sec:bg:width-generic}
+
+\sid{Port/summarize: width-generic proof automation pain points; motivates
+\cref{ch:single-width-bv}. Source: collab paper \S 5 (lines 1295--1428).}
+
+\section{SSA and MLIR}
+\label{sec:bg:ssa}
+
+\sid{One or two pages of SSA/MLIR background for \cref{ch:lean-mlir}: SSA
+form, def-use chains, MLIR dialects and regions. Sources:
+papers/paper-lean-mlir/paper.tex \S 1--2.}

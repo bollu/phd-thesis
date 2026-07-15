@@ -1,0 +1,111 @@
+\chapter{Introduction}
+\label{ch:intro}
+
+\lettrine{C}{ompilers}, hardware designs, and cryptographic routines are
+trusted by billions of users, yet the reasoning that justifies their
+correctness ultimately bottoms out in \emph{finite domains}: machine integers
+of a fixed width, registers whose width is a design parameter, and
+floating-point numbers laid out bit by bit in IEEE-754 formats. Two research
+communities have built impressive---but largely disjoint---tools for this kind
+of reasoning. Automated SMT solvers such as Bitwuzla~\citep{niemetz2023bitwuzla}
+and cvc5~\citep{barbosa2022cvc5} decide finite-domain theories with remarkable
+efficiency, but are themselves large, highly optimized, and unverified
+programs. Interactive theorem provers (ITPs) such as
+Lean~\citep{demoura2021lean} offer foundational guarantees, checked by a small
+trusted kernel, but have historically provided little of the push-button
+automation that makes finite-domain reasoning practical at scale.
+
+This thesis contributes to closing that gap. Its central claim is that
+\emph{decision procedures for finite-domain theories can be mechanized---%
+implemented, proved correct, and run at speed inside a proof assistant---%
+without giving up the scalability that makes them useful}. We support this
+claim with a sequence of mechanized artefacts in Lean, each published and
+evaluated against the state of the art, and each extending the reach of
+verified automation: from fixed widths, to one symbolic width, to many
+symbolic widths, and finally to floating-point arithmetic.
+
+\section{Motivation: Verified Rewriting Demands Verified Automation}
+
+Our starting point is compilation. Modern compiler frameworks such as
+MLIR~\citep{lattner2020mlir} encourage many domain-specific intermediate
+representations (IRs), each with its own peephole rewrites. Verifying such
+rewrites in an ITP is attractive---the proofs are checked once and for
+all---but every rewrite discharges to a proof obligation over finite-domain
+values. Doing these proofs by hand does not scale: a single LLVM InstCombine
+rewrite may require pages of bit-level reasoning. The framework we present in
+\cref{ch:lean-mlir} makes the \emph{structural} part of such proofs (SSA,
+dominance, regions) essentially free, which exposes the remaining
+\emph{semantic} obligations---bitvector and floating-point goals---as the true
+bottleneck. The rest of the thesis builds the verified automation that
+discharges them.
+
+\section{Contributions}
+
+\begin{itemize}
+  \item \textbf{A verified framework for peephole rewriting in SSA-based IRs}
+  (\cref{ch:lean-mlir}). We formalize a core calculus for SSA-based IRs,
+  generic over the user's IR and covering MLIR-style regions, mechanize it in
+  Lean with an MLIR-syntax frontend, and prove correct a generic peephole
+  rewriter as well as dead-code and common-subexpression elimination.
+  Published at ITP~2024~\citep{leanmlir}.
+
+  \item \textbf{Certified decision procedures for width-independent bitvector
+  predicates} (\cref{ch:single-width-bv}). We mechanize key model-checking
+  algorithms---$k$-induction, automata reachability, emptiness, and
+  minimization---and use them to build scalable, certified tactics for
+  bitvector predicates that hold at \emph{all} widths, plus a specialized
+  solver for mixed Boolean-arithmetic. Published at
+  OOPSLA~2025~\citep{bhat2025certified}.
+
+  \item \textbf{Sound and complete solving for multi-width parametric
+  bitvectors} (\cref{ch:multi-width-bv}). We prove that formulas over $n$
+  symbolic widths reduce, with linear blowup, to an equisatisfiable
+  single-symbolic-width formula by encoding widths as bitmasks; this collapses
+  exponential enumeration into one fixed-width solver call and yields a new
+  decidable fragment subsuming the prior state of the art. Conditionally
+  accepted at OOPSLA~2026~\citep{bhat2026multiwidth}.
+
+  \item \textbf{Mechanized floating-point bitblasting}
+  (\cref{ch:floating-point}). We mechanize the SMT-LIB \qffp{} theory, build
+  verified bitblasting circuits for its operations, and obtain the first
+  verified floating-point bitblaster, evaluated on SMT-COMP and on new
+  small-format (E4M3/E5M2) benchmarks. In submission~\citep{bhat2027floatingpoint}.
+\end{itemize}
+
+\section{Publications and Attribution}
+
+The chapters of this thesis are based on the following publications:
+
+\begin{itemize}
+  \item \emph{Verifying Peephole Rewriting in SSA Compiler IRs}~\citep{leanmlir},
+  ITP 2024; basis of \cref{ch:lean-mlir}.
+  \item \emph{Certified Decision Procedures for Width-Independent Bitvector
+  Predicates}~\citep{bhat2025certified}, OOPSLA 2025; basis of
+  \cref{ch:single-width-bv}.
+  \item \emph{Sound and Complete Solving for Multi-Width Parametric Bitvectors
+  via Principled Reductions}~\citep{bhat2026multiwidth}, conditionally
+  accepted at OOPSLA 2026; basis of \cref{ch:multi-width-bv}.
+  \item \emph{Mechanizing Floating Point Bitblasting}~\citep{bhat2027floatingpoint},
+  in submission; basis of \cref{ch:floating-point}.
+\end{itemize}
+
+In addition, \cref{ch:background} draws on
+``Interactive Bitvector Reasoning using Verified
+Bit-Blasting''~\citep{leanbv} (OOPSLA 2025), on which I am a second author;
+that work is presented as background rather than as a contribution of this
+thesis, and the attribution is stated explicitly where its material is used.
+All the works above are collaborative; throughout the thesis, ``we'' refers
+to myself and my coauthors, and where a specific contribution is not my own
+this is stated in the relevant chapter's attribution note.
+
+\section{Thesis Outline}
+
+\Cref{ch:background} recalls the background shared by the technical chapters:
+SMT solving over bitvectors, bitblasting and SAT certificates, the Lean proof
+assistant, and the verified \bvdecide{} bitblaster that our decision
+procedures extend. \Cref{ch:lean-mlir} presents the verified peephole
+rewriting framework. \Cref{ch:single-width-bv,ch:multi-width-bv} present the
+width-independent and multi-width bitvector decision procedures respectively.
+\Cref{ch:floating-point} presents verified floating-point bitblasting.
+\Cref{ch:future-work} collects unpublished results and directions for future
+work.

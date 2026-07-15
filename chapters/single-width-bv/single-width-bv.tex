@@ -1,0 +1,103 @@
+\chapter{Certified Decision Procedures for Width-Independent Bitvector Predicates}
+\label{ch:single-width-bv}
+
+\paragraph*{Attribution.} This chapter is based on \emph{Certified Decision
+Procedures for Width-Independent Bitvector Predicates}~\citep{bhat2025certified},
+published at OOPSLA 2025, joint work with Léo Stefanesco, Chris Hughes, and
+Tobias Grosser.
+
+\lettrine{B}{itvectors} are foundational for automated reasoning. A few
+interactive theorem provers, such as Lean, have strong support for deciding
+\emph{fixed-width} bitvector predicates by means of bitblasting
+(\cref{sec:bg:bvdecide}). However, even these ITPs provide little automation
+for \emph{width-independent} bitvector predicates: goals that must hold for
+\emph{all} bitwidths, such as the rewrite rules a compiler applies to
+integers of every size, or the normalization lemmas that fixed-width
+bitblasters themselves rely on~\citep{niemetz2024scalable}. Fixed-width
+solvers also face scaling issues as widths grow, struggling beyond width 512
+in domains such as hardware design and
+cryptography~\citep{lopes2018future,mukherjee2024hydra}.
+
+To fill this gap, this chapter contributes novel, mechanized decision
+procedures for width-independent bitvector predicates in Lean. Classical
+algorithms for fragments of the width-independent theory can be viewed
+through the lens of \emph{model checking}: the formula corresponds to an
+automaton, and its correctness is a safety property. But this lens was
+previously unusable in mechanized proofs, since there were no executable,
+fast, formally verified model-checking algorithms usable \emph{from within}
+an ITP. We therefore mechanize key algorithms from the model checking
+literature---$k$-induction, automata reachability, automata emptiness
+checking, and automata minimization---and use them to build scalable,
+certified decision procedures. For the controlled mixtures of arithmetic and
+bitwise operations that occur in the deobfuscation literature, we further
+mechanize the fast MBA-Blast algorithm, which outperforms the general
+procedures on that fragment.
+
+We evaluate on benchmarks from classical compiler problems, including
+Hacker's Delight and the LLVM peephole optimizer, and on equivalence-checking
+problems from program obfuscation. Our tools solve 100\% of Hacker's Delight,
+two of our tools solve 100\% of the deobfuscation dataset, and up to 27\% of
+peephole rewrites extracted from LLVM's test suite.
+
+\section{Notation \& Background}
+\label{sec:swbv:background}
+
+\sid{Port from papers/paper-decide-univ-quant-bv/paper.tex \S 2 (lines
+616--657).}
+
+\section{Reducing Width-Independent Bitvector Formulas to Model Checking}
+\label{sec:swbv:reduction}
+
+\sid{Port from papers/paper-decide-univ-quant-bv/paper.tex \S 3 (lines
+658--906).}
+
+\section{Automata-Based Decision Procedure}
+\label{sec:swbv:automata}
+
+\sid{Port from papers/paper-decide-univ-quant-bv/paper.tex \S 4 (lines
+907--1230).}
+
+\section{Model Checking by \texorpdfstring{$k$}{k}-Induction}
+\label{sec:swbv:kinduction}
+
+\sid{Port from papers/paper-decide-univ-quant-bv/paper.tex \S 5 (lines
+1231--1429). Figure: chapters/single-width-bv/images/k-induction.pdf.}
+
+\section{Tactic Implementation}
+\label{sec:swbv:tactic}
+
+\sid{Port from papers/paper-decide-univ-quant-bv/paper.tex \S 6 (lines
+1430--1589).}
+
+\section{Preprocessing and Normalization of Inputs}
+\label{sec:swbv:preprocessing}
+
+\sid{Port from papers/paper-decide-univ-quant-bv/paper.tex \S 7 (lines
+1590--1728).}
+
+\section{A Specialized Solver for Mixed Boolean-Arithmetic}
+\label{sec:swbv:mba}
+
+\sid{Port from papers/paper-decide-univ-quant-bv/paper.tex \S 8 (lines
+1729--1995).}
+
+\section{Evaluation}
+\label{sec:swbv:evaluation}
+
+\sid{Port from papers/paper-decide-univ-quant-bv/paper.tex \S 9 (lines
+1996--2157). Plots: chapters/single-width-bv/plots/dataset2-cactus-plot.pdf,
+automata-automata-circuit-cactus-plot.pdf, speedup.pdf; generated numbers in
+chapters/single-width-bv/plots/*-data.tex.}
+
+\section{Related Work}
+\label{sec:swbv:related}
+
+\sid{Port from papers/paper-decide-univ-quant-bv/paper.tex \S 10 (lines
+2158--2247).}
+
+\section{Conclusions}
+\label{sec:swbv:conclusion}
+
+\sid{Port from papers/paper-decide-univ-quant-bv/paper.tex \S 11 (lines
+2248--), and add a hand-off paragraph: one symbolic width generalizes to many,
+motivating \cref{ch:multi-width-bv}.}

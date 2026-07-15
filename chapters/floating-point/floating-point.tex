@@ -1,0 +1,94 @@
+\chapter{Mechanizing Floating Point Bitblasting}
+\label{ch:floating-point}
+
+\paragraph*{Attribution.} This chapter is based on \emph{Mechanizing Floating
+Point Bitblasting}~\citep{bhat2027floatingpoint}, currently in submission.
+
+\lettrine{F}{loating-point} verification is central to trustworthy numerical
+computing. Existing approaches fall into two camps: proof assistants that
+provide precise formalizations of floating-point semantics, such as
+Flocq~\citep{boldo2011flocq}, but require manual proofs; and SMT solvers such
+as cvc5~\citep{barbosa2022cvc5} and Bitwuzla~\citep{niemetz2023bitwuzla} that
+perform efficient, push-button reductions of floating point to bitvectors via
+bitblasting with a ``soft floating-point unit.'' The latter approach relies
+on the remarkable progress in bitvector SMT solving---including the verified
+bitblasting infrastructure of \cref{ch:background}---but the floating-point
+reductions themselves are subtle, complex, and had never been verified.
+
+This chapter bridges that gap by presenting the first \emph{verified}
+floating-point bitblaster: a library and associated tactic in the Lean proof
+assistant that
+(a)~mechanizes the SMT-LIB theory of floating point (\qffp{}),
+(b)~extends Lean's bitvector solver \bvdecide{} with floating-point
+bitblasting capabilities,
+(c)~proves the correctness of the bitblasting reduction relative to the
+SMT-LIB theory, and
+(d)~carefully builds the underlying circuits to support the small
+floating-point formats (e.g., E4M3 and E5M2) used in machine-learning
+quantization.
+
+Our evaluation shows that verified bitblasting is practical: on the SMT-COMP
+benchmarks our solver runs within a small geometric-mean slowdown of
+Bitwuzla, while offering end-to-end correctness guarantees. On new benchmarks
+targeting small floating-point formats, we are substantially faster than the
+sound exhaustive-enumeration baseline, establishing the first sound, verified
+solver for these formats.
+
+\section{Algorithmic Overview: How to Bitblast a Floating Point Multiply}
+\label{sec:fp:overview}
+
+\sid{Port from papers/paper-floating-point-in-lean/paper.tex \S 2 (lines
+577--774). Figures: chapters/floating-point/images/ (overview.pdf,
+floatToFixed.pdf, trimming.pdf, sqrt\_pitfalls.pdf).}
+
+\section{A Full Mechanization of the SMT-LIB QF\_FP Theory}
+\label{sec:fp:spec}
+
+\sid{Port from papers/paper-floating-point-in-lean/paper.tex \S 3 (lines
+775--1037).}
+
+\section{Verified Floating Point Bitblasting Circuits for QF\_FP Operations}
+\label{sec:fp:design}
+
+\sid{Port from papers/paper-floating-point-in-lean/paper.tex \S 4 (lines
+1038--1386).}
+
+\section{From Verified Circuits to a Solver}
+\label{sec:fp:solver}
+
+\sid{Port from papers/paper-floating-point-in-lean/paper.tex \S 5 (lines
+1387--1604).}
+
+\section{Exhaustive and Randomized Testing for Specification Fidelity}
+\label{sec:fp:testing}
+
+\sid{Port from papers/paper-floating-point-in-lean/paper.tex \S 6 (lines
+1605--1750).}
+
+\section{Case Study: Gaps Discovered by Mechanization}
+\label{sec:fp:surfaced}
+
+\sid{Port from papers/paper-floating-point-in-lean/paper.tex \S 7 (lines
+1751--1790).}
+
+\section{Quantitative Evaluation of Solver Performance}
+\label{sec:fp:evaluation}
+
+\sid{Port from papers/paper-floating-point-in-lean/paper.tex \S 8 (lines
+1791--2002). Plots: chapters/floating-point/plots/smtlib-rand/ and
+chapters/floating-point/plots/instcombine-small/ (smtlib-cactus.pdf +
+smtlib-stats.tex). NB: the paper's \textbackslash inputs of
+plots/smtlib-rand/outputs/\{triple,config\} do not exist in the repo; skip
+them.}
+
+\section{Related Work}
+\label{sec:fp:related}
+
+\sid{Port from papers/paper-floating-point-in-lean/paper.tex \S 9 (lines
+2064--2182).}
+
+\section{Conclusions, Limitations, and Future Work}
+\label{sec:fp:conclusion}
+
+\sid{Port from papers/paper-floating-point-in-lean/paper.tex \S 10 (lines
+2183--).}

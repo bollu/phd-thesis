@@ -1,0 +1,89 @@
+\chapter{Sound and Complete Solving for Multi-Width Parametric Bitvectors}
+\label{ch:multi-width-bv}
+
+\paragraph*{Attribution.} This chapter is based on \emph{Sound and Complete
+Solving for Multi-Width Parametric Bitvectors via Principled
+Reductions}~\citep{bhat2026multiwidth}, conditionally accepted at OOPSLA 2026.
+
+\lettrine{F}{ixed-width} bitvector solvers (\qfbv{}) are fast and ubiquitous,
+and \cref{ch:single-width-bv} showed how to decide predicates over a single
+\emph{symbolic} width. However, the theory of \emph{parametric} bitvectors
+(PBV), where widths are symbolic, is much less well understood in its full
+generality. The theory of \emph{multi-width} PBV, where expressions may
+involve $n$ distinct symbolic widths ($\text{PBV}_n$), is particularly
+challenging: the only previously existing complete approach for bounded PBV
+(where all widths have a concrete upper bound) is exhaustive enumeration,
+requiring one \qfbv{} solver call for each of the exponentially many width
+assignments. This is a significant bottleneck in tools, such as
+Alive2~\citep{lopes2021alive2} and \hydra{}~\citep{mukherjee2024hydra}, that
+formally reason about compiler optimizations.
+
+To address this problem, we first prove that any $\text{PBV}_n$ formula can be
+reduced to an equisatisfiable \emph{mono-width} ($\text{PBV}_1$) formula with
+only a linear increase in formula size. The key idea is to encode symbolic
+widths as \emph{bitmasks}. This reduction lets us create two solvers for
+flavors of multi-width PBV:
+\begin{enumerate}
+  \item a sound and complete \emph{bounded} PBV solver, which instantiates
+  the width variable of the $\text{PBV}_1$ formula to a concrete bound and
+  therefore requires only a \emph{single} \qfbv{} call---in practice proving
+  LLVM rewrites in seconds that enumeration fails to prove in hours; and
+  \item by composing the reduction with the automata-theoretic decision
+  procedures of \cref{ch:single-width-bv}, a new \emph{sound and complete
+  decision procedure} for a fragment of $\text{PBV}_n$ with parametric
+  widths, subsuming the prior state-of-the-art fragment of linear and bitwise
+  operations by adding zero and sign extension.
+\end{enumerate}
+All our solvers are implemented in Lean, with mechanized proofs of soundness
+and completeness for the unbounded solver. Empirically, the equisatisfiable
+reduction from $\text{PBV}_n$ to $\text{PBV}_1$ turns exponential enumeration
+into a single \qfbv{} query that nearly saturates standard PBV benchmarks,
+while our unbounded solvers prove several times as many all-width problems as
+the state-of-the-art CVC5-based solver.
+
+\section{The Algorithmic Idea: Masks and Binary Values}
+\label{sec:mwbv:idea}
+
+\sid{Port from papers/paper-multi-width-bv/paper.tex \S 2 (lines 671--826).}
+
+\section{A Unified Presentation of Zero, One, Many Width Parametric Bitvector Theory}
+\label{sec:mwbv:theory}
+
+\sid{Port from papers/paper-multi-width-bv/paper.tex \S 3 (lines 827--1034).}
+
+\section{Equisatisfiable Reduction: Multi-Width to Mono-Width}
+\label{sec:mwbv:reduction}
+
+\sid{Port from papers/paper-multi-width-bv/paper.tex \S 4 (lines 1035--1260).}
+
+\section{Extending Automata-Based PBV Solving to Multiple Widths}
+\label{sec:mwbv:automata}
+
+\sid{Port from papers/paper-multi-width-bv/paper.tex \S 5 (lines 1261--1764).}
+
+\section{Solver Implementation and Mechanization}
+\label{sec:mwbv:implementation}
+
+\sid{Port from papers/paper-multi-width-bv/paper.tex \S 6 (lines 1765--1961).}
+
+\section{Evaluation}
+\label{sec:mwbv:evaluation}
+
+\sid{Port from papers/paper-multi-width-bv/paper.tex \S 7 (lines 1962--2236).
+Plots live under chapters/multi-width-bv/plots/output/<experiment>/; the
+generated numbers (cactus.tex, stats.tex) were copied with commands prefixed
+Mw (e.g. \textbackslash MwMachineHostname) --- \textbackslash input only the
+experiments the text uses, e.g.
+\textbackslash input\{chapters/multi-width-bv/plots/output/alive-cactus/cactus.tex\}.}
+
+\section{Related Work}
+\label{sec:mwbv:related}
+
+\sid{Port from papers/paper-multi-width-bv/paper.tex \S 8 (lines 2237--2266).}
+
+\section{Conclusions}
+\label{sec:mwbv:conclusion}
+
+\sid{Port from papers/paper-multi-width-bv/paper.tex \S 9 (lines 2267--),
+and add a hand-off paragraph: from richer widths to richer values,
+motivating \cref{ch:floating-point}.}

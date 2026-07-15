@@ -1,0 +1,94 @@
+% Chapter-local macros (from papers/paper-lean-mlir/paper.tex preamble).
+\newcommand{\messa}[1]{\ensuremath{\texttt{LeanMLIR}(#1)}}
+
+\chapter{Verifying Peephole Rewriting in SSA Compiler IRs}
+\label{ch:lean-mlir}
+
+\paragraph*{Attribution.} This chapter is based on \emph{Verifying Peephole
+Rewriting in SSA Compiler IRs}~\citep{leanmlir}, published at ITP 2024, joint
+work with Alex Keizer, Chris Hughes, Andrés Goens, and Tobias Grosser.
+
+\lettrine{S}{tatic} single assignment (SSA)~\citep{rastello2022ssa}
+intermediate representations are at the core of modern compilers, thanks to
+the benefits their immediate encoding of use-def relationships brings to
+compiler analyses and transformations. \emph{Peephole
+optimizations}~\citep{mckeeman1965peephole}, which replace instruction
+sequences of bounded length with semantically equivalent optimized ones, are
+so common that 10\% of all IR-transforming code in
+LLVM~\citep{lattner2004llvm} belongs to its InstCombine peephole
+optimizer---more than the size of LLVM's loop optimizer. The most referenced
+tool in LLVM's commit log is the Alive peephole
+verifier~\citep{lopes2021alive2}, which brought automatic SMT-based
+verification into the day-to-day of the LLVM community.
+
+There is, at the same time, an increasing need for \emph{domain-specific}
+reasoning in modern compilers, fuelling tailored SSA-based IRs as popularized
+by the MLIR compiler framework~\citep{lattner2020mlir}. Interactive theorem
+provers provide strong guarantees for end-to-end compiler verification, as in
+CompCert~\citep{leroy2016compcert}, but modern compilers and their IRs evolve
+at a rate that makes proof engineering alongside them prohibitively expensive.
+In this chapter we combine the convenience of automation with the versatility
+of ITPs for verifying peephole rewrites across domain-specific IRs. We
+formalize a core calculus for SSA-based IRs that is generic over the IR and
+covers \emph{regions}---the nested scoping used by many domain-specific IRs in
+the MLIR ecosystem---and mechanize it in Lean with a user-friendly frontend
+that translates MLIR syntax into our calculus.
+
+Concretely, this chapter contributes:
+\begin{itemize}
+  \item a formalization of SSA with regions, parametrized over a user-defined
+  IR $X$, mechanized in our framework \messa{X}, exploiting
+  denotational-style value semantics for optimizing along the SSA use-def
+  chain of an MLIR-style IR;
+  \item a verified peephole rewriter, with a proof that lifting a peephole
+  rewrite to a rewrite on the entire program preserves semantics, together
+  with verified dead code elimination and common subexpression elimination,
+  and proof automation that eliminates the abstraction overhead of the SSA
+  calculus;
+  \item an extension of pure optimizations to contexts with side effects; and
+  \item syntax, semantics, and local rewrites for three MLIR-based IRs:
+  arithmetic over bitvectors, structured control flow, and fully homomorphic
+  encryption.
+\end{itemize}
+
+\section{Motivation: Verifying Optimizations for High-Level IRs}
+\label{sec:mlir:motivation}
+
+\sid{Port from papers/paper-lean-mlir/paper.tex \S 2 (lines 505--620).}
+
+\section{\texorpdfstring{\messa{X}}{LeanMLIR(X)}: A Framework for Intrinsically Well-Typed SSA}
+\label{sec:mlir:framework}
+
+\sid{Port from papers/paper-lean-mlir/paper.tex \S 3 (lines 621--760).}
+
+\section{Reasoning About \texorpdfstring{\messa{X}}{LeanMLIR(X)}}
+\label{sec:mlir:reasoning}
+
+\sid{Port from papers/paper-lean-mlir/paper.tex \S 4 (lines 761--863),
+including the verified peephole rewriter, DCE, CSE, and proof automation.}
+
+\section{Pure Rewriting in a Side-Effectful World}
+\label{sec:mlir:effects}
+
+\sid{Port from papers/paper-lean-mlir/paper.tex \S 5 (lines 864--890).}
+
+\section{Case Studies}
+\label{sec:mlir:casestudies}
+
+\sid{Port from papers/paper-lean-mlir/paper.tex \S 6 (lines 891--1146):
+bitvector rewrites from LLVM, structured control flow, fully homomorphic
+encryption. Figures live in chapters/lean-mlir/plots/ and
+chapters/lean-mlir/images/; the Ott-generated grammar is at
+chapters/lean-mlir/ott/lc.nowrap.tex.}
+
+\section{Related Work}
+\label{sec:mlir:related}
+
+\sid{Port from papers/paper-lean-mlir/paper.tex \S 7 (lines 1147--1181).}
+
+\section{Conclusions}
+\label{sec:mlir:conclusion}
+
+\sid{Port from papers/paper-lean-mlir/paper.tex \S 8 (lines 1182--), and add
+a hand-off paragraph: verified rewriting exposes bitvector proof obligations,
+motivating \cref{ch:single-width-bv}.}

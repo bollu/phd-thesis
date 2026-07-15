@@ -1,16 +1,14 @@
 %%%%%
 %%
-%% Sample document ``thesis.tex''
+%% thesis.tex --- Mechanized Finite Domain Decision Procedures
 %%
-%% Version: v0.2
-%% Authors: Jean Martina, Rok Strnisa, Matej Urbas
-%% Date: 30/07/2008
-%%
-%% Copyright (c) 2008-2011, Rok Strniša, Jean Martina, Matej Urbas
-%% License: Simplified BSD License
-%% License file: ./License
-%% Original License URL: http://www.freebsd.org/copyright/freebsd-license.html
+%% Built on the University of Cambridge cam-thesis class (v0.2).
+%% Structure: one folder per chapter under chapters/, each acting as a
+%% self-contained paper repo (chapter tex + plots/ + images/).
+%% Package loading lives in packages.sty; thesis-wide macros in macros.sty.
 %%%%%
+
+\PassOptionsToPackage{dvipsnames}{xcolor}
 
 % Available documentclass options:
 %
@@ -24,104 +22,41 @@
 %
 % For more info see `README.md`
 \documentclass[withindex,glossary]{cam-thesis}
-% \usepackage{tufte-latex}
-\usepackage{classicthesis}
 
 % Citations using numbers
 \usepackage[numbers]{natbib}
-% dropcaps:
-% https://tex.stackexchange.com/questions/250474/how-to-use-fancy-dropcaps-with-pdflatex
-\usepackage{Carrickc,Typocaps,lettrine}
-\renewcommand\LettrineFontHook{\Typocapsfamily}
 
-%%% % https://tex.stackexchange.com/a/97128
-\usepackage[sc,osf]{mathpazo}   % With old-style figures and real smallcaps.
-%%% \linespread{1.025}              % Palatino leads a little more leading
-%%% % Euler for math and numbers
-%%% \usepackage[euler-digits,small]{eulervm}
+\usepackage{packages}
+\usepackage{macros}
 
-\usepackage{lmodern} % For a stylish font
 
 
 %%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%
 %% Thesis meta-information
 %%
 
-%% The title of the thesis:
-\title{Mechanized  Finite Domain Decision Procedures}
-% spanning two lines}
-
-%% The full name of the author (e.g.: James Smith):
+\title{Mechanized Finite Domain Decision Procedures}
 \author{Siddharth Bhat}
-
-%% College affiliation:
 \college{Churchill College}
-
-%% College shield [optional]:
-% \collegeshield{CollegeShields/Christs}
 \collegeshield{CollegeShields/Churchill}
-% \collegeshield{CollegeShields/Clare}
-% \collegeshield{CollegeShields/ClareHall}
-% \collegeshield{CollegeShields/CorpusChristi}
-% \collegeshield{CollegeShields/Darwin}
-% \collegeshield{CollegeShields/Downing}
-% \collegeshield{CollegeShields/Emmanuel}
-% \collegeshield{CollegeShields/Fitzwilliam}
-% \collegeshield{CollegeShields/Girton}
-% \collegeshield{CollegeShields/GonCaius}
-% \collegeshield{CollegeShields/Homerton}
-% \collegeshield{CollegeShields/HughesHall}
-% \collegeshield{CollegeShields/Jesus}
-% \collegeshield{CollegeShields/Kings}
-% \collegeshield{CollegeShields/LucyCavendish}
-% \collegeshield{CollegeShields/Magdalene}
-% \collegeshield{CollegeShields/MurrayEdwards}
-% \collegeshield{CollegeShields/Newnham}
-% \collegeshield{CollegeShields/Pembroke}
-% \collegeshield{CollegeShields/Peterhouse}
-% \collegeshield{CollegeShields/Queens}
-% \collegeshield{CollegeShields/Robinson}
-% \collegeshield{CollegeShields/Selwyn}
-% \collegeshield{CollegeShields/SidneySussex}
-% \collegeshield{CollegeShields/StCatharines}
-% \collegeshield{CollegeShields/StEdmunds}
-% \collegeshield{CollegeShields/StJohns}
-% \collegeshield{CollegeShields/Trinity}
-% \collegeshield{CollegeShields/TrinityHall}
-% \collegeshield{CollegeShields/Wolfson}
-% \collegeshield{CollegeShields/CUniNoText}
-% \collegeshield{CollegeShields/FitzwilliamRed}
 
 %% Submission date [optional]:
 % \submissiondate{November, 2042}
-
-%% You can redefine the submission notice [optional]:
-% \submissionnotice{A badass thesis submitted on time for the Degree of PhD}
 
 %% Declaration date:
 \date{May 2027}
 
 %% PDF meta-info:
 \subjectline{Computer Science}
-\keywords{one two three}
+\keywords{decision procedures, bitvectors, floating point, Lean, SMT, compiler verification}
 
 
 
 %%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%
-%% Abstract:
+%% Abstract and acknowledgements (separate files under frontmatter/):
 %%
-\abstract{%
-  My abstract ...
-}
-
-
-
-%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%
-%% Acknowledgements:
-%%
-\acknowledgements{%
-  My acknowledgements ...
-}
+\abstract{\input{frontmatter/abstract}}
+\acknowledgements{\input{frontmatter/acknowledgements}}
 
 
 
@@ -140,89 +75,23 @@
 %%
 \begin{document}
 
-
-
-%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%
-%% Title page, abstract, declaration etc.:
-%% -    the title page (is automatically omitted in the technical report mode).
+%% Title page, abstract, declaration, acknowledgements, table of contents:
 \frontmatter{}
 
-
-
 %%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%
-%% Thesis body:
+%% Thesis body: one folder per chapter.
 %%
-\chapter{Introduction}
-
-\lettrine{O}{nce} upon a time
-% This document was created with the help of a custom class file~\cite{example}. A
-% {\em \LaTeX{} class file}\index{\LaTeX{} class file@LaTeX class file} is a file,
-% which holds style information for a particular \LaTeX{} class\footnote{You can
-% find more about classes at \url{http://www.ctan.org/pkg/clsguide}.}.
-% 
-% There are some handy options for citing publications. It is possible to print just the year of some publication:~\citeyear{example}. It is also possible to print the name of the author(s) in the form ``Author et al.'': \citeauthor{example}. Finally, there is also a command to print the full list of authors of a publication: \citet*{example}.
-% 
-% This is an example glossary reference: \GLS{HOL}. \\
- 
-\chapter{SSA Based Compiler Backends for Functional Programming Languages}
-
-\chapter{Mechanized Reasoning for SSA-Based Compiler IRs}
-
-\chapter{Fixed-Width Bitvector Reasoning}
-
-
-\chapter{2-adic algorithms for non-linear bit-vector arithmetic}
-
-% Solving Satisfiability of Polynomial Formulas By Sample-Cell Projection:  https://arxiv.org/pdf/2003.00409
-See that 2-adics are decidable by Dubashi et. al. and that we can use this to
-decide non-linear bit-vector arithmetic.
-
-
-\chapter{Better Model Guided Generalization for Exists Forall in QF\_BV}
-
-Hydra algorithm is naive, find better model guided generalization,
-using ideas from virtual substitution for the reals.
-
-\section{Virtual Substitution}
-\subsection{Thirty Years of Virtual Substitution}
-\subsection{New Concepts for Real Quantifier Elimination by Virtual Substitution}
-\subsection{Simplification of Quantifier-free Formulae over Ordered Fields}
-% \subsection{A continuous, constructive solution to Hilbert's 17th problem}
-
-\chapter{2-Adic Based Bitvector Reasoning}
-
-
-
-\chapter{Ackermannization and Multiplication Abstraction}
-Steal from Bitwuzla, mechanize.
-
-\chapter{Reducing Bounded NLIA to QF\_BV}
-
-\chapter{Extending MBA to Inequational Fragment plus Disjunction}
-
-- Unsigned Inequations can be handled using the same idea, see hacker's delight, Ch2.2
-- Can disjunction be handled the same way? unclear
-
-\chapter{Multiple-Widths in Width Generic Automataion}
-
-Key idea: If we have widths $x : w$ and $ y : w+k$, note that this really means that
-if we are at width $w$, then the high bits of $x$ are zero when treated as a transducer.
-So this should allow us to exploit the structure to decide properties.
-
-\chapter{Exponentition, Modulus, and Monus}
-
-See that if we have $2^{w-k}$ and $2^{w - l}$, we really can work in a regime where $w \geq k, w \geq l$,
-and just bitblast the case where $w \leq max(k, l)$.
-WLOG, $k \geq l$, then we can set $k = l + \delta$, and pick $w' \geq l$.
-
+\input{chapters/introduction/introduction}
+\input{chapters/background/background}
+\input{chapters/lean-mlir/lean-mlir}
+\input{chapters/single-width-bv/single-width-bv}
+\input{chapters/multi-width-bv/multi-width-bv}
+\input{chapters/floating-point/floating-point}
+\input{chapters/future-work/future-work}
 
 %%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%
 %% References:
 %%
-% If you include some work not referenced in the main text (e.g. using \nocite{}), consider changing "References" to "Bibliography".
-%
-
-% \renewcommand to change default "Bibliography" to "References"
 \renewcommand{\bibname}{References}
 \cleardoublepage
 \phantomsection
@@ -235,7 +104,6 @@ WLOG, $k \geq l$, then we can set $k = l + \delta$, and pick $w' \geq l$.
 %%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%
 %% Appendix:
 %%
-
 \appendix
 
 \chapter{Extra Information}
