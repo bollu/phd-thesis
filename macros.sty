@@ -259,6 +259,10 @@
 \newcommand{\qfbv}{\texttt{QF\_BV}}
 \newcommand{\qffp}{\texttt{QF\_FP}}
 \DeclarePairedDelimiter{\denoteinline}{\llbracket}{\rrbracket}
+% mathpazo's blackboard bold (fplmbb) only covers a few letters; use the AMS
+% msbm alphabet for the rest (e.g. \Ftwo for the two-element field).
+\DeclareMathAlphabet{\amsbb}{U}{msb}{m}{n}
+\newcommand{\Ftwo}{\ensuremath{\amsbb{F}_2}}
 
 %%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%
 %% Text decorations.

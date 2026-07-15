@@ -2,15 +2,102 @@
 \label{ch:future-work}
 
 \lettrine{T}{he} preceding chapters presented published (or submitted) work.
-This chapter collects unpublished results, sketches, and research directions
-that extend the thesis.
+This chapter collects unpublished results, solver-design sketches, and
+research directions that extend the thesis, adapted from the research
+proposals in my second-year report. We begin with the directions we consider
+most fertile---each backed by a concrete unpublished result or a concrete
+algorithmic plan---and close with briefer sketches and a broader outlook.
 
-\section{2-adic Algorithms for Non-Linear Bit-Vector Arithmetic}
+\section{Nonlinear Bitvector Arithmetic via the 2-adic Integers}
 \label{sec:fw:2adic}
 
-% Solving Satisfiability of Polynomial Formulas By Sample-Cell Projection:  https://arxiv.org/pdf/2003.00409
-See that 2-adics are decidable by Dubashi et. al. and that we can use this to
-decide non-linear bit-vector arithmetic.
+The solvers of \cref{ch:single-width-bv,ch:multi-width-bv} decide the
+\emph{linear-bitwise} fragment of the parametric bitvector theory. We have an
+unpublished result showing that \emph{nonlinear} arithmetic in the parametric
+bitvector theory is decidable, by a reduction to the first-order theory of
+the 2-adic integers. On the other hand, our unpublished results also show
+that integrating \emph{any} bitwise operation into such a theory immediately
+leads to undecidability.\footnote{%
+\url{https://pixel-druid.com/articles/non-linear-theory-of-2-adics-does-not-mix-with-bitwise-operations}}
+This implies that the nonlinear arithmetic fragment of the parametric
+bitvector theory is (maximally) decidable: to write incomplete solvers for
+the full theory, one must first build a complete solver for the nonlinear
+arithmetic fragment, which can then be mixed with bitwise operations via
+theory combination.
+
+Toward this, we propose implementing a fast cylindrical algebraic
+decomposition (CAD) solver for the 2-adics. While the decidability of the
+full first-order theory of the 2-adics has been known in theory since the
+1960s~\citep{ax1966diophantine}, that result was not algorithmic. A CAD-style
+algorithm based on cell decomposition does
+exist~\citep{quantifier-elimination-padic}, but, to the best of our
+knowledge, no implementation of it does. We therefore propose to implement
+such a solver in C++ or Rust, leveraging existing libraries such as
+FLINT~\citep{hart2013flint} for polynomial manipulation and root finding.
+This also sets the stage for a verified reimplementation in Lean, extending
+the reach of the verified solvers of this thesis beyond the linear-bitwise
+fragment.
+% See also: Solving Satisfiability of Polynomial Formulas By Sample-Cell
+% Projection, https://arxiv.org/pdf/2003.00409
+
+\section{Ackermannization, Incremental Solving, and the Theory of Arrays}
+\label{sec:fw:ackermannization}
+
+Adding \emph{incremental solving} to \bvdecide{} would enable much better
+variants of ackermannization, thereby unlocking support for the theory of
+arrays. Together with the floating-point support of \cref{ch:floating-point},
+this would bring the verified solver to theory parity with
+Bitwuzla~\citep{niemetz2023bitwuzla}
+($\qfbv{} + \texttt{QF\_FP} + \texttt{QF\_UF}$), which suffices to model
+almost all behaviour of realistic production languages such as C and C++.
+Industry formalization efforts would be a natural testing ground for
+evaluating whether such an extended solver can handle real verification
+workloads. Bitwuzla's ackermannization and multiplication-abstraction
+machinery is a natural starting point for a mechanization.
+
+\section{Average-Case Floating-Point Error Analysis via \texorpdfstring{$\delta$}{delta}-Satisfiability}
+\label{sec:fw:deltasat}
+
+Worst-case floating-point error bounds are a key ingredient for optimizing
+machine-learning kernels, yet they are often too pessimistic for
+machine-learning workloads. We propose to compute tighter,
+\emph{average-case} error bounds by building on the dReal
+solver~\citep{gao2013dreal}, which decides \emph{bounded} quantified problems
+over the reals. The key idea of dReal is that for Lipschitz-continuous
+functions over bounded domains, one can compute a (uniform) discretization of
+the domain that is sufficiently fine to decide satisfiability up to a given
+$\delta$; this is $\delta$-satisfiability, solved by a CDCL-style algorithm.
+The key insight for our proposal is that average-case pointwise error
+analysis for machine-learning kernels reduces to bounded quantified formulas
+over the reals extended with integration. A recent solver,
+$\int$dreal~\citep{rivera2025checking}, supports exactly this theory, and we
+plan to adapt it to floating-point error analysis.
+
+\section{Verified Solving for Tensor Reshaping and Reindexing}
+\label{sec:fw:tensor}
+
+Tensor equivalence under reshaping and reindexing is a key problem in
+optimizing machine-learning kernels. We believe a sound and complete solver
+for this problem is within reach, by reducing it to a combination of
+(a)~the word problem in the symmetric group, for reindexing, and
+(b)~parametric bitvector solving, for reshaping.
+
+It may appear curious to use a bitvector solver for reshaping. However,
+recent work on tensor code generation~\citep{zhou2025linear} shows that most
+tensor layout problems use powers of two, and thus reduce to linear algebra
+over \Ftwo{}---which is efficiently encoded as parametric bitvector
+problems of exactly the shape our solvers from \cref{ch:multi-width-bv}
+handle. While both component theories have known solvers, to the best of our
+knowledge there is no solver for their \emph{combination}, and no verified
+solver for the word problem in the symmetric group. A beautiful theory of
+strong generating sets permits fast decision procedures not just for the word
+problem but for almost all structural properties of subgroups of the
+symmetric group~\citep{seress2003permutation}. We propose to build a verified
+solver based on strong generating sets and combine it with our parametric
+bitvector solver. Insights from this theory combination could further lead to
+solvers for \emph{parametric bitvectors with permutations}---a powerful
+theory for reasoning about vectorized code that uses the complex shuffle
+operations of instruction sets such as AVX-512.
 
 \section{Better Model Guided Generalization for Exists Forall in QF\_BV}
 \label{sec:fw:modelguided}
@@ -23,14 +110,6 @@ using ideas from virtual substitution for the reals.
 \subsubsection{New Concepts for Real Quantifier Elimination by Virtual Substitution}
 \subsubsection{Simplification of Quantifier-free Formulae over Ordered Fields}
 % \subsubsection{A continuous, constructive solution to Hilbert's 17th problem}
-
-\section{2-Adic Based Bitvector Reasoning}
-\label{sec:fw:2adic-bv}
-
-\section{Ackermannization and Multiplication Abstraction}
-\label{sec:fw:ackermannization}
-
-Steal from Bitwuzla, mechanize.
 
 \section{Reducing Bounded NLIA to QF\_BV}
 \label{sec:fw:nlia}
@@ -54,3 +133,29 @@ So this should allow us to exploit the structure to decide properties.
 See that if we have $2^{w-k}$ and $2^{w - l}$, we really can work in a regime where $w \geq k, w \geq l$,
 and just bitblast the case where $w \leq max(k, l)$.
 WLOG, $k \geq l$, then we can set $k = l + \delta$, and pick $w' \geq l$.
+
+\section{Broader Outlook: AI for Formal Verification}
+\label{sec:fw:ai}
+
+Beyond decision procedures themselves, two directions apply the
+infrastructure of this thesis to machine-assisted formalization.
+
+\paragraph{Large-scale auto-formalization of software engineering theories.}
+Formal libraries for bitvector and floating-point theories remain sparse,
+owing to a lack of both training data (such as textbooks) and domain-specific
+tactics that work well over these rich domains. The tactic infrastructure and
+domain knowledge developed in this thesis provide the foundation needed to
+bootstrap large-scale formalization efforts for these theories, given
+sufficient models and compute.
+
+\paragraph{Teaching models to metaprogram in Lean.}
+A principled tactic in Lean comprises (a)~a decision procedure for the
+domain, and (b)~the metaprogramming glue connecting it to the user frontend
+(proof by reflection, \texttt{simp}, \texttt{grind}, simprocs, and so on).
+The metaprogramming API is complex, underdocumented, and contains subtle
+invariants that are easy to break; if AI models are to create their own
+tactics, they must master this metaprogramming layer. We would like to
+explore whether cleaner abstractions---analogous to how \texttt{SymM} inside
+\texttt{GrindM} abstracts away the metaprogramming machinery for symbolic
+simulation---can be designed for proof by reflection, making the API
+tractable for both humans and models.
