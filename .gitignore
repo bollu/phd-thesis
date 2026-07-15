@@ -1,18 +1,31 @@
-thesis.aux
-thesis.bbl
-thesis.blg
-thesis.glg
-thesis.glo
-thesis.gls
-thesis.idx
-thesis.ilg
-thesis.ind
-thesis.ist
-thesis.log
-thesis.out
+# LaTeX build products
+*.aux
+*.bbl
+*.blg
+*.glg
+*.glo
+*.gls
+*.idx
+*.ilg
+*.ind
+*.ist
+*.log
+*.out
+*.toc
+*.lof
+*.lot
+*.acn
+*.acr
+*.alg
+*.fls
+*.fdb_latexmk
+*.synctex.gz
+_minted-*
 thesis.pdf
-thesis.toc
-thesis.synctex.gz
+
+# Python
+__pycache__/
+*.pyc
 
 /build/
 /.idea/
