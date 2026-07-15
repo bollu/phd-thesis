@@ -1,6 +1,131 @@
 \chapter{Mechanizing Floating Point Bitblasting}
 \label{ch:floating-point}
 
+%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%
+%% Chapter-local macros, ported from the POPL'27 paper preamble.
+%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%
+
+% Number-notation macros: NaN, base-10 (...)_10, base-2 (...)_2,
+% bit-pattern <...>_2, and the pack/unpack/classification operators.
+\newcommand{\nan}{\ensuremath{\mathrm{NaN}}}
+\newcommand{\baseten}[1]{\ensuremath{(#1)_{10}}}
+\newcommand{\basetwo}[1]{\ensuremath{(#1)_{2}}}
+\newcommand{\bitpattern}[1]{\ensuremath{\langle #1 \rangle_{2}}}
+\newcommand{\pack}{\ensuremath{\mathrm{pack}}}
+\newcommand{\unpack}{\ensuremath{\mathrm{unpack}}}
+\newcommand{\toRat}{\ensuremath{\mathrm{toRat}}}
+\newcommand{\isnan}{\ensuremath{\mathrm{isNaN}}}
+\newcommand{\isinf}{\ensuremath{\mathrm{isInf}}}
+\newcommand{\iszero}{\ensuremath{\mathrm{isZero}}}
+
+% Links into our Lean development, in the style of rocq-sims source links.
+% \linklean[ShortLabel]{Path/In/Repo.lean}{line} renders [L∃∀N ShortLabel:line]
+% (defaulting to the full path) and hyperlinks to the file and line on GitHub.
+% \leanlinkroot links to the repository root.
+\providecolor{leanblue}{HTML}{283593}
+\newcommand{\leanlogo}{{\small \ensuremath{\texttt{L}\exists\forall\texttt{N}}}~~}
+\newcommand{\leanprojecturl}{https://github.com/opencompl/fp.lean/}
+\newcommand{\leanrepourl}{https://github.com/opencompl/fp.lean/blob/main}
+\newcommand{\leanlink}[2]{\href{#1}{{\color{leanblue}[{\footnotesize\leanlogo}\,\texttt{\footnotesize #2}]}}}
+\newcommand{\leanlinkroot}{\leanlink{\leanprojecturl}{fp.lean}}
+\newcommand{\linklean}[3][]{%
+  \ifthenelse{\isempty{#1}}%
+    {\leanlink{\leanrepourl/#2\#L#3}{#2:#3}}%
+    {\leanlink{\leanrepourl/#2\#L#3}{#1:#3}}}
+% Link a SymFPU commit hash (third-party repo).
+\newcommand{\symfpucommit}[1]{\href{https://github.com/martin-cs/symfpu/commit/#1}{\texttt{#1}}}
+
+% Table cell markers: a filled check for yes, a sans X for no, a parenthesized
+% check for partial, each on a colored cell (green / red / yellow).
+% The paired* colors are provided globally by macros.sty.
+\providecolor{tablePartialYellow}{HTML}{ffe9a6}
+\providecolor{markQuestionAmber}{HTML}{c47f00}
+\providecolor{tableRowLight}{gray}{0.96}
+\providecolor{tableRowDark}{gray}{0.88}
+\providecolor{tableGroupHead}{gray}{0.80}
+\newcommand{\cmark}{\cellcolor{pairedThreeLightGreen}\ding{51}}
+\newcommand{\xmark}{\cellcolor{pairedFiveLightRed}{\sffamily X}}
+\newcommand{\pmark}{\cellcolor{tablePartialYellow}(\ding{51})}
+\newcommand{\namark}{\cellcolor{tableRowDark}\textcolor{gray}{\footnotesize NA}}
+% Caption-safe swatches (\cellcolor only works inside a tabular).
+\newcommand{\cmarkbox}{\colorbox{pairedThreeLightGreen}{\ding{51}}}
+\newcommand{\xmarkbox}{\colorbox{pairedFiveLightRed}{\sffamily X}}
+\newcommand{\pmarkbox}{\colorbox{tablePartialYellow}{(\ding{51})}}
+\newcommand{\namarkbox}{\colorbox{tableRowDark}{\textcolor{gray}{\footnotesize NA}}}
+
+% Shared pipeline-figure styles: packed values are blue, values in the
+% exact/unpacked world are green. Used by the SMT-LIB recipe figure of
+% \cref{sec:fp:spec} and the invariant-chain figures of \cref{sec:fp:design}.
+\tikzset{
+  fpbox/.style={rounded corners=2pt, align=center, minimum height=0.95cm,
+                minimum width=1.9cm, inner sep=3pt, font=\footnotesize},
+  fpboxwide/.style={rounded corners=2pt, align=center, minimum height=0.4cm,
+                minimum width=6cm, inner sep=3pt, font=\footnotesize},
+  packedbox/.style={fpbox, fill=pairedOneLightBlue!70},
+  packedboxwide/.style={fpboxwide, fill=pairedOneLightBlue!70},
+  unpackedbox/.style={fpbox, fill=pairedThreeLightGreen!70},
+  unpackedboxwide/.style={fpboxwide, fill=pairedThreeLightGreen!70},
+  parrow/.style={->, thick},
+}
+\newcommand{\bty}[1]{{\ttfamily\scriptsize\textcolor{black!75}{#1}}}
+% The per-operation pipeline row, reused inline in \cref{sec:fp:design} next to
+% each operation's description. \chainrow{op symbol}{intermediate role}{intermediate type}
+\newcommand{\chainrow}[3]{%
+\resizebox{\textwidth}{!}{%
+\begin{tikzpicture}
+\node[packedbox]   (p1) at (0,0)    {inputs $x, y$\\[2pt]\bty{PackedFloat e s}};
+\node[unpackedbox] (u)  at (3.5,0)  {unpacked inputs\\[2pt]\bty{EUnpackedFloat}};
+\node[unpackedbox] (w)  at (7.4,0)  {#2\\[2pt]\bty{#3}};
+\node[unpackedbox] (r)  at (11.2,0) {rounded result\\[2pt]\bty{EUnpackedFloat}};
+\node[packedbox]   (p2) at (14.6,0) {packed output $z$\\[2pt]\bty{PackedFloat e s}};
+\draw[parrow] (p1) -- node[above]{$\unpack$} (u);
+\draw[parrow] (u)  -- node[above]{$#1$} (w);
+\draw[parrow] (w)  -- node[above]{$\mathrm{round}$} (r);
+\draw[parrow] (r)  -- node[above]{$\pack$} (p2);
+\end{tikzpicture}}%
+}
+
+% Generated, prefix-named per-family stats (produced upstream, copied in by
+% chapters/floating-point/plots/sync.py).
+\input{chapters/floating-point/plots/smtlib-rand/smtlib-stats}       % prefix: SmtlibRand (RQ1 cross-family SMT-LIB sample)
+\input{chapters/floating-point/plots/instcombine-small/smtlib-stats} % prefix: InstcombineSmall
+% Machine specs (\FpMachine*, \FpSystemSpecs*) and run config (\FpConfig*) for
+% the experimental setup. Both RQ1 (smtlib-rand) and RQ2 (instcombine-small)
+% were run with this same config. (The thesis copies carry an Fp prefix.)
+\input{chapters/floating-point/plots/latest/triple}
+\input{chapters/floating-point/plots/latest/config}
+% RQ1: SMT-LIB (smtlib-rand: stratified cross-family sample, sat+unsat), ours vs Bitwuzla
+\newcommand{\SmtLibNumSolvedOurs}{\SmtlibRandNumSolvedOurs}
+\newcommand{\SmtLibNumSolvedBitwuzla}{\SmtlibRandNumSolvedBitwuzla}
+\newcommand{\SmtLibNumTotal}{\SmtlibRandNumProblemsTotal}
+\newcommand{\SmtLibNumSatOurs}{\SmtlibRandNumSatOurs}
+\newcommand{\SmtLibNumUnsatOurs}{\SmtlibRandNumUnsatOurs}
+\newcommand{\SmtLibNumErrorsOurs}{\SmtlibRandNumErrorsOurs}
+\newcommand{\SmtLibNumTimeoutOurs}{\SmtlibRandNumTimeoutOurs}
+\newcommand{\SmtLibNumCheckedOurs}{\SmtlibRandNumCheckedOurs}
+\newcommand{\SmtLibNumDisagreementsOurs}{\SmtlibRandNumDisagreementsWithExpectedStatusOurs}
+\newcommand{\SmtLibGeomeanTimeElapsedRatioOB}{$\SmtlibRandSpeedupBitwuzlaOverOurs\times$}
+\newcommand{\KernelOverheadRatio}{$\SmtlibRandSpeedupOursNokernelOverOurs\times$}
+% RQ2: small FP, ours vs exhaustive enumeration (instcombine-small)
+\newcommand{\SmallFpNumSolvedOurs}{\InstcombineSmallNumUnsatOurs}
+\newcommand{\SmallFpNumSolvedOursNoKernel}{\InstcombineSmallNumUnsatOursNokernel}
+\newcommand{\SmallFpNumSolvedNaive}{\InstcombineSmallNumUnsatExhaustiveenumeration}
+\newcommand{\SmallFpNumTotal}{\InstcombineSmallNumProblemsTotal}
+\newcommand{\SmallFpNaiveTimeouts}{\InstcombineSmallNumTimeoutExhaustiveenumeration}
+\newcommand{\SmallFpSpeedupOKernel}{$\InstcombineSmallSpeedupOursOverExhaustiveenumeration\times$}
+\newcommand{\SmallFpSpeedupONoKernel}{$\InstcombineSmallSpeedupOursNokernelOverExhaustiveenumeration\times$}
+\newcommand{\SmallFpTimeElapsedRatioOKernel}{\SmallFpSpeedupOKernel{}}
+\newcommand{\SmallFpTimeElapsedRatioONoKernel}{\SmallFpSpeedupONoKernel{}}
+\newcommand{\SmallFpTimeElapsedRatioON}{\SmallFpSpeedupOKernel{} with the kernel enabled (\SmallFpSpeedupONoKernel{} without)}
+\newcommand{\SmallFpGeomeanTimeFpLean}{\InstcombineSmallGeomeanTimeOurs}
+% Conservative lower bound on the speedup over enumeration on timed-out
+% instances: \FpConfigTimeoutSec s / \SmallFpGeomeanTimeFpLean (~44x), rounded down.
+\newcommand{\SmallFpTimeoutSpeedupLB}{${>}40\times$}
+
+%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%
+%% Chapter body.
+%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%
+
 \paragraph*{Attribution.} This chapter is based on \emph{Mechanizing Floating
 Point Bitblasting}~\citep{bhat2027floatingpoint}, currently in submission.
 
@@ -37,58 +162,1460 @@ solver for these formats.
 \section{Algorithmic Overview: How to Bitblast a Floating Point Multiply}
 \label{sec:fp:overview}
 
-\sid{Port from papers/paper-floating-point-in-lean/paper.tex \S 2 (lines
-577--774). Figures: chapters/floating-point/images/ (overview.pdf,
-floatToFixed.pdf, trimming.pdf, sqrt\_pitfalls.pdf).}
+Consider proving that floating-point multiplication is commutative:
+$\forall x\, y,\ x \times y = y \times x$.
+To decide this question with a SAT solver, we negate the goal and search for a counterexample:
+$\exists x\, y,\ x \times y \neq y \times x$.
+A floating-point number of format such at $E5M4$ is just $1 + 5 + 4$ bits,
+so if we can write the left-hand side and the right-hand side as Boolean circuits
+that compute the bits of $x \times y$ and of $y \times x$ from the bits of $x$ and $y$,
+the negated goal becomes a gigantic propositional formula:
+does some assignment to the input bits make the two circuits disagree on an output bit?
+We feed this formula to a SAT solver, where
+an unsatisfiable answer proves commutativity,
+while a satisfying assignment is a concrete counterexample.
+Everything therefore hinges on constructing a circuit that computes $x \times y$
+exactly as the IEEE semantics prescribes.
+This section walks through the algorithmic structure of that multiplication circuit.
+Multiplication is a good case study, as it is one of the easy floating point operations,
+and yet highlights the key steps of the bitblasting pipeline.
+
+\begin{wrapfigure}[25]{r}{0.42\textwidth}
+\centering
+\small
+\begin{minipage}{0.40\textwidth}
+\textbf{Unpack}\\[2pt]
+\quad $m_x, e_x \gets \mathrm{unpack}(x)$ \quad $m_x \in [1,2)$\\
+\quad $m_y, e_y \gets \mathrm{unpack}(y)$ \quad $m_y \in [1,2)$\\[6pt]
+%
+\textbf{Handle Special Cases}\\[2pt]
+\quad $\mathit{out} = \nan \iff \mathrm{isNaN}(x) \lor \mathrm{isNaN}(y)$\\
+\quad $\phantom{\mathit{out} = \nan \iff{}} \lor\ (0 \times \pm\infty)$\\
+\quad $\mathit{out} = \pm\infty \iff \mathrm{isInf}(x) \lor \mathrm{isInf}(y)$\\
+\quad $\mathit{out} = \pm 0 \iff \mathrm{isZero}(x) \lor \mathrm{isZero}(y)$\\[6pt]
+%
+\textbf{Fixed-Point Multiply} \quad $m_z \in [1, 4)$\\[2pt]
+\quad $m_z \gets m_x \times m_y$\\
+\quad $e_z \gets e_x + e_y$\\[6pt]
+%
+\textbf{Renormalize} \quad $m_z' \in [1, 2)$\\[2pt]
+\quad $m_z', e_z' \gets \mathrm{renormalize}(m_z, e_z)$\\[4pt]
+%
+\textbf{Round}\\[2pt]
+\quad $m_\mathit{out}, e_\mathit{out} \gets \mathrm{round}(m_z', e_z')$\\[6pt]
+%
+\textbf{Pack}\\[2pt]
+\quad $\mathit{out}_\mathit{ieee} \gets \mathrm{pack}(m_\mathit{out}, e_\mathit{out})$
+\end{minipage}
+\caption{Algorithmic overview of floating-point multiplication:
+  unpack, handle special cases, compute via fixed-point arithmetic,
+  renormalize, round, and pack.}
+\label{fig:fp:algo-overview}
+\end{wrapfigure}
+
+The SMT-LIB and IEEE semantics define multiplication of floating-point numbers
+by representing them as extended real numbers (reals with infinity and NaN),
+computing the multiplication as real numbers, and then \emph{rounding} the result back to floating-point format,
+by choosing the floating point number that is closest to the real-number result.
+This description is declarative: it does not tell us how to compute the result, but rather what the result should be.
+
+In order to implement this multiplication in a bitblasting-based solver,
+we must create an arithmetic circuit that computes the multiplication and rounding such that the result matches the SMT-LIB semantics.
+To be concrete, we trace a single multiplication:
+$\baseten{1.5} \times \baseten{1.5}$, written in binary as $\basetwo{1.10} \times \basetwo{1.10}$.
+We work in a small format \textbf{E3M2} (a three-bit exponent and a two-bit significand), in which the number $\baseten{1.5}$ is
+written in scientific notation as $\basetwo{1.10} \times 2^0$.
+Recall that in the floating point format E3M2,
+we are allowed to represent numbers of the form $1.m_1m_2 \times 2^e$ where $e$ is a three-bit exponent and $m_i$ are the bits of the significand.\footnote{This discussion suppresses subnormal numbers and the sign bit.}  Thus, we write the number $\baseten{1.5}$ as $\basetwo{1.10} \times 2^0$ in this format, where the significand is $\basetwo{1.10}$ and the exponent is $0$; as a packed bit-pattern (biased exponent followed by significand) it is $\bitpattern{011\,10}$.
+We will now trace the steps of the multiplication algorithm by multiplying $x = y = \baseten{1.5}$,
+via the multiplication bitblasting circuit (summarized in \autoref{fig:fp:algo-overview}).
+
+
+\noindent\textbf{Unpack.}
+We first unpack each packed floating-point number (which is the dense bit-pattern $\bitpattern{011\,10}$ that represents the number)
+into a representation that tags the special values (\nan{}, $\pm\infty$, $\pm 0$) explicitly and puts
+every nonzero finite number into the form $2^{e} \times 1.m_1m_2$.
+Our inputs are ordinary normal numbers, and each $\baseten{1.5}$ unpacks to significand
+$m_x = m_y = \basetwo{1.10}$ and exponent $e_x = e_y = 0$.
+
+\noindent\textbf{Handle Special Cases.}
+We then dispatch on the special cases of \nan{}, infinity, and $\pm 0$.
+For example, $\pm 0 \times \pm\infty$ is $\nan$.
+Neither of our operands is special, so we take the numeric path and may assume
+from here on that both inputs are nonzero finite numbers.
+
+\noindent\textbf{Fixed-Point Multiply.}
+We compute $(m_x \times 2^{e_x}) \times (m_y \times 2^{e_y}) = (m_x \times m_y) \times 2^{e_x + e_y}$.
+This gives us $e_z = e_x + e_y = 0 + 0 = 0$ and $m_z = m_x \times m_y = \basetwo{1.10} \times \basetwo{1.10} = \basetwo{10.01} = \baseten{2.25}$.
+Now, our resulting number is $z = m_z \times 2^{e_z} = \basetwo{10.01} \times 2^0 = \baseten{2.25}$.
+
+\noindent\textbf{Renormalize.}
+Because $z = \basetwo{10.01} \times 2^0$ does not have a significand of the normalized form $1.b_1b_2$,
+we renormalize it, to write it as $z = \basetwo{1.00\bluebox{1}} \times 2^1$.
+The highlighted bit $\bluebox{1}$ is an \emph{extra} bit that falls beyond the two-bit significand;
+the rounding circuit uses it to choose the final result.
+See that this still represents the same number: $\basetwo{1.001} \times 2^1 = \basetwo{10.01} \times 2^0 = \baseten{2.25}$.
+What we did achieve was to establish the invariant that $m_z$ is normalized.
+This is used by the rounding circuit to determine the closest floating point numbers to $m_z$,
+since one can ``read off'' the closest representable numbers from the normalized representation.
+
+\noindent\textbf{Round.}
+Abstractly, the rounder takes the exact normalized representation $\basetwo{1.00\bluebox{1}} \times 2^1 = \baseten{2.25}$ together with the target
+precision (a two-bit significand) and returns the closest representable floating-point number.
+It does so by bracketing $\baseten{2.25}$ between a lower representable value and an upper representable value.
+These are the lower bound $\basetwo{1.00} \times 2^1 = \baseten{2.0}$
+and the upper bound $\basetwo{1.01} \times 2^1 = \baseten{2.5}$.
+See that these can be read off from the normalized representation:
+the lower bound is obtained by truncating the significand to two bits, and the upper bound is obtained by adding one to the truncated significand.
+In our case, the number $\baseten{2.25}$ is \emph{exactly} the midpoint of $\baseten{2.0}$ and $\baseten{2.5}$ (the extra bit $\bluebox{1}$ is a $1$ with nothing below it).
+Here, the rounding mode (round to nearest-even) breaks the tie toward the even significand, returning
+$\basetwo{1.00} \times 2^1 = \baseten{2.0}$.
+All of these computations can be encoded as arithmetic circuits.
+
+\noindent\textbf{Pack.}
+Now that we have the rounded result $\basetwo{1.00} \times 2^1 = \baseten{2.0}$,
+we pack it back into the E3M2 bit layout, giving the packed bit-pattern $\bitpattern{100\,00}$,
+the final product of the multiplication.
+
+Since each of the above phases can be expressed as an arithmetic circuit, the entire computation can be encoded into a SAT formula.
+This formula is fed into a SAT solver for proving properties about this computation.
+Overall, we mechanize every one of these steps of the circuit in the Lean proof assistant,
+and establish semantic equivalence with the SMT-LIB specification of floating point semantics,
+which was designed to match IEEE 754.
+
+\subsection{Why Is the Multiplication Circuit Correct?}\label{sec:fp:overview-correctness}
+
+While we have informally argued that the multiplication circuit is correct,
+we now give a more formal overview of the correctness argument.
+The SMT-LIB specification computes the multiplication over exact
+numbers: embed both operands into the reals extended with $\pm\infty$ and \nan{}, multiply exactly,
+and round the exact product back into the format. Our circuit instead computes with bounded bitvectors.
+However, it computes the exact product of the two inputs, and therefore, no information is lost.
+Recall that we computed $\baseten{1.5} \times \baseten{1.5} = \baseten{2.25}$ exactly, and then rounded it to $\baseten{2.0}$.
+
+The intermediate product of two $s = 2$ significand floats is a $2s = 4$ significand float, which is enough to represent the exact product.
+Both the SMT-LIB specification and the circuit therefore round \emph{the same rational number}.
+Now that we are rounding the same number, the correctness of the circuit
+reduces to the equivalence of the rounding algorithm in the SMT-LIB specification and the rounding circuit.
+Both the SMT-LIB specification and the rounding circuit choose between the $\mathrm{lower}(r)$ and $\mathrm{upper}(r)$ neighbors of the exact product $r$,
+with the choice determined by the location of the exact product $r$ inside the interval $[\mathrm{lower}(r), \mathrm{upper}(r)]$.
+
+
+Not every operation is as well-behaved.
+For example, the division $1/3 = 0.3333\ldots$ is not representable in any finite width.
+For such operations, we prove that we do not need to compute the exact result,
+but rather a \emph{lossy summary} of it.
+The summary needs enough bits to determine the two representable neighbors of the exact result,
+as well as to let us know whether the truncation error is zero.
+We then prove that this lossy summary is indistinguishable
+from the exact result for rounding.
+Now that we have an overview of the algorithm and the correctness argument,
+we will explain in greater detail the prose of the SMT-LIB specification,
+and how we mechanize it in Lean.
 
 \section{A Full Mechanization of the SMT-LIB QF\_FP Theory}
 \label{sec:fp:spec}
 
-\sid{Port from papers/paper-floating-point-in-lean/paper.tex \S 3 (lines
-775--1037).}
+The IEEE 754 standard is written as prose, which leaves room for ambiguity.
+The SMT-LIB floating-point theory~\cite{smtlibfpa}
+addresses this by providing a model-theoretic semantics for floating-point arithmetic.
+Operations are defined over extended reals (reals augmented with $\pm\infty$ and $\nan$)
+with rounding specified as a function that maps an extended real
+to the nearest representable floating-point value,
+breaking ties according to the rounding mode~\cite{extrealsemantics}.
+This gives a rigorous, unambiguous specification
+that can serve as a ground truth for solver implementations,
+and it is the specification that SMT solvers such as Z3~\cite{z3},
+cvc5~\cite{cvc5}, and Bitwuzla~\cite{bitwuzla} implement.
+
+Three requirements shaped the design of our mechanization of the SMT-LIB semantics.
+First, the mechanization must be \emph{faithful}: close enough to the SMT-LIB
+text that transcription errors are unlikely.
+Second, it must be \emph{provable against}: stated in terms that make the
+circuit-correctness proofs tractable (\autoref{sec:fp:operation-proofs}).
+Third, it must be \emph{executable}, so that the specification itself can be run and differentially tested (\autoref{sec:fp:testing}).
+These requirements pull in different directions.
+We reconcile these needs by making the semantics generic over its numeric domain.
+This results in a single mechanization that meets all three requirements,
+serving simultaneously as reference semantics and as test oracle.
+
+The entire semantics follows a single recipe:
+embed the packed IEEE floats into a numeric domain \texttt{R} that extends the reals with $\pm\infty$ and \nan{},
+perform the operation \emph{exactly} in \texttt{R}, and round the exact result back into the format.
+Our mechanized semantics of multiplication (left) is a direct transcription of this recipe (right):
+
+\medskip
+\noindent
+\begin{minipage}[c]{0.5\linewidth}
+\begin{lean4}[fontsize=\footnotesize]
+-- The SMT-LIB semantics of multiplication.
+def mul (M : RoundMethod (PackedFloat e s) R)
+    (rm : RoundingMode)
+    (x y : PackedFloat e s) : PackedFloat e s :=
+  -- the exact product, computed in R
+  let z    := M.embed x * M.embed y
+  -- IEEE sign rule: XOR of the operand signs
+  let sign := x.sign ^ y.sign
+  -- round back into the format
+  M.round rm sign z
+\end{lean4}
+\end{minipage}\hfill
+\begin{minipage}[c]{0.49\linewidth}
+\centering
+\begin{tikzpicture}[font=\footnotesize]
+\node[packedboxwide]   (in)  at (0,0)    {inputs $x, y$ \bty{PackedFloat e s} (\S\ref{sec:fp:ieee754})};
+\node[unpackedboxwide] (dom) at (0,-1.5) {exact values in the numeric domain \bty{R} (\S\ref{sec:fp:domain})};
+\node[unpackedboxwide] (z)   at (0,-2.9) {exact product \bty{z : R}};
+\node[packedboxwide]   (out) at (0,-4.3) {rounded output \bty{PackedFloat e s}};
+\draw[parrow] (in)  -- node[right]{\bty{M.embed}} (dom);
+\draw[parrow] (dom) -- node[right]{exact $\times$ in \bty{R}} (z);
+\draw[parrow] (z)   -- node[right]{\bty{M.round rm} (\S\ref{sec:fp:adjunction})} (out);
+\end{tikzpicture}
+\end{minipage}
+\medskip
+
+\noindent
+Note that the definition has no special cases:
+outcomes such as $0 \times \pm\infty = \nan$ are decided by the exact arithmetic of \texttt{R} itself.
+The other arithmetic operations follow the same shape,
+differing only in their zero-sign rule and the exact operation performed in \texttt{R}.
+
+To make sense of this definition, we need the three concepts:
+the packed floats (\texttt{PackedFloat e s}) that the operation consumes and produces (\autoref{sec:fp:ieee754}),
+the numeric domain \texttt{R} in which the exact product is computed (\autoref{sec:fp:domain}),
+and the round method \texttt{M} that maps the exact product back into the format (\autoref{sec:fp:adjunction}).
+The next three subsections define each of these in turn.
+
+\subsection{Mechanized SMT-LIB Definition for IEEE-754 Floats}\label{sec:fp:ieee754}
+
+The packed bit-level representation of floating-point numbers is fixed by the IEEE 754 standard.
+Recall that IEEE 754 states that floating-point numbers are represented by three parts:
+a sign $s$, exponent $e$, and significand $m$ (we write $m$ for the significand, after its historical name, the \textit{mantissa}),
+where the sign is represented by a single bit and the exponent and significand are represented by unsigned integer bit-vectors.
+Our \texttt{PackedFloat}\footnote{\linklean[PackedFloat/Basic.lean]{Fp/PackedFloat/Basic.lean}{20}.
+Lean source links resolve to the corresponding file and line of our development, \leanlinkroot{}.} datatype
+is a \emph{bit-exact mirror} of this layout:
+\begin{lean4}
+structure PackedFloat (E M : Nat) where
+  sign : Bool     ex : BitVec E     m  : BitVec M
+\end{lean4}
+\noindent The floating point specification encodes numbers in scientific notation ($\pm\, 1.m_1 m_2 \cdots m_M \times 2^{e}$):
+the significand field $m$ stores the bits $m_1 m_2 \cdots m_M$, the exponent field $\mathit{ex}$ encodes the exponent $e$ (via a bias, below), and the sign bit stores $\pm$.
+Writing $E$ and $M$ for the lengths of the exponent and significand bit-vectors, a \emph{normal} number denotes:
+\begin{equation}
+\llbracket (s, \mathit{ex}, m) \rrbracket = (-1)^s\ 2^{\,\mathit{ex} - E_0} \left(1 + \frac{m}{2^M}\right),
+\end{equation}
+where the exponent field $\mathit{ex}$ is an unsigned $E$-bit integer and $E_0 = 2^{E-1} - 1$ is the \textit{exponent bias}, so that the represented exponent $e = \mathit{ex} - E_0$ may be negative.
+This representation leaves a large gap between the smallest normal number $(1.0\cdots0 \times 2^{1 - E_0})$ and the number $0$.
+IEEE closes the gap by \emph{stealing} the smallest exponent field, $\mathit{ex} = 0$: such floats are reinterpreted as \emph{subnormals} $0.m_1 m_2 \cdots m_M \times 2^{1 - E_0}$, dropping the implicit leading $1$ so that magnitudes shrink smoothly down to zero.
+
+This now has a representation of finite numbers, but computations can give results that are too large to represent.
+For example, the division $1/0$ should not be left undefined, so we symmetrically \emph{steal the highest exponent field}, $\mathit{ex} = \bitpattern{1\dots1}$, to hold an \emph{infinity}; we keep both $+\infty$ and $-\infty$, so that overflow toward large positive and large negative magnitudes remains distinguished. This lets us preserve the identity $1/(1/a) = a$ at the extremes, but only if we also distinguish $+0$ from $-0$: without signed zeros we would have $1/{+\infty} = 0 = 1/{-\infty}$, collapsing the two and breaking the identity.
+So the sign bit stays meaningful at zero, with distinct $+0$ and $-0$.
+
+Finally, once $\pm\infty$ is available we can write indeterminate expressions such as $+\infty + (-\infty)$, whose true value depends on the rates of convergence of the operands and cannot be recovered from the floats alone.
+To represent such outcomes we \emph{launder} the highest exponent field a second time: infinity occupies only the slot $\mathit{ex} = \bitpattern{1 \dots 1}$, $m = \bitpattern{0 \dots 0}$, so we take a \emph{nonzero} significand with all-ones exponent to mean \nan{} (not-a-number).
+The significand bits of a \nan{} then allow the programmer to store a payload for error diagnosis.
+In summary, the value denoted by a \texttt{PackedFloat} is determined by its exponent field:
+\begin{equation}
+\llbracket (s, \mathit{ex}, m) \rrbracket =
+\begin{cases}
+(-1)^s\, 2^{1 - E_0}\,\frac{m}{2^M} & \mathit{ex} = 0,\ m \ne 0 \quad\text{(subnormal)},\\[4pt]
+(-1)^s\, 0 & \mathit{ex} = 0,\ m = 0 \quad\text{(signed zero)},\\[4pt]
+(-1)^s\, 2^{\,\mathit{ex} - E_0}\left(1 + \frac{m}{2^M}\right) & 1 \le \mathit{ex} \le 2^E - 2 \quad\text{(normal)},\\[4pt]
+(-1)^s\, \infty & \mathit{ex} = 2^E - 1,\ m = 0 \quad\text{(infinity)},\\[4pt]
+\nan & \mathit{ex} = 2^E - 1,\ m \ne 0 \quad\text{(NaN)}.
+\end{cases}
+\end{equation}
+
+\paragraph{Equivalence Up to NaN.}
+As noted above, the packed IEEE format admits many \nan{} bit patterns (differing in their payloads),
+whereas the SMT-LIB model contains a \emph{single} \nan{} value for its packed floating-point representation.
+To model this, we define the relation \texttt{EquivUptoNaN}\footnote{\linklean[PackedFloat/Basic.lean]{Fp/PackedFloat/Basic.lean}{281}},
+which relates two packed floats iff they are both bit-equal, or both \nan{}.
+Our top-level theorems prove that the circuit and the SMT-LIB specification agree up to \nan{}.
+This gives us the floats themselves, the first ingredient of the recipe.
+Next, we define the numeric domain \texttt{R} into which they embed.
+
+\subsection{Mechanized SMT-LIB Definition for Extended Reals}\label{sec:fp:domain}
+
+The SMT-LIB semantics provides denotations of floating points over the extended reals,
+i.e., reals extended with $\pm\infty$ and \nan{}.
+The real numbers in Lean live in Mathlib, Lean's large library of formalized mathematics.
+Unfortunately, this is a heavyweight dependency, and we wished to keep our core mechanization of the SMT-LIB semantics Mathlib-free.
+To enable this, we instead choose to work over an arbitrary numeric domain \texttt{R},
+constrained only by the typeclass \texttt{ExtendedNumber}
+which supplies exact arithmetic together with $\pm\infty$ and \nan{}.
+This one interface is instantiated at the extended rationals for our correctness proofs,
+and can be instantiated with the extended reals from Mathlib for future developments, such as floating point numerical analysis.
+
+\begin{lean4}[fontsize=\small]
+-- The numeric domain R: exact arithmetic, extended with $\pm\infty$ and NaN.
+class ExtendedNumber (R : Type) extends Mul R, Add R, LE R, Zero R where
+  isNaN  : R → Prop
+  isZero : R → Prop
+  -- ... sign tests and NaN-aware equality elided ...
+\end{lean4}
+\noindent For our purposes, we use the extended rationals $\mathbb{Q} \cup \{\pm\infty, \nan\}$ as the numeric domain \texttt{R}:
+\begin{lean4}[fontsize=\small]
+inductive ExtRat where | nan | inf (neg : Bool) | rat (num : Q)
+-- Embedding of floats into extended rationals.
+class RoundableEmbed (X R : Type) where embed : X → R
+instance : RoundableEmbed (PackedFloat e s) ExtRat
+\end{lean4}
+\noindent The extended rationals suffice because floating-point numbers denote rational numbers:
+their sums, differences, products, and quotients are again rational.
+The only operation that can genuinely produce an irrational result is square root,
+and we sidestep the reals there with a Dedekind-cut-like characterization,
+proving that for a given rational $q$, we compute the floating-point number $x$
+whose square is closest to $q$ among the squares of all floating-point numbers.
+This lets the entire mechanization depend only on core Lean.
+Next, we describe our semantics for rounding.
+
+\subsection{Mechanized SMT-LIB Definition for Rounding}\label{sec:fp:adjunction}
+
+The final ingredient of the recipe is the round method \texttt{M},
+which mechanizes the abstract SMT-LIB rounding semantics generically over the numeric domain \texttt{R}.
+The genericity is captured by the \texttt{RoundMethod} structure
+which is parameterized by a numeric domain \texttt{R} and a floating-point representation \texttt{X},
+and bundles the four operations needed to implement SMT-LIB rounding:
+
+\begin{lean4}[fontsize=\small]
+-- Data necessary to perform rounding.
+structure RoundMethod (X R : Type) extends RoundableEmbed X R where
+  lower, upper : R → X      -- greatest float $\leq$ r; least float $\geq$ r
+  lowerHalf    : R → Prop   -- is r strictly below the midpoint of [lower r, upper r]?
+  tieBreak     : R → Prop   -- is r exactly the midpoint?
+  isEven       : X → Bool   -- is the significand's last bit zero?
+\end{lean4}
+\noindent We have (1) an embedding of \texttt{X} into \texttt{R}, used to compute the exact result of an operation in \texttt{R};
+(2) the maps $\mathrm{lower}$ and $\mathrm{upper}$ that compute, for an exact value $(r : \texttt{R})$, the two representable floats that bracket it;
+(3) the predicates \texttt{lowerHalf} and \texttt{tieBreak} that locate $r$ inside the interval $[\mathrm{lower}(r), \mathrm{upper}(r)]$:
+whether $r$ lies strictly below the midpoint, and whether $r$ is exactly the midpoint;
+and (4) \texttt{isEven}, which reports whether a significand is even, for tie-breaking.
+
+Given all of this data, the rounding function \texttt{roundRNE} is defined by a
+simple case analysis on the location of $r$ inside the interval
+$[\mathrm{lower}(r), \mathrm{upper}(r)]$.
+\begin{lean4}[fontsize=\small, escapeinside=||]
+-- Round-to-nearest-even chooses between 'lower r' and 'upper r'.
+def RoundMethod.roundRNE (M : RoundMethod X R) (sign : Bool) (r : R) : X :=
+  if      M.isZero r            then signedZero sign  -- $\pm$0, sign supplied externally
+  else if M.lowerHalf r         then M.lower r        -- strictly in the lower half
+  else if |$\lnot$| M.tieBreak r        then M.upper r        -- strictly in the upper half
+  else if M.isEven (M.lower r)  then M.lower r        -- exact midpoint: round to even
+  else                               M.upper r        -- exact midpoint: round to even
+\end{lean4}
+\noindent The other four SMT-LIB rounding modes (RNA, RTP, RTN, and RTZ) are defined by analogous case analyses,
+and a dispatcher \texttt{RoundMethod.round} selects the rounder for a given \texttt{RoundingMode};
+the operation semantics, the circuits, and the correctness theorems that follow are all generic over this rounding mode.
+
+We build two instantiations of \texttt{RoundMethod}:
+first, the SMT-LIB semantics, which is noncomputable and relies on choice principles,
+and second, a computable semantics defined by enumeration,
+which we prove is equivalent to the noncomputable SMT-LIB semantics.
+We use the computable semantics for our trustworthy exhaustive-enumeration baseline solver,
+as well as for certain proofs that are more easily done by computation.
+We use the abstract semantics for correctness proofs that follow from the SMT-LIB specification.
+
+The abstract instantiation embeds \texttt{PackedFloat}s into the extended rationals,
+and defines the lower and upper bounds by their Galois connection property.
+For an exact value $(r : \texttt{R})$ in the numeric domain,
+$(\mathrm{lower}(r) : \texttt{X})$ is the \emph{greatest} float whose embedding is at most $r$,
+and $(\mathrm{upper}(r) : \texttt{X})$ is the \emph{least} float whose embedding is at least $r$.
+The bounds themselves are then obtained from the axiom of choice,
+where Hilbert's choice operator $\varepsilon$ picks an arbitrary value satisfying the
+relation~\linklean[SmtLibSemantics.lean]{Fp/SmtLibSemantics.lean}{282}:
+\begin{lean4}
+-- The abstract bound: *some* lawful lower bound, given by choice.
+noncomputable def smtLibLower : RoundMethod (PackedFloat e s) ExtRat where
+  lower (r : ExtRat) : PackedFloat e s := epsilon (fun x => IsLawfulLower r x)
+\end{lean4}
+Separately, we prove that for every $r$ a lawful lower bound exists and is unique,
+so $\mathrm{lower}$ is a well-defined function with $\mathrm{IsLawfulLower}(r, \mathrm{lower}(r))$;
+the upper bound is symmetric.
+This instantiation is not computable by design, as we mirror how the SMT-LIB standard defines the lower bound.
+With the bounds defined, it remains to locate $r$ inside the interval $[\mathrm{lower}(r), \mathrm{upper}(r)]$,
+i.e., to define the predicates \texttt{lowerHalf} and \texttt{tieBreak}.
+SMT-LIB defines both by comparison with the format that carries one extra significand bit:
+the floats of \texttt{PackedFloat e (s+1)} sit exactly at the floats of \texttt{PackedFloat e s} and at their midpoints,
+so one extra bit of precision is exactly enough to resolve the position of $r$ relative to the midpoint.
+
+The computable instantiation finds the same bounds by brute
+force\footnote{\linklean[Enumerator.lean]{FpExecutableTests/SmtLibSemanticsEnumerator.lean}{18}}:
+it enumerates the finitely many floats of the format and selects the closest representable values directly.
+We prove the abstract and computable instantiations equivalent,
+which both simplifies proofs and provides a test oracle for the circuit implementation (\autoref{sec:fp:testing}).
+One generic definition thus serves simultaneously as the abstract specification and as the executable test oracle,
+which is exactly the executability we required of the mechanization at the start of this section.
 
 \section{Verified Floating Point Bitblasting Circuits for QF\_FP Operations}
 \label{sec:fp:design}
 
-\sid{Port from papers/paper-floating-point-in-lean/paper.tex \S 4 (lines
-1038--1386).}
+Now that we have seen the abstract specification of the SMT-LIB semantics,
+we describe the core algorithms of our solver that implement these operations as bitblastable circuits.
+Note that we mechanize all operations except for conversions between floating-point and integer/bitvector formats and rem (\autoref{tab:fp:supported-ops}). We continue sticking with multiplication as the running example, and use other operations to draw comparisons and highlight differences when necessary.
+
+
+\begin{table}[t]
+\centering
+\scriptsize
+\setlength{\tabcolsep}{3pt}
+\ra{1.2}
+% Two panels laid side by side to use the full text-width and avoid the tall,
+% mostly-empty single column.
+\newcommand{\OpTableHead}{%
+  \textbf{SMT-LIB op} & \textbf{SymFPU} & \textbf{Impl.} & \textbf{Proven}
+    & \shortstack{\textbf{FP8}\\\textbf{oracle}} \\}
+\begin{minipage}[t]{0.49\textwidth}
+\centering
+\begin{tabular}[t]{@{}p{2.5cm} cccc@{}}
+\OpTableHead
+\rowcolor{tableGroupHead}\multicolumn{5}{@{}l@{}}{\textbf{Arithmetic}} \\
+\rowcolor{tableRowLight}\texttt{fp.add}            & \cmark & \cmark & \cmark & \cmark \\
+\rowcolor{tableRowDark} \texttt{fp.sub}            & \cmark & \cmark & \cmark$^{\dagger}$ & \cmark \\
+\rowcolor{tableRowLight}\texttt{fp.mul}            & \cmark & \cmark & \cmark & \cmark \\
+\rowcolor{tableRowDark} \texttt{fp.div}            & \cmark & \cmark & \cmark & \cmark \\
+\rowcolor{tableRowLight}\texttt{fp.fma}            & \cmark & \cmark & \cmark & \cmark \\
+\rowcolor{tableRowDark} \texttt{fp.sqrt}           & \cmark & \cmark & \pmark & \cmark \\
+\rowcolor{tableRowLight}\texttt{fp.rem}            & \cmark & \cmark & \xmark & \cmark \\
+\rowcolor{tableRowDark} \texttt{fp.roundToIntegral} & \cmark & \cmark & \xmark & \cmark \\
+\rowcolor{tableGroupHead}\multicolumn{5}{@{}l@{}}{\textbf{Sign / select}} \\
+\rowcolor{tableRowLight}\texttt{fp.neg}            & \cmark & \cmark & \cmark & \cmark \\
+\rowcolor{tableRowDark} \texttt{fp.abs}            & \cmark & \cmark & \cmark & \cmark \\
+\rowcolor{tableRowLight}\texttt{fp.min}            & \cmark & \cmark & \cmark & \cmark \\
+\rowcolor{tableRowDark} \texttt{fp.max}            & \cmark & \cmark & \cmark & \cmark \\
+\end{tabular}%
+\end{minipage}%
+\hfill
+\begin{minipage}[t]{0.49\textwidth}
+\centering
+\begin{tabular}[t]{@{}p{2.5cm} cccc@{}}
+\OpTableHead
+\rowcolor{tableGroupHead}\multicolumn{5}{@{}l@{}}{\textbf{Comparison}} \\
+\rowcolor{tableRowLight}\texttt{fp.eq}, \texttt{=} & \cmark & \cmark & \cmark & \cmark \\
+\rowcolor{tableRowDark} \texttt{fp.lt}             & \cmark & \cmark & \cmark & \cmark \\
+\rowcolor{tableRowLight}\texttt{fp.leq}            & \cmark & \cmark & \cmark & \cmark \\
+\rowcolor{tableRowDark} \texttt{fp.gt}             & \cmark & \cmark & \cmark & \cmark \\
+\rowcolor{tableRowLight}\texttt{fp.geq}            & \cmark & \cmark & \cmark & \cmark \\
+\rowcolor{tableGroupHead}\multicolumn{5}{@{}l@{}}{\textbf{Classification}} \\
+\rowcolor{tableRowLight}\texttt{fp.isNaN}         & \cmark & \cmark & \cmark & \cmark \\
+\rowcolor{tableRowDark} \texttt{fp.isInfinite}    & \cmark & \cmark & \cmark & \cmark \\
+\rowcolor{tableRowLight}\texttt{fp.isZero}        & \cmark & \cmark & \cmark & \cmark \\
+\rowcolor{tableRowDark} \texttt{fp.isNormal}      & \cmark & \cmark & \cmark & \cmark \\
+\rowcolor{tableRowLight}\texttt{fp.isSubnormal}   & \cmark & \cmark & \cmark & \cmark \\
+\rowcolor{tableRowDark} \texttt{fp.isNegative}    & \cmark & \cmark & \cmark & \cmark \\
+\rowcolor{tableRowLight}\texttt{fp.isPositive}    & \cmark & \cmark & \cmark & \cmark \\
+\rowcolor{tableGroupHead}\multicolumn{5}{@{}l@{}}{\textbf{Conversion}} \\
+\rowcolor{tableRowLight}\texttt{to\_fp} (from bits) & \cmark & \cmark & \xmark & \cmark \\
+\rowcolor{tableRowDark} \texttt{fp.to\_ubv}        & \cmark & \xmark & \xmark & \namark \\
+\rowcolor{tableRowLight}\texttt{fp.to\_sbv}        & \cmark & \xmark & \xmark & \namark \\
+\end{tabular}%
+\end{minipage}
+\caption{Supported SMT-LIB floating-point operations.
+\cmarkbox~yes; \xmarkbox~no; \pmarkbox~partial;
+\namarkbox~not applicable.
+\textbf{Proven.} proven correct against SMT-LIB semantics for all rounding modes.
+\textbf{Impl.} implemented and tested (\autoref{sec:fp:testing}).
+\textbf{FP8 oracle.} operation results agree with the PyMPF oracle for FP8 (\autoref{sec:fp:fptg-oracle}).}
+\label{tab:fp:supported-ops}
+\end{table}
+
+The circuits reuse the standard four-stage pipeline of a hardware floating-point unit as explained previously: unpack, operate, round, and pack:
+
+\chainrow{op}{operation result}{UnpackedFloat e s}
+\noindent This is the same structure that SymFPU uses to encode floating point into bit-vectors, but what is new is that we mechanize it and prove each stage correct against the SMT-LIB semantics.
+The core structure is that of the operation itself, and the rounder that is applied to its result.
+First, we describe the core datatype, that of an extended unpacked floating point number,
+which is the intermediate representation that the operation and the rounder operate on.
+This representation is produced from a packed float by the unpacker, and is consumed by the packer to produce a packed float.
+Next, we describe the rounder first (\autoref{sec:fp:rounding}), because it is the most complex stage, and it fixes the contract for the operation implementation.
+To round correctly, the rounder needs either the exact result of an operation, or an inexact result together with a bit that records whether any nonzero information was discarded (the \emph{sticky bit}).
+Next, we describe the precise idea behind the rounding circuit, and then the operations themselves (\autoref{sec:fp:operations}),
+showing how each one produces a widened intermediate that meets this contract, either exactly or by setting the sticky bit.
+Overall, we mechanize and prove correct the entire floating-point pipeline,
+from packed inputs to packed outputs, for all operations as indicated in \autoref{tab:fp:supported-ops}.
+
+
+\subsection{Extended Unpacked Floating Point Representation for Circuits}
+
+Recall that our circuits internally operate on (extended) unpacked floating point numbers,
+which are numbers that are canonically in scientific notation.
+They represent numbers of the form $\pm 1.m_1m_2 \dots m_N \times 2^{k}$, where $k$ is the magnitude and $m_1 m_2 \dots m_N$ is the significand,
+or \nan{} or $\pm\infty$, or $\pm 0$.
+Crucially, the numbers are stored as two bitvectors, one that is $\langle 1 m_1 m_2 \dots m_N \rangle$ and the other that is the exponent $k$ as a signed integer,
+and this acts as a canonical representation of the number, without the circuit having to worry about subnormals and other details of the packed representation.
+This allows the circuits to easily perform arithmetic on the significand and exponent.
+Concretely, it is a bundle of a sign bit, a signed exponent, and an integer significand, all as bitvectors:
+\begin{lean4}[fontsize=\small]
+structure UnpackedFloat (e s : Nat) where
+  sign : Bool    ex : BitVec e    sig : BitVec s
+\end{lean4}
+\noindent The significand \texttt{sig} carries the hidden bit explicitly, so for a normalized number its most significant bit (bit $s-1$) is $1$, and the binary point sits immediately after it.
+Treating \texttt{sig} as an integer and folding the scaling factor $2^{-(s-1)}$ into the exponent means that alignment, addition, and rounding reduce to bit shifts, integer addition, and MSB tests, with no fractional arithmetic.
+Subnormal packed numbers are normalized during unpacking, which is why \texttt{e} is chosen wide enough to hold both the smallest normalized-subnormal exponent and every normal exponent.
+
+This numeric payload cannot, on its own, represent the exceptional IEEE values \nan{} and $\pm\infty$. The extended representation therefore pairs it with an explicit classification tag:
+\begin{lean4}[fontsize=\small]
+inductive State | NaN | Infinity | Number
+-- Extended unpacked float: a classification tag plus a numeric payload.
+structure EUnpackedFloat (e s : Nat) where
+  state : State    num : UnpackedFloat e s
+\end{lean4}
+\noindent When \texttt{state} is \texttt{Number} the payload \texttt{num} holds a valid unpacked float (with $\pm 0$ recorded as a \texttt{Number} whose significand is zero); the sign of an infinity or zero is likewise read off \texttt{num.sign}.
+Separating the exceptional states from the numeric payload keeps illegal bit patterns unrepresentable and lets each operation handle the \nan{}/$\infty$/zero cases explicitly before performing uniform arithmetic on finite numbers, exactly as SymFPU does.
+
+\emph{Unpacking.} To unpack, the packed bitvector is split into its sign, exponent, and significand fields,
+and the real value of the exponent is computed by subtracting the bias.
+This gives us an unpacked floating point number that represents a value of the form $1.m_1 m_2 \dots m_N \times 2^{e}$ for all numbers.
+\emph{Packing.} Not all unpacked floats can be packed back, since the unpacked floating point range is larger than the packed floating point range.
+Therefore, we have a predicate \texttt{Packable}\footnote{\linklean[packable.lean]{Fp/UnpackedFloat/packable.lean}{14}. We prove that \texttt{Packable} characterizes exactly the image of unpacking: a \texttt{Packable} float packs and unpacks back to itself~\linklean[PackUnpackRoundTrip.lean]{Fp/Theorems/PackUnpackRoundTrip.lean}{52}, and conversely, the unpacking of any packed float is \texttt{Packable}~\linklean[Packing.lean]{Fp/Theorems/PackedFloat/Packing.lean}{924}.} that checks whether an unpacked float can be packed back into the packed representation.
+
+
+\subsection{Implementing Rounding with Guard and Sticky Bits}\label{sec:fp:rounding}
+
+Now that we know how to unpack and pack extended unpacked floating point numbers, we can describe the rounding stage of the pipeline.
+The rounder, as input, receives an extended unpacked float of higher precision (the source precision), and must produce a packed float of lower precision (the target precision).
+To round a number accurately, we need two bits of extra precision beyond the target format: a \emph{guard} bit and a \emph{sticky} bit.
+The guard bit is the first bit beyond the target precision, and the sticky bit is the logical OR of all bits beyond the guard bit.
+Intuitively, the guard bit tells us whether we are above or below the midpoint of the two nearest representable numbers,
+and the sticky bit tells us whether we are exactly at the midpoint or not (\autoref{fig:fp:guard-sticky}).
+By finding the correct rounded result, the rounder guarantees that the output is representable in the target format.
+This maps overflow to $\pm\infty$ or the largest finite value.
+Similarly, it maps underflow into the smallest subnormal integer, or zero, as the rounding mode directs.
+
+
+
+\begin{figure}[htb]
+\centering
+\resizebox{\textwidth}{!}{%
+\begin{tikzpicture}[font=\footnotesize]
+%% ---- top panel: the rational line with the grid of packed floats ----
+\draw[->, thick] (-0.3,0) -- (13.3,0) node[right] {$\mathbb{Q}$};
+\foreach \x in {0.5,1.3,2.1,2.9,4.5,6.1,9.3,12.5}
+  \fill[pairedTwoDarkBlue] (\x,0) circle (2.2pt);
+\node[below=6pt, pairedTwoDarkBlue, align=center] at (1.3,0) {\scriptsize packed floats};
+\node[below=6pt, gray] at (2.9,0) {\scriptsize $2^k$};
+\node[below=6pt, gray] at (6.1,0) {\scriptsize $2^{k+1}$};
+% the exact result and its two bounds
+\fill[pairedSixDarkRed] (7.4,0) circle (2.4pt);
+\node[pairedSixDarkRed, above=14pt] at (7.4,0) {exact result $r$};
+\draw[pairedSixDarkRed] (7.4,0.55) -- (7.4,0.1);
+\draw[->, thick, bend right=30] (7.2,0.22) to node[above left=-2pt]{$\mathrm{lower}(r)$} (6.2,0.22);
+\draw[->, thick, bend left=25]  (7.6,0.22) to node[above right=-2pt]{$\mathrm{upper}(r)$} (9.2,0.22);
+%% ---- zoom cone into the gap around r ----
+\draw[densely dashed, gray] (6.1,-0.14) -- (0.6,-2.02);
+\draw[densely dashed, gray] (9.3,-0.14) -- (12.6,-2.02);
+\node[gray] at (6.6,-1.1) {\scriptsize zoom into the gap around $r$};
+%% ---- bottom panel: guard and sticky locate r inside the gap ----
+\fill[pairedOneLightBlue!45]    (0.6,-2.56) rectangle (6.6,-2.04);
+\fill[pairedThreeLightGreen!55] (6.6,-2.56) rectangle (12.6,-2.04);
+\draw[thick] (0.6,-2.3) -- (12.6,-2.3);
+\fill[pairedTwoDarkBlue] (0.6,-2.3) circle (2.6pt);
+\fill[pairedTwoDarkBlue] (12.6,-2.3) circle (2.6pt);
+\draw[thick] (6.6,-2.62) -- (6.6,-1.98);
+\node[left=4pt]  at (0.6,-2.3)  {$\mathrm{lower}(r)$};
+\node[right=4pt] at (12.6,-2.3) {$\mathrm{upper}(r)$};
+\node[above=2pt] at (6.6,-1.98) {\scriptsize midpoint};
+% four cases for r, each with its (guard, sticky) values
+\draw[pairedSixDarkRed, thick] (0.6,-2.3) circle (4.2pt);
+\fill[pairedSixDarkRed] (3.6,-2.3) circle (2.4pt);
+\fill[pairedSixDarkRed] (6.6,-2.3) circle (2.4pt);
+\fill[pairedSixDarkRed] (9.6,-2.3) circle (2.4pt);
+\node[align=center] (c0) at (1.0,-3.95)  {$r = \mathrm{lower}(r)$ \textbf{exactly}\\guard $= 0$, sticky $= 0$\\nothing to round};
+\node[align=center] (c1) at (4.4,-3.95)  {$r$ \textbf{in the lower half}\\guard $= 0$, sticky $= 1$\\RNE rounds to $\mathrm{lower}(r)$};
+\node[align=center] (c2) at (7.7,-3.95)  {$r$ \textbf{exactly in the middle}\\guard $= 1$, sticky $= 0$\\tie: round to even};
+\node[align=center] (c3) at (11.0,-3.95) {$r$ \textbf{in the upper half}\\guard $= 1$, sticky $= 1$\\RNE rounds to $\mathrm{upper}(r)$};
+\draw[->] (c0) -- (0.6,-2.68);
+\draw[->] (c1) -- (3.6,-2.62);
+\draw[->] (c2) -- (6.6,-2.68);
+\draw[->] (c3) -- (9.6,-2.62);
+\end{tikzpicture}%
+}
+\caption{See how the abstract SMT-LIB rounding can be implemented in terms of guard and sticky bits.
+\emph{Top:} the packed floats form a finite grid among the rationals.
+For an exact result $r$, $\mathrm{lower}(r)$ is the greatest float below it
+and $\mathrm{upper}(r)$ the least float above it.
+The rounding mode is a policy for choosing between these two candidates.
+\emph{Bottom:} zooming into the gap, the guard and sticky bits are two bits
+of information locating $r$: the guard bit tells us whether we are in the lower or upper half of the interval.
+The sticky bit answers whether we are exactly at a boundary or slightly above it.}
+\label{fig:fp:lower-upper}
+\label{fig:fp:guard-sticky}
+\end{figure}
+
+
+Next, we describe the guard and sticky bits in more detail,
+and the contract the rounder expects of the operations that use it.
+\sid{TODO: write this better}
+
+\subsubsection{Inexact Results and the Sticky Compression Contract}\label{sec:fp:sticky}
+
+While multiplication is exact, recall that division need not be exact,
+since computing $1/3 = \baseten{0.33\dots} = \basetwo{0.010101\dots}$ requires an infinite number of bits.
+This is a shortcoming of the binary representation, not of the circuit:
+the exact quotient is a rational number, but it is not representable as a finite binary fraction.
+However, the circuit can still compute a finite approximation that is guaranteed to round correctly.
+For example, if we want to compute the result of $1/3$ rounded to 3 bits, we can compute the first 4 bits of the quotient: $\basetwo{0.0101}$.
+Then, we need to know if this representation is exact or not. In this case,
+it is not exact, and thus the sticky bit is set to $1$ to indicate that there are more bits beyond the 4th bit.
+Contrast this with $5/16 = \basetwo{0.0101}$. This is exact, and thus the sticky bit is set to $0$.
+Returning to $1/3$: the first 3 bits are the rounded result ($\basetwo{0.010}$).
+The guard bit is $1$, which indicates that the result is at or above the midpoint of the two nearest representable numbers.
+The sticky bit is also $1$, which indicates that the result is above the midpoint, and thus the result is rounded up to $\basetwo{0.011} = 3/8$.
+A theorem, called \emph{sticky compression}, proves why it is safe to discard the low bits of an inexact result, and to collapse
+this information into a single sticky bit.
+
+\begin{definition}[Sticky compression]\label{def:fp:sticky-compression}
+At precision $k$, the value $q$ is a sticky compression of the exact
+result $r$, written $\mathrm{StickyEquiv}_k(q, r)$, iff either $q = r$,
+or $q$ is an odd multiple of $2^k$ and $|r - q| < 2^k$.%
+~\linklean[StickyEquiv.lean]{Fp/Theorems/StickyEquiv.lean}{16}
+\end{definition}
+
+This is exactly the contract of a guard-and-sticky implementation:
+either no low bits were discarded, or the kept value has its lowest bit forced to $1$ (the sticky OR)
+and the true result lies strictly within $2^k$ of the kept value.
+The master lemma~\linklean[RoundEquiv.lean]{Fp/Theorems/RoundEquiv.lean}{367}
+then states that rounding cannot tell the difference.
+We prove a theorem that connects the bit-level rounder to the SMT-LIB rounder,
+which is then reused by all operations that need rounding:
+
+\begin{theorem}[Rounding Bridge]\label{thm:fp:rounding-bridge}
+Let $x$ be a normalized unpacked float carrying at least two more
+significand bits and sufficient exponent range compared to a target format $(e, s)$.
+Then rounding $x$ into $(e, s)$ with the bit-level rounder agrees, up to the
+choice of~\nan{}, with rounding the exact rational value of $x$
+with the SMT-LIB rounder, for every SMT-LIB rounding mode.\footnote{%
+\texttt{UnpackedFloat.toExtRat\_round\_Rel\_smtLibRound}~\linklean[AllRoundingModes.lean]{Fp/Theorems/AllRoundingModes.lean}{30} in our development,
+which dispatches on the rounding mode to five per-mode bridge lemmas (e.g.,~\texttt{\ldots\_of\_RNE}~\linklean[Round/RNE.lean]{Fp/Theorems/UnpackedFloat/Round/RNE.lean}{720}).}
+\end{theorem}
+
+The precondition of two extra bits of precision in the input is the guard-and-sticky requirement.
+The proof connects the two rounders by connecting the predicates they use to decide which side of the midpoint the value lies on,
+as well as the computation of the lower and upper representable values.
+The top $s+1$ bits of $x$ determine $\mathrm{lower}$ and $\mathrm{upper}$,
+and the combination of guard bit and sticky bit determines whether $x$ is below, above, or exactly at the midpoint (\autoref{fig:fp:guard-sticky}).
+The case analysis further covers overflow to $\pm\infty$ or the largest finite value,
+as well as underflow that produces the minimum subnormal or rounds to zero.
+In all cases, the bit-level rounder and the SMT-LIB rounder agree on the rounded result.
+
+\subsection{Implementing QF\_FP Operations as Circuits with Exact Rounding}\label{sec:fp:operations}
+
+Now that we understand the contract that rounding expects,
+we describe how each operation's circuit computes a widened unpacked float.
+First, special cases are handled at the \texttt{EUnpackedFloat} level before the core circuit is invoked
+(e.g., adding $+\infty$ and $-\infty$ produces $\nan$).
+After dispatching special cases, the core circuit computes an intermediate result that is either exact or inexact with a sticky bit.
+
+\begin{center}
+\chainrow{\times}{intermediate product}{UnpackedFloat (e+1) (2s)}
+\end{center}
+
+\noindent\textbf{Multiplication} is \textcolor{pairedFourDarkGreen}{\textbf{exact}}.
+The product of two $s$-bit significands fits in exactly $2s$ bits, so the schoolbook multiplication circuit loses no information.
+Since both significands lie in $[1,2)$, the product lies in $[1,4)$ and the normalizing shift is by at most one bit, so the $2s$-bit intermediate holds the true product and the rounder sees it exactly.
+The exactness lemma is a calculation in rational arithmetic that unfolds the fixed-point interpretation of the product, and it shows that the circuit's value \emph{equals} the exact product, with both sides rounding literally the same rational.
+
+\begin{center}
+\chainrow{\div}{intermediate quotient}{UnpackedFloat (e+1) (s+2)}
+\end{center}
+
+\noindent\textbf{Division} is \textcolor{pairedSixDarkRed}{\textbf{inexact by necessity}}.
+An exact quotient is in general not representable as a finite binary fraction at any width: just as $1/3 = \baseten{0.333\ldots}$ does not terminate in decimal, $1/10 = \basetwo{0.000110011\ldots}$ does not terminate in binary.
+The divider therefore keeps $s+2$ quotient bits and derives the sticky bit from the remainder, where the discarded tail is zero iff the remainder is zero.
+This meets the rounder's contract with an inexact result and a correct sticky bit.
+
+\begin{center}
+\chainrow{+}{intermediate sum}{UnpackedFloat (e+1) (s+2)}
+\end{center}
+
+\noindent\textbf{Addition} is \textcolor{pairedSixDarkRed}{\textbf{inexact by choice}}.
+When the operands have exponents differing by $d$,
+the exact sum needs $s + d$ significand bits,
+and $d$ can be as large as the entire exponent range, which is $2^{E} - 1$ for an $E$-bit exponent.
+Sizing the adder to this worst case would require hundreds of bits and is infeasible to bitblast,
+and is furthermore unnecessary for correct rounding,
+as the guard-and-sticky lemma shows that only two extra bits are needed.
+The addition circuit therefore computes an inexact result on purpose for performance.
+
+Finally, some operations such as sign, comparison, min/max, and classification, require no rounding at all.
+Negation and absolute value only touch the sign, so their correctness proofs need no rounding.
+The comparison predicates work directly at the packed level.
+Now that we understand the contract of the rounder and how operations are expected to meet it,
+we finally survey the core implementation of each operation and its correctness proof.
+
+\subsubsection{The Per-Operation Correctness Theorem Structure}\label{sec:fp:operation-proofs}
+
+Each verified operation has one top-level theorem that states that the circuit and SMT-LIB specification agree up to \nan{} equivalence.
+For example, for multiplication, we state:\footnote{%
+\texttt{Fp.mul\_eq\_mul}~\linklean[Multiplication.lean]{Fp/Theorems/Multiplication.lean}{303} in our development.
+Its analogues are
+\linklean[Addition.lean]{Fp/Theorems/Addition.lean}{1777},
+\linklean[Division.lean]{Fp/Theorems/Division.lean}{424}, and
+\linklean[FMA.lean]{Fp/Theorems/FMA.lean}{287}.}
+\begin{lean4}
+theorem mul_eq_mul (a b : PackedFloat e s) (rm : RoundingMode)
+    (he : 3 ≤ e) (hs : 1 ≤ s) :
+  (SmtLibFunctions.mul rm a b).EquivUptoNaN (PackedFloat.mul rm a b)
+\end{lean4}
+\noindent The left-hand side is the SMT-LIB specification (\autoref{sec:fp:spec}):
+embed into the extended rationals, multiply exactly, round.
+The right-hand side is the bit-level circuit (\autoref{sec:fp:operations}).
+The proof structure mirrors the pipeline of the floating point implementation:
+
+\begin{enumerate}
+\item \textbf{Dispatch Special Cases.} A case analysis on the kinds
+  (\nan{}, $\pm\infty$, $\pm 0$, nonzero number) of both arguments.
+  The special-value cases are discharged by simplification and decision procedures;
+  the number/number case is handed to layer 2.
+\item \textbf{Compute (In)Exact Result With Sufficient Precision.}
+  The circuit's intermediate value \emph{is} a sticky compression of the exact
+  result. This is the only operation-specific obligation.
+\item \textbf{Round using guard+sticky.}
+   Rounding the circuit's value with the bitblasting rounder agrees with rounding the exact result with the specification's rounder,
+   given that the guard and sticky bits are correct.
+\end{enumerate}
+\noindent The reasoning about rounding is generic over all operations, and is proved once for all formats.
+The computation of the result is a per-operation calculation over unpacked floats
+that is sufficiently close to the exact result that the rounder is capable of rounding correctly.
+
+\subsection{Summary of the Verified Circuit Design}
+
+Overall, we mechanize and prove correct most of the SMT-LIB floating point operations
+with this approach (\autoref{tab:fp:supported-ops}).
+We prove all the field operations and comparisons correct,
+as well as all the relational operations.
+The one operation whose specification is unsatisfying to us is that of square root:
+we prove that the result of the square root operation is closer to the exact result than either of the two nearest representable numbers. \sid{TODO: link code}
+However, since we do not use the real numbers, we cannot say that the result \emph{is} the square root.
+We also do not mechanize the round-to-integral and rem operations,
+as their circuits are as involved as the arithmetic circuits.
+We leave mechanizing them as future work, while still retaining trust by exhaustive testing against trusted oracles.
+
 
 \section{From Verified Circuits to a Solver}
 \label{sec:fp:solver}
 
-\sid{Port from papers/paper-floating-point-in-lean/paper.tex \S 5 (lines
-1387--1604).}
+
+\begin{figure}[htb]
+\centering
+% Cancelled fragments get a red background.
+\newcommand{\fcancel}[1]{{\setlength{\fboxsep}{1pt}\colorbox{pairedFiveLightRed!70}{#1}}}
+\resizebox{\textwidth}{!}{%
+\begin{tikzpicture}[
+  font=\footnotesize,
+  io/.style   ={rounded corners=2pt, fill=pairedOneLightBlue!55, align=center, inner sep=2pt},
+  term/.style ={rounded corners=2pt, fill=pairedOneLightBlue!30, align=left, font=\ttfamily\small, inner sep=4pt},
+  code/.style ={rounded corners=2pt, fill=pairedOneLightBlue!18, align=left,
+                font=\ttfamily\small, inner sep=5pt},
+  stage/.style={font=\small\bfseries, align=center},
+  flow/.style ={->, thick},
+]
+% ---- stage 1: inputs ----
+\node[io] (smt) at (0,0.55)  {SMT-LIB};
+\node[io] (lean) at (0,-0.55) {Lean goal state};
+% ---- stage 2: IR of packed-float operations ----
+\node[term] (ir) at (2.5,0) {%
+x = add~a~b\\
+y = div~x~1};
+% ---- stage 3: divide-by-one cancellation (div marked red) ----
+\node[term] (div1) at (4.9,0) {%
+x = add~a~b\\
+y = \fcancel{div~x~1}};
+% ---- stage 4: expanded into eunpacked SSA ----
+\node[code] (exp) at (7.9,0) {%
+u1~= unpack~a\\
+u2~= unpack~b\\
+u3~= eadd~u1~u2\\
+u4~= round~u3\\
+x~~= pack~u4};
+% ---- stage 5: bitblast ----
+\node[term] (bb) at (10.6,0) {bv\_decide};
+
+% terse stage titles (full detail lives in the caption)
+\node[stage, above=6pt of ir]   {Input IR};
+\node[stage, above=6pt of div1] {Cancel $x/1$};
+\node[stage, above=6pt of exp]  {Expand};
+\node[stage, above=6pt of bb]   {Bitblast};
+
+% dataflow arrows
+\draw[flow] (smt.east)  to[out=0,in=150] (ir.north west);
+\draw[flow] (lean.east) to[out=0,in=210] (ir.south west);
+\draw[flow] (ir)   -- (div1);
+\draw[flow] (div1) -- (exp);
+\draw[flow] (exp)  -- (bb);
+\end{tikzpicture}%
+}
+\caption{Our bitblaster ingests SMT-LIB and Lean expressions and lowers them to
+a bitblastable circuit in stages, illustrated on \texttt{(a + b) / 1}.
+First, the division-by-one identity $x / 1 \to x$ is applied, leaving \texttt{a + b}.
+Then, this is \emph{expanded} into an \unpack/operate/\pack{} circuit,
+which is handed to \bvdecide{}~for bitblasting.}
+\label{fig:fp:architecture}
+\end{figure}
+
+
+Assembling the verified circuits of \autoref{sec:fp:design} into a complete,
+front-end-equipped solver, and doing so while keeping the whole pipeline verified is our contribution.
+The individual rewrite rules we apply are largely standard (many mirror Bitwuzla's normalizer, as we note below); what is novel is that each is proven correct in our mechanization, and that they compose with an Ackermannization pass into an end-to-end trustworthy solver.
+We use the verified circuits of \autoref{sec:fp:design} to build a complete floating-point solver
+that can receive as input both Lean terms over \texttt{PackedFloat}
+and a standalone executable that can receive SMT-LIB queries in the QF\_FP theory.
+The pipeline consumes the problem statement, performs symbolic rewriting, and then produces
+a bitblasting problem that is handed off to Lean's QF\_BV solver, \bvdecide~(\autoref{fig:fp:architecture}).
+
+
+\subsection{Rewrite Rules for Normalization}
+
+
+We apply algebraic rewrites before bitblasting
+to reduce the size of the resulting circuit.
+The rules fall into three groups: constant folding, algebraic identities that mirror Bitwuzla's floating-point normalization,
+and expansion of surface operations into unpacked circuits. These rewrites are proven correct in our mechanization.
+The identities we do apply are those that hold unconditionally in floating point,
+such as the fact that sign-only operations ($\mathrm{abs}$ and negation) commute
+with the classification predicates and are idempotent under $\mathrm{abs}$.
+
+\begin{wrapfigure}[10]{r}{0.38\textwidth}
+\vspace{-2em}
+\centering
+\small
+\begin{minipage}{0.38\textwidth}
+\begin{tabular}[t]{ll}
+\textbf{Name} & \textbf{Rewrite} \\
+\rowcolor{tableRowLight}\textsc{abs-abs}    & $|\,|a|\,| \to |a|$ \\
+\rowcolor{tableRowDark} \textsc{abs-neg}    & $|{-a}| \to |a|$ \\
+\rowcolor{tableRowLight}\textsc{neg-neg}    & $-(-a) \to a$ \\
+\rowcolor{tableRowLight}\textsc{min-self}   & $\min(a, a) \to a$ \\
+\rowcolor{tableRowDark} \textsc{max-self}   & $\max(a, a) \to a$ \\
+\rowcolor{tableRowLight}\textsc{lt-self}    & $a < a \to \texttt{false}$ \\
+\rowcolor{tableRowDark} \textsc{le-self}    & $a \leq a \to \lnot\,\isnan(a)$ \\
+\rowcolor{tableRowLight}\textsc{fold} & $\mathit{op}(\overline{c_1}, \dots) \to \overline{\mathit{op}(c_1, \dots)}$ \\
+\rowcolor{tableRowLight}\textsc{expand}      & $\mathit{op}(\vec x) \to \pack\bigl(\mathit{op}_u(\unpack~\vec x)\bigr)$ \\
+\end{tabular}
+\end{minipage}
+\end{wrapfigure}
+
+While the set of rewrites may seem incomplete with respect to the properties of a ring,
+such as lacking $0 \times x = 0$, such a rewrite is untrue in floating point.
+If $x = +\infty$, then $0 \times \infty = \nan$.
+So, our rewrite rules attempt to algebraically simplify as much as possible,
+which is less than what one would naively expect from regular algebraic identities.
+Finally, the \textsc{expand} rule performs the lowering the rest of the pipeline depends on,
+where every surface operation is rewritten into an unpacked operation wrapped in $\unpack$ and $\pack$.
+
+\subsection{Ackermannizing Partial Floating Point Relations $\min$ and $\max$}\label{sec:fp:ackermannization}
+
+SMT-LIB has some relations such as $\min$ and $\max$ that are \emph{partial}.
+That is, they are left unspecified on certain inputs,
+and a solver is free to pick any value in the output range for those inputs that satisfies the given constraints.
+When their two arguments are zeros of opposite sign, the SMT-LIB specification
+allows $\min(+0, -0)$ to evaluate to either $+0$ or $-0$.
+Thus, $\min$ is fully specified everywhere except on
+differing-signed-zero input.
+Since the SMT-LIB semantics is model-based, the solver is free to resolve the tie either way,
+as long as all other constraints are satisfied.
+
+A standard technique for eliminating such under-specified (uninterpreted) applications
+is \emph{Ackermannization}~\cite{ackermannization}, which replaces each application of the relation
+with a fresh variable, together with congruence constraints ensuring
+that equal arguments produce equal results.
+In the general case this causes quadratic blowup,
+as every pair of applications must be constrained for consistency.
+
+In the case of $\min$, since the ambiguity only arises on differing-signed zeros, we can avoid this blowup.
+We introduce two fresh, universally quantified boolean variables in the top-level goal.
+These booleans are then threaded into every $\texttt{fp.min}$.
+\[
+  \min(x, y, b_{\min}, b'_{\min}) \triangleq
+  \begin{cases}
+    \text{(pick $x$ or $y$ per } b_{\min}) & \text{if } (x, y) = (+0, -0), \\
+    \text{(pick $x$ or $y$ per } b'_{\min}) & \text{if } (x, y) = (-0, +0), \\
+    \text{(standard minimum)} & \text{otherwise.}
+  \end{cases}
+\]
+The solver is free to assign $b_{\min}, b'_{\min}$ to whichever values it needs when constructing a model.
+We do this for every partial relation in the SMT-LIB floating-point theory,
+incurring the cost of two boolean variables per relation rather than a quadratic blowup,
+since the SMT-LIB semantics is only under-specified on a small number of corner cases involving NaN.
+
+\subsection{A Lean Tactic and an SMT-LIB Solver Frontend}\label{sec:fp:frontends}
+
+The same pipeline is packaged behind two frontends,
+so interactive users and large-scale benchmarks exercise identical code paths.
+
+\noindent\textbf{Lean tactic frontend.}
+Within Lean, our solver is invoked as a tactic on goals over packed floats,
+in the style of \bvdecide{}.
+The tactic drives the pipeline described above as staged rewriting:
+constant folding and rewriting, expansion into unpacked operations, and SAT bitblasting.
+An external SAT solver (CaDiCaL) produces an UNSAT certificate,
+which is checked by Lean's verified LRAT checker and, optionally,
+replayed through the Lean kernel for end-to-end trust.
+
+\noindent\textbf{SMT-LIB frontend.}
+For large-scale solving, we provide a command-line SMT-LIB frontend that
+parses \texttt{QF\_FP} problems, elaborates them into the same Lean goals,
+and runs the identical pipeline.
+Our frontend is based on the existing Leanwuzla\footnote{\url{http://github.com/hargonix/leanwuzla}} SMT-LIB parser and elaborator in Lean.
+The frontend itself (parser, elaboration, and preprocessing invocations) is not verified.
+We perform testing against a trusted oracle to have a high degree of confidence that the unverified frontend does not introduce errors.
+
+\noindent\textbf{Exhaustive enumeration frontend.}
+We also provide a second way to decide a closed \texttt{QF\_FP} goal that does not go through SAT.
+Since a floating-point format is a finite type, a universally quantified goal over packed floats is decidable, and we can settle it by enumerating every input.
+We synthesize the \texttt{Decidable} instance for this quantifier~\linklean[PackedFloat/Basic.lean]{Fp/PackedFloat/Basic.lean}{677}.
+The instance destructures a \texttt{PackedFloat} into its sign bit, exponent bitvector, and significand bitvector, and reduces a goal $\forall\,(x : \texttt{PackedFloat}~e~s),\, P(x)$ to a quantifier over $\texttt{Bool} \times \texttt{BitVec}~e \times \texttt{BitVec}~s$, which the standard \texttt{Decidable} instances for \texttt{Bool} and \texttt{BitVec} settle by finite enumeration.
+We provide the analogous instances for \texttt{EUnpackedFloat}, \texttt{UnpackedFloat}, \texttt{State}, and \texttt{RoundingMode}, so that quantifiers over all of our floating-point types are decidable.
+Invoking \texttt{native\_decide} on the goal compiles this enumeration to native code, and either proves the goal or produces a counterexample.
+The predicate $P$ is built from the SMT-LIB operations \texttt{fp.mul}, \texttt{fp.div}, \texttt{fp.add}, \texttt{fp.fma}, and the comparisons, which the enumerator evaluates using our computable floating-point circuits.
+Each circuit is proven equal to the SMT-LIB semantics (\autoref{sec:fp:operation-proofs}), so every value the enumerator computes agrees with the specification.
+This is what makes exhaustive enumeration a sound oracle on the small formats where Bitwuzla's experimental support is untrusted.
+
+\noindent\textbf{UNSAT Core Proof Replay.}
+For an \texttt{unsat} result, \bvdecide{}~emits an LRAT refutation certificate that Lean's
+verified LRAT checker validates, and which we optionally replay through the kernel for end-to-end trust.
+This reuses the implementation of Leanwuzla.
+
+\noindent\textbf{SAT Model Reconstruction.}
+For a \texttt{sat} result, we reconstruct a packed float witness,
+which we then certify as a solution by evaluating the predicate on the witness.
+Previously, \bvdecide{}~reconstructed models only for bitvector and boolean variables, not structures consisting
+of bitvectors and booleans (even though it can verify UNSAT proofs for them).
+This is because, at least in the context of theorem proving, the UNSAT core is genuinely part
+of the trusted code base, while a satisfying model is typically shown as an error to the user when a theorem could not be proven.
+However, for our needs, we wish to certify the SAT model for our \texttt{PackedFloat} type.
+In order to do so, we extend the way \bvdecide{} reconstructs models for bitvectors and booleans.
+
+
+Recall that \bvdecide{} deals with structures by abstracting over the structure-field projections.
+For example, given a packed float \texttt{pf}, it abstracts over the expressions
+\texttt{pf.sign}, \texttt{pf.exp}, and \texttt{pf.m} as fresh bitvector variables.
+This is entirely sound, but \bvdecide{} counts a solution as potentially spurious,
+since it worries that this abstraction may be lossy. That is, it treats this as a \emph{one-way} over-approximation,
+and so declines to reconstruct the abstracted boolean, exponent, significand bitvectors back into a \texttt{PackedFloat}.
+However, since a structure is entirely determined by its projections, this is actually a safe over-approximation.
+
+Therefore, we extend the model reconstruction to treat projections as safe over-approximations.
+Given a satisfying SAT assignment, we read off the reconstructed sign, exponent, and significand,
+reassemble the corresponding \texttt{PackedFloat}, substitute it for the witness in the
+original goal, and discharge the resulting closed proposition by kernel evaluation with \texttt{decide}.
+A witness that fails this check is rejected, so a reported \texttt{sat} answer is never unsound.
+
+This leaves the trusted code base with only the unverified SMT-LIB parser and elaborator,
+which we mitigate by exhaustive and randomized testing. Overall, for our solver,
+\texttt{unsat} is certified by LRAT proof checking,
+and \texttt{sat} by a kernel check of the satisfiability of the model.
+This provides trustworthy results for both outcomes.
 
 \section{Exhaustive and Randomized Testing for Specification Fidelity}
 \label{sec:fp:testing}
 
-\sid{Port from papers/paper-floating-point-in-lean/paper.tex \S 6 (lines
-1605--1750).}
+Our proofs of correctness are stated relative to our translation of the SMT-LIB
+floating-point specification into Lean, so it is crucial that this translation of SMT-LIB into Lean is faithful,
+since a subtle mistranscription would let us soundly prove a theorem about the wrong semantics.
+Toward this, we exercise our mechanized semantics against independent reference implementations of floating-point arithmetic.
+
+On small formats we test \emph{exhaustively}, over every input (and every
+pair of inputs for binary operations); on the larger IEEE formats, where exhaustive
+enumeration is infeasible, we randomly sample inputs.
+We check that our mechanized semantics agrees with the reference implementations
+on every input, and report any discrepancies as bugs in our mechanization.
+
+\subsection{Testing the SMT-LIB Specification via Executable Semantics}
+
+The computable instantiation of our semantics lets us execute the specification itself, not just the circuits.
+We sweep all combinations of floating-point formats with
+$3 \leq E, M \leq 10$ and compare the values our specification generates
+against our floating-point circuits. This gives us trust that our SMT-LIB mechanization and circuits
+are consistent with each other, and that our mechanization of the SMT-LIB specification is faithful to the original SMT-LIB specification.
+
+\subsection{Differential Testing Against Lean's Float Model}
+
+In mid-June 2026, the Lean toolchain added a reference semantics of its
+floating-point type in terms of an abstract execution model\footnote{\url{https://github.com/leanprover/lean4/pull/14079}}.
+This model is validated by differential testing against Berkeley TestFloat~\cite{testfloat,softfloat} vectors:
+for both binary32 and binary64, arithmetic (\texttt{add}, \texttt{sub}, \texttt{mul}, \texttt{div}, \texttt{sqrt}),
+comparisons, and all conversions between floats and 32/64-bit integers are checked bit-for-bit,
+with NaN results compared as a class since the model produces canonical NaNs.
+It is therefore a trustworthy reference implementation of Lean's own floating-point types.
+While this provides executable semantics for Lean's own floating-point types,
+it provides no proof of correctness against any specification.
+We would like our bitblaster to be able to reason about Lean's own floating-point types. Therefore, as a stepping stone toward this,
+we first check that our mechanized SMT-LIB-based circuits agree with Lean's reference model.
+Eventually, we would like to prove an isomorphism between our mechanized SMT-LIB semantics and Lean's reference model,
+allowing our bitblasting tactics to be used as a drop-in library to reason about Lean's own floating-point types.
+
+For a given floating point format $(E, M)$, we enumerate or sample \texttt{PackedFloat} bit patterns,
+run each operation on both our implementation and Lean's model, and check that the
+resulting packed bits are identical (treating any two NaNs as equal).
+The Lean model exposes a subset of the SMT-LIB operations,
+which covers addition, subtraction, multiplication, division, square root,
+negation, absolute value, and the comparisons \texttt{le}, \texttt{lt}, and \texttt{beq}.
+
+We enumerate the two FP8 formats E5M2 and E3M4 exhaustively over all inputs, and
+over all input pairs for binary operations, and find that our semantics agrees with the model bit-for-bit on every operation.
+For the larger IEEE formats binary16, binary32, and binary64, where exhaustive
+enumeration is infeasible, we perform randomized testing and observe the same agreement.
+From these experiments, we conclude that Lean's reference model is faithful to the SMT-LIB specification,
+and agrees with our mechanized semantics on all tested inputs.
+We would like to eventually prove a formal isomorphism between our mechanized SMT-LIB semantics and Lean's reference model,
+but for now, we only have a high degree of confidence that our semantics and Lean's reference model are equivalent.
+
+% The FloatModel differential harness lives in FpExecutableTests/AgainstFloatModel.lean;
+% the exact CI configuration is test/ci/run_float_model_tests.py. That script invokes the
+% `fp-executable-test-runner` executable with a `floatModel_<fmt>` test name (plus optional
+% sampling flags) once per format, runs all five configurations concurrently, and exits
+% non-zero if any operation mismatches the model on any sample. The configurations are:
+%   e5m2   (FP8/binary8) -- exhaustive (all 2^8 inputs, all pairs for binary ops)
+%   e3m4   (FP8/binary8) -- exhaustive
+%   e5m10  (binary16)    -- random, 500 samples, seed 7
+%   e8m23  (binary32)    -- random, 400 samples, seed 13
+%   e11m52 (binary64)    -- random, 200 samples, seed 23
+% Each operation is checked bit-for-bit against Float.Model under RNE rounding.
+% Excluded (no format-generic model counterpart): min/max, remainder, FMA, roundToInt.
+
+\subsection{Differential Testing Against SymFPU}
+
+While the Lean model is a trustworthy reference implementation,
+we wanted to have a second independent check of our circuits against the de facto semantics of the solver ecosystem we aim to join.
+Therefore, we differentially test our circuits against SymFPU,
+the C++ library that state-of-the-art SMT solvers such as cvc5 and Bitwuzla use to implement floating-point bitblasting.
+
+Unfortunately, SymFPU (\texttt{master} branch, commit \texttt{c3acaf6}, dated May 17, 2019) structurally
+cannot process small-significand formats.
+Its unpacked representation widens the exponent field until even the smallest
+subnormal can be normalized, and both its unpacked-float validity check and its
+rounder then align this widened exponent against the significand with an
+extension operation (\texttt{matchWidth}) whose precondition demands that the
+significand be at least as wide as the widened exponent.
+When the precondition fails, the executable backend aborts by assertion the
+moment a value is \emph{unpacked}, before any arithmetic runs.
+Sweeping exponent widths $3 \le E \le 8$, we find that SymFPU's
+unpack--round--pack pipeline runs exactly when $M \ge E$
+(or $M \ge E - 1$ at $E = 3$).
+Notably, \emph{both} machine-learning FP8 formats fail this condition:
+E5M2 ($2 < 5$) and E4M3 ($3 < 4$) abort on every operation.
+We therefore test in the E3M4 format, which satisfies the constraint.
+Even there, the division, square-root,
+and round-to-integral circuits still crashed. We traced the division failure to intermediate
+bit-widths in the rounder that were one bit too short and patched SymFPU to prevent it
+(widening four intermediate bitvectors), but the other two had
+more involved errors that we chose not to pursue.
+
+All of the above was against \texttt{master} commit \texttt{c3acaf6} (May 17, 2019), which is where we
+began. When we spoke to the SymFPU developers,
+they told us that \texttt{c3acaf6} predates a reworking of the unpacker, rounder, and divider, and pointed
+us to that reworked code, which we vendored into our development at commit \texttt{502cd63} (May 13, 2026).
+The \texttt{master} branch we began from has not moved since \texttt{c3acaf6} in 2019.
+However, SymFPU is now under active development again on \texttt{main}, which carries this rework
+together with a series of rounder and float-to-bitvector conversion fixes made through 2025 and 2026.
+\footnote{Commit history on \texttt{main}: \url{https://github.com/martin-cs/symfpu/commits/main}.
+Representative fixes in this burst include the FMA extended-format rework \symfpucommit{e203440} and the subnormal square-root fix \symfpucommit{b3b7977} (both March 2025);
+the rounder-precondition fix \symfpucommit{d987ad4} (January 2025) and fixed-position rounder fix \symfpucommit{b213ade} (April 2026);
+and the float-to-bit-vector conversion fixes \symfpucommit{40bdec0} (April 2026) and \symfpucommit{506e5e7} (May 2026).}
+We switched our differential oracle to this reworked version and wrote a small
+enumerator that runs SymFPU's executable backend on every operation, rounding mode, and
+format with $3 \le E \le 8, 1 \le M \le 8$, isolating each configuration in its own
+process so that an assertion abort is attributed to a single format and operation.\footnote{\texttt{third-party/symfpu-experimental/stresstest.\{cpp,py\}} in our development.}
+On this version the E3M4 square-root crash and the E4M3 abort are gone, and the
+small-significand boundary moves from $M \ge E$ to $M \ge 3$.
+One failure remained within the swept range: every format with $M \le 2$, including E5M2,
+still aborts when a value is unpacked.
+The arithmetic operations do run on E3M4, and we use it as our circuit-level cross-check.
+Their results agree with our circuits, giving us confidence that our circuits are faithful
+to the standard semantics of the solver ecosystem.
+
+\subsection{End-to-End Oracle Testing of the SMT Frontend on FP8}\label{sec:fp:fptg-oracle}
+
+The previous tests check the correctness of our mechanized semantics and the arithmetic circuits in isolation.
+However, they do not check the end-to-end correctness of the solver pipeline,
+where SMT-LIB parsing, preprocessing invocations, and problem creation
+could have bugs, even if the core bitblaster is verified correct.
+Therefore, we check our solver end-to-end against the FPTG SMT-LIB test suite.
+This is the output of Schanda's floating-point test generator~\cite{brain2019building},
+which was designed to stress-test floating-point solvers and find bugs in them.
+Each benchmark is a ground \texttt{QF\_FP} problem that binds constant inputs, applies one floating-point
+operation under a given rounding mode, and asserts that the result equals a
+precomputed constant. The expected \texttt{sat}/\texttt{unsat} result is stored
+in the benchmark's (\texttt{:status}) field, and we check that our solver produces the expected status.
+
+We use FP8 formats (E3M4 and E5M2), where the suite enumerates the floats to
+serve as an exhaustive check and where existing solvers are known to be unsound.
+We run our solver over the entire FP8 suite in \emph{both} configurations (Kernel and NoKernel),
+and confirm that the results agree with the oracle on all inputs.
+\autoref{tab:fp:supported-ops} records this as the \textbf{Exhaustive FP8 oracle}
+column.
+
+This test has helped catch real bugs in our solver implementation.
+For example, in implementing sqrt, we had failed to tag certain operations as unfoldable for the bitvector normalizer,
+which caused the kernel-free path to produce eight spurious \texttt{sat} results on subnormal inputs.
+Having an independent oracle to check our solver's answers against was crucial for catching this bug,
+which is very easy to miss since it is a property of the solver's frontend,
+which remains unverified, even though the bitblasting is fully verified.
+Overall, this test gives us confidence that our end-to-end solver soundly implements the SMT-LIB floating point theory.
 
 \section{Case Study: Gaps Discovered by Mechanization}
 \label{sec:fp:surfaced}
 
-\sid{Port from papers/paper-floating-point-in-lean/paper.tex \S 7 (lines
-1751--1790).}
+These are the gaps in the literature and implementations we discovered while mechanizing.
+We discovered some software bugs in SymFPU, and one typo in the SMT-LIB specification that we have corrected in our mechanization.
+
+\noindent\textbf{Latent Circuit Bugs.}
+SymFPU's divider carried a soundness bug that was found and fixed only
+recently, a bug we encountered independently while testing our own divider
+against it. The fix, which carries the result exponent through a subtract-with-borrow
+and weakens the divider's postcondition to a range check rather than re-extending a
+fixed-width exponent, is present in the reworked \texttt{502cd63}, and our enumerator
+finds no E3M4 division abort there.
+Our theorem \texttt{div\_eq\_div}~\linklean[Division.lean]{Fp/Theorems/Division.lean}{424}
+establishes that the divider circuit agrees with the SMT-LIB specification for every
+format satisfying $s \geq 1, e \geq 3$.
+
+\noindent\textbf{Exact Width Bounds Necessary for Correctness.}
+SymFPU's unpacker and rounder implicitly assume that the significand is at
+least as wide as its internally-widened exponent (in practice, $M \geq E$ on
+\texttt{c3acaf6}, and $M \geq 3$ on the reworked \texttt{502cd63}), and abort by
+assertion on formats where the assumption fails (\autoref{sec:fp:testing}).
+Our per-operation theorems (\autoref{sec:fp:operation-proofs}) instead carry two side
+conditions, $s \geq 1$ and $e \geq 3$, with no relation between $s$ and $e$: the same
+hypotheses ($\mathtt{0 < s}$, $\mathtt{1 < e}$, $\mathtt{2 < e}$) appear in
+\texttt{add\_eq\_add}, \texttt{sub\_eq\_sub}, \texttt{mul\_eq\_mul}, and
+\texttt{div\_eq\_div}. Both machine-learning FP8 formats, E5M2 and E4M3, satisfy these
+conditions, so our proofs cover them.
+
+\noindent\textbf{Typo in the SMT-LIB specification.}
+While transcribing the SMT-LIB specification, we discovered a typo in its
+Table~6: the last invocation of the rounding helper uses $tb$ where it should
+use $\overline{v}$.
+The error was caught mechanically, when Lean produced a type error on the verbatim
+transcription, since $tb$ and $\overline{v}$ have different types in our
+formalization.
+Type-checking provides a consistency check on prose
+specifications, catching errors that are easy to overlook in manual review.
+
+
 
 \section{Quantitative Evaluation of Solver Performance}
 \label{sec:fp:evaluation}
 
-\sid{Port from papers/paper-floating-point-in-lean/paper.tex \S 8 (lines
-1791--2002). Plots: chapters/floating-point/plots/smtlib-rand/ and
-chapters/floating-point/plots/instcombine-small/ (smtlib-cactus.pdf +
-smtlib-stats.tex). NB: the paper's \textbackslash inputs of
-plots/smtlib-rand/outputs/\{triple,config\} do not exist in the repo; skip
-them.}
+To evaluate our solver, we ask
+whether it is competitive with the state of the art,
+and how well we do on small floating-point formats,
+whose unknown soundess in current solvers we want to fix due to application to ML workloads. We crystallize these into the following research questions:
+
+\noindent\textbf{RQ1} How does our solver compare against the state-of-the-art FP solver, Bitwuzla,
+and what is the overhead of our mechanized implementation against the unverified implementation?
+
+\noindent\textbf{RQ2} How much faster is our solver than exhaustive enumeration on small floating-point problems?
+In theory, since small floating-point formats such as FP8 only have $2^8$ values,
+exhaustive enumeration is a feasible, if not fast, strategy.
+
+\subsection{Datasets}
+
+\noindent\textbf{SMT-COMP.}
+We evaluate on the \texttt{QF\_FP} (quantifier-free floating-point) division of the
+2025 release of the SMT-LIB non-incremental benchmarks~\cite{smtlib2025benchmarks},
+the dataset used by the annual solver competition SMT-COMP.
+The division is dominated by a single family: the \emph{wintersteiger} suite of
+machine-generated verification obligations for the IEEE 754 operations accounts for
+$39{,}994$ of the division's $40{,}406$ files ($\approx\!99\%$),
+so a uniformly random sample would be almost entirely wintersteiger and would
+overlook the smaller, hand-written, real-world families.
+We therefore perform stratified random sampling of the division.
+We take $K=4000$ problems from each family. This results in random sampling from the dominant wintersteiger family,
+and takes all the problems from all other families, which are small enough to fit within the cap.
+Overall, this gives us \SmtLibNumTotal{} problems.
+This exercises both the \texttt{sat} and \texttt{unsat} answers our solver can certify,
+and serves as a coverage survey over the whole division.
+
+\noindent\textbf{LLVM Small Floating-Point Rewrites.}
+We introduce a new dataset of \SmallFpNumTotal{} floating-point rewrites from LLVM.
+We construct it from the test cases of LLVM's InstCombine peephole optimizer: we take the files
+containing floating-point instructions, run LLVM's O2 pass pipeline on them to obtain before/after LLVM files,
+and translate the before and after into SMT-LIB, with a proof obligation that the output program refines the input program.
+In generating the dataset, we keep only constant-free problems, so that reducing the input float and double formats to smaller formats
+is unambiguous: if a problem contained a constant such as $2^{20}$,
+it is not clear what the equivalent small-format value would be, since $2^{20}$ is not representable in E4M3 or E5M2.
+This gives us a dataset of problems that are representative of the kinds of
+rewrites that compilers perform, and that are also small enough to be
+exhaustively enumerated in the small floating-point formats.
+
+\subsection{Solvers}
+\noindent\textbf{Bitwuzla.}
+We use Bitwuzla, a state-of-the-art floating-point and bitvector solver,
+as our roofline.
+Stock Bitwuzla only supports the standard IEEE formats
+(\texttt{Float16}, \texttt{Float32}, \texttt{Float64}, and \texttt{Float128}),
+and rejects the small floating-point formats (e.g.,~E4M3, E5M2) that make up much of our benchmark suite.
+We therefore build Bitwuzla from source with experimental floating-point support enabled
+(\texttt{./configure.py -{}-fpexp}), which allows it to accept arbitrary formats.
+Bitwuzla documents these experimental formats as ``use at your own risk'' owing to known issues in SymFPU~\cite{symfpu};
+this is precisely the unsoundness on small floating-point formats that motivates both our verified solver and the exhaustive-enumeration baseline.
+Bitwuzla is unverified, so the entire solver is part of the trusted code base.
+
+\noindent\textbf{Ours (Kernel + NoKernel).}
+We run our solver in two modes: one where the kernel is enabled,
+which increases trust but requires the kernel to check the certificate for every answer
+(replaying an LRAT refutation for \texttt{unsat} and validating a reconstructed model for
+\texttt{sat}, \autoref{sec:fp:frontends}),
+and one where the kernel is disabled,
+which is less trustworthy but measures the effectiveness of our algorithmic approach
+without adding the overhead of verification.
+In both modes, the trusted code base contains the frontend that parses SMT-LIB problems into our internal formulas (\autoref{sec:fp:frontends}),
+and, since \bvdecide{} uses \texttt{native\_decide},
+both modes assume the \texttt{native\_decide} axiom, i.e., the correctness of the Lean compiler.
+The NoKernel mode weakens the trust guarantee further,
+since we do not replay the proof through the Lean kernel.
+
+\noindent\textbf{Exhaustive.}
+The exhaustive solver decides each query by enumerating over all possible inputs,
+via the \texttt{Decidable}-instance enumeration described in \autoref{sec:fp:frontends}.
+This is slow, but establishes an unconditionally \emph{sound} baseline for the small, non-standard
+formats where Bitwuzla's experimental floating-point support is documented as potentially unsound,
+since its ground evaluation uses our computable semantics, proven correct against the SMT-LIB specification.
+Its trusted code base is the same parsing frontend as our bitblasting solver,
+together with the \texttt{native\_decide} axiom, since the enumeration itself runs via \texttt{native\_decide}.
+
+\subsection{Experimental Configuration}\label{sec:fp:experimental-configuration}
+
+\noindent\textbf{Machine.}
+All experiments were run on a single machine equipped with an
+\FpSystemSpecsProcessorName{} (\FpSystemSpecsCores{} logical cores
+at \FpSystemSpecsClockMhz{}~MHz) and \FpSystemSpecsMemoryGb{}~GB of RAM.
+
+\noindent\textbf{Resource limits and parallelism.}
+Each solver invocation is given a wall-clock timeout of
+\FpConfigTimeoutSec{}~s and a memory limit of \FpConfigMemoutMb{}~MB.
+An invocation that exceeds either limit
+is recorded as a timeout. To amortize the cost of the full benchmark sweep we
+run \FpConfigNproc{} solver invocations in parallel.
+% Each problem-solver pair is executed \FpConfigRuns{} times and we report the geomean aggregate.
+
+
+\subsection{Our Solver Scales to SMT-COMP}
+
+\begin{figure}[htbp]
+\centering
+\includegraphics[width=\textwidth]{chapters/floating-point/plots/smtlib-rand/smtlib-cactus.pdf}
+\caption{\textbf{RQ1.} Our solver stays within a \SmtLibGeomeanTimeElapsedRatioOB{} geomean slowdown of
+  Bitwuzla on SMT-COMP, our stratified cross-family sample of the SMT-LIB 2 QF\_FP benchmarks, in exchange for end-to-end correctness.}
+\label{fig:fp:smtlib-cactus}
+\end{figure}
+
+\autoref{fig:fp:smtlib-cactus}
+presents results on SMT-COMP.
+With the kernel enabled, our solver certifies \SmtLibNumSolvedOurs{} out of \SmtLibNumTotal{} benchmarks,
+compared to \SmtLibNumSolvedBitwuzla{} for Bitwuzla,
+with a geomean slowdown \SmtLibGeomeanTimeElapsedRatioOB{}.
+This dataset exercises both UNSAT and SAT instances, where \SmtLibNumUnsatOurs{} are \texttt{unsat}
+(discharged by a kernel-checked LRAT certificate) and \SmtLibNumSatOurs{} are \texttt{sat}
+(discharged by reconstructing and kernel-validating a floating-point model, \autoref{sec:fp:frontends}).
+The remaining instances split into \SmtLibNumTimeoutOurs{} timeouts and \SmtLibNumErrorsOurs{} errors.
+The timeouts are dominated by the \texttt{fp.rem} family, whose circuit we bitblast but whose kernel
+replay is expensive (discussed below).
+
+The errors are from SMT-LIB input constructs outside our supported fragment,
+mostly literal bitvector-to-float conversions (\texttt{(\_~to\_fp~$\dots$)}),
+and some goals that fall outside the bitvector fragment after preprocessing.
+In both cases our frontend reports an error rather than risking an unsound answer.
+Whenever the benchmark carries a known \texttt{:status}, our solver never disagrees with it
+(\SmtLibNumDisagreementsOurs{} disagreements), which lends greater credibility to the end-to-end pipeline.
+
+Our bitblaster follows the same overall algorithmic approach as Bitwuzla,
+which involves encoding floating-point operations into bitvector circuits that are then reduced to SAT.
+However, our bitblaster lacks some of the clever circuits that SymFPU builds, as these special-case circuits require new proofs of correctness.
+In particular, certain circuits exploit properties of floating-point arithmetic
+(e.g.~subtraction of floating-point numbers can be exact, under the conditions of the Sterbenz lemma~\cite{sterbenz1974floating}),
+which allows them to skip the rounding step and directly compute the final result.
+This accounts for part of the slower solve times.
+A second source of overhead is the bitvector backend itself:
+\bvdecide{} performs verified bitblasting and emits checkable LRAT
+certificates, and is itself within roughly an order of magnitude of
+Bitwuzla's unverified bitvector engine on SMT-LIB~\cite{leanbv}, and our floating-point solver inherits this baseline cost.
+
+Additionally, enabling the Lean kernel for proof replay introduces
+a further overhead of approximately \KernelOverheadRatio{},
+since the kernel must check the LRAT certificate produced by CaDiCaL.
+Kernel checking times out on verifying the problems in the \texttt{fp.rem} family,
+where we exhaust the \FpConfigTimeoutSec{}~s budget, compared to far fewer timeouts on these problems for the kernel-free configuration.
+The \KernelOverheadRatio{} figure is therefore a lower bound on the true cost of kernel checking,
+since each configuration's geomean is taken over the instances that it solves, so the kernel's geomean is computed only over instances that do not time out,
+which excludes the \texttt{fp.rem} family that is extremely expensive to check,
+since the circuits we build are not optimized.
+
+Despite these overheads, our solver certifies the large majority of SMT-COMP
+within reasonable time, demonstrating that a verified bitblaster
+can scale to standard floating-point benchmarks.
+With this, we answer \textbf{RQ1} in the affirmative:
+our solver scales to standard benchmarks within a \SmtLibGeomeanTimeElapsedRatioOB{} geomean
+slowdown of the state-of-the-art Bitwuzla.
+
+\subsection{Our Solver Is Faster Than Exhaustive Enumeration for Small Floating-Point Formats}
+
+\autoref{fig:fp:small-fp-cactus} shows the cactus plot comparing our solver
+against exhaustive enumeration on the small floating-point benchmarks:
+the \SmallFpNumTotal{} SMT-LIB problems lifted from LLVM InstCombine rewrites
+in the E4M3, E5M2, BF16, and other small formats whose total width is at most 16 bits.
+Our solver certifies \SmallFpNumSolvedOurs{} out of \SmallFpNumTotal{} benchmarks,
+compared to \SmallFpNumSolvedNaive{} for exhaustive enumeration,
+which additionally times out on \SmallFpNaiveTimeouts{} instances.
+On the instances that both approaches complete, our bitblasting attains a
+geomean speedup over exhaustive enumeration of \SmallFpTimeElapsedRatioON{}.
+This severely understates the actual speedup,
+as it is a geomean over only the instances enumeration finishes, and so ignores the \SmallFpNaiveTimeouts{} problems on which enumeration exhausts its
+time budget, which are the hardest cases on which bitblasting wins most.
+A back-of-the-envelope calculation shows that
+the bitblaster solver discharges each of them in about \SmallFpGeomeanTimeFpLean{}, while enumeration
+spends at least its full \FpConfigTimeoutSec{}~s budget.
+The true speedup on these instances is therefore at least \FpConfigTimeoutSec{}~s
+divided by \SmallFpGeomeanTimeFpLean{}, which we conservatively round down and report as \SmallFpTimeoutSpeedupLB{}.
+Regardless, exhaustive enumeration is an unconditionally sound baseline on these small,
+non-standard formats, and our bitblasting approach matches that soundness while improving on its performance.
+
+We also report Bitwuzla, built with its experimental small-format support enabled (\texttt{-{}-fpexp}).
+Bitwuzla solves all \InstcombineSmallNumSolvedBitwuzla{} instances with a geomean time of
+\InstcombineSmallGeomeanTimeBitwuzla{}, which makes it
+$\InstcombineSmallSpeedupBitwuzlaOverOurs\times$ faster than our kernel-enabled solver
+(and $\InstcombineSmallSpeedupBitwuzlaOverOursNokernel\times$ faster than the kernel-free configuration),
+and on this suite it never disagrees with the expected status.
+Empirically, Bitwuzla performs flawlessly on these benchmarks.
+However, it lacks is the guarantee, since its small-format support is documented as experimental and ``use at your own risk''
+and it produces no certificate that could be checked independently.
+Our claim on small formats is therefore that we are the fastest solver \emph{with a soundness guarantee}.
+We answer \textbf{RQ2} affirmitively, as our solver is faster than exhaustive enumeration by a geomean factor of \SmallFpTimeElapsedRatioON{} and by \SmallFpTimeoutSpeedupLB{} on the hardest instances,
+while remaining sound on small formats where Bitwuzla is not guaranteed to be sound.
+
+\begin{figure}[htbp]
+\centering
+\includegraphics[width=\textwidth]{chapters/floating-point/plots/instcombine-small/smtlib-cactus.pdf}
+\caption{\textbf{RQ2.} On the small FP formats (E4M3/E5M2) from the LLVM InstCombine rewrites, our verified
+  solver is faster and more robust than exhaustive enumeration (\SmallFpSpeedupOKernel{} geomean with the kernel,
+  \SmallFpSpeedupONoKernel{} without), certifying as many or more instances and avoiding the timeouts that stall enumeration:
+  on the \SmallFpNaiveTimeouts{} instances where enumeration exhausts its \FpConfigTimeoutSec{}~s budget, our solver
+  finishes in about \SmallFpGeomeanTimeFpLean{} each, a speedup of \SmallFpTimeoutSpeedupLB{}.
+  The unverified Bitwuzla (\texttt{-{}-fpexp}) solves all instances
+  $\InstcombineSmallSpeedupBitwuzlaOverOurs\times$ faster than our verified solver,
+  but offers no soundness guarantee on these formats.}
+\label{fig:fp:small-fp-cactus}
+\end{figure}
+
+Since existing solvers like Bitwuzla are fast but not known to be sound on these non-standard formats,
+our bitblaster and our exhaustive enumerator fill a previously unoccupied niche:
+they are the only solvers for these small floating-point formats that come with a soundness guarantee,
+and of the two, bitblasting is the faster.
+We answer \textbf{RQ2} as follows: our solver outperforms exhaustive enumeration by
+\SmallFpTimeElapsedRatioON{} in geomean time and by \SmallFpTimeoutSpeedupLB{} on the instances
+enumeration cannot finish, providing verified results on formats where no proven-sound solver exists.
 
 \section{Related Work}
 \label{sec:fp:related}
 
-\sid{Port from papers/paper-floating-point-in-lean/paper.tex \S 9 (lines
-2064--2182).}
+Floating point has undergone intense study in the formal methods community,
+both in terms of mechanized semantics and verified solvers.
+Therefore, we do not aim to provide a comprehensive survey of the literature
+(for which we guide the reader to the floating point handbook \cite{fphandbook}).
+Instead, we highlight the most relevant prior work and contrast it with our contributions.
+
+\paragraph*{Mechanized Floating Point Semantics}
+One of the earliest mechanized floating-point formalizations is due to \citet{harrison1999machine},
+who formalized IEEE 754 arithmetic in HOL Light,
+covering rounding, basic operations, and key properties such as error bounds.
+This work established the paradigm of proving floating-point properties in a theorem prover,
+but required substantial manual proof effort.
+Harrison's formalization is aimed at \emph{interactively} proving mathematical properties of floating-point arithmetic (such as rounding-error bounds) by hand, and is not connected to an automated decision procedure.
+Our goal is complementary and distinct:
+rather than proving properties of floating point interactively, we mechanize the reduction from the SMT-LIB semantics of IEEE 754 down to the bit-level circuits that a SAT-based solver executes, so that a \emph{push-button}, certificate-producing solver becomes trustworthy end to end.
+In short, Harrison verifies floating-point \emph{theorems} in a proof assistant, whereas we verify the floating-point \emph{solver} that discharges them automatically.
+
+In Rocq there exists PFF~\cite{pff}, a generic library for floating-point reasoning
+parameterized over an arbitrary radix and precision. Flocq~\cite{boldo2011flocq} is a spiritual successor that
+develops a more comprehensive library that
+unifies several earlier formalizations and provides a multi-radix, multi-precision
+framework for proving floating-point algorithms.
+Flocq models floating-point numbers as a subset of the reals satisfying format constraints,
+rather than as packed bit-level representations.
+This real-number-centric view is well-suited for numerical analysis.
+Building on Flocq, the VCFloat~\cite{appel2022vcfloat} library
+develops theory for bounding floating-point rounding errors.
+This was later extended to VCFloat2~\cite{kellison2024vcfloat2},
+which performs verified floating-point interval analysis.
+Both tools provide high-level numerical error reasoning and
+inherit Flocq's real-number semantics.
+These efforts, like Harrison's, are aimed at interactively proving properties of floating-point arithmetic,
+rather than mechanizing the SMT-LIB semantics and connecting it to an automated solver.
+
+In Isabelle/HOL, \citet{isabellefp} provides a formal model of IEEE floating-point arithmetic
+in the Archive of Formal Proofs. This formalization covers the standard formats
+and operations but has not been connected to an automated solver.
+
+In Lean, FLoPS~\cite{flops} formalizes the semantics of the upcoming
+IEEE-P3109 standard for low-precision floating-point arithmetic and verifies
+properties of numerical algorithms over it.
+FLoPS targets the P3109 parametric format family and interactive analysis,
+whereas we mechanize the SMT-LIB semantics of IEEE 754 and connect it to an
+automated, certificate-producing solver.
+
+\paragraph*{Floating Point Bit-Blasting and Solvers}
+The SMT-LIB semantics that we use, due to \citet{extrealsemantics}, forms the basis of the SMT-LIB floating-point theory.
+Their formalization defines operations over extended reals with explicit rounding,
+providing a precise, automatable semantics.
+SymFPU~\cite{symfpu} is the de facto standard library for reducing floating-point
+to bit-vector operations, and is used internally by both cvc5~\cite{cvc5} and
+Bitwuzla~\cite{bitwuzla}. SymFPU encodes each floating-point operation as a
+bit-vector circuit, but the encodings are unverified and, as we discovered,
+contain implicit assumptions relating the significand and exponent widths
+that exclude the small formats used in machine learning (\autoref{sec:fp:testing}).
+Our work mechanizes and generalizes SymFPU's algorithms, removing some of these restrictions,
+and provides a machine-checked proof of correctness for the bit-blasting encodings.
+
+\citet{brain2019building} describes the design of SymFPU's bit-blasting encodings,
+with a focus on the rounding circuit and its correctness argument.
+The correctness argument is informal and relies on exhaustive testing;
+we replace it with a machine-checked proof.
+Our solver builds directly on \bvdecide{}, Lean's verified bitvector
+bitblaster~\cite{leanbv}, which cites floating-point reasoning as a motivating
+application of bitvector solving. The present work supplies that
+floating-point layer, reducing the SMT-LIB floating-point theory to the
+bitvector goals that \bvdecide{} discharges.
+\citet{brain2019invertibility} derives invertibility conditions for floating-point formulae,
+enabling quantifier elimination for floating-point constraints in SMT solvers.
+\citet{cbmcfloat} presents mixed abstractions for floating-point arithmetic in the context
+of CBMC~\cite{cbmc}, combining bit-precise and abstract reasoning to verify C programs with floating-point arithmetic.
+Overall, we owe a great deal to the line of research that has developed the SMT-LIB floating-point theory and bit-blasting encodings,
+and our work mechanizes and verifies these contributions by standing on their shoulders.
 
 \section{Conclusions, Limitations, and Future Work}
 \label{sec:fp:conclusion}
 
-\sid{Port from papers/paper-floating-point-in-lean/paper.tex \S 10 (lines
-2183--).}
+We create the first mechanized bitblaster for the QF\_FP theory,
+and in doing so,
+show that floating point SMT solving is well within the reach of formal verification.
+Three operations remain unproven:
+round-to-integral, remainder, and the conversions to \texttt{ubv} and \texttt{sbv}.
+Their circuits are implemented and the solver bitblasts them,
+but what is missing is the mechanized correctness proof.
+In a similar vein, we lack some of the sophisticated circuits that SymFPU implements,
+such as the multiple fast paths for addition that exploit various subnormal/normal cases for faster symbolic bitblasting.
+Closing both gaps is limited by proof effort rather than by floating-point insight:
+the obligations that arise are overwhelmingly nonlinear, mixing multiplication of variables, integer division and modular arithmetic, powers of two with variable exponents, and bitvector operations,
+and because existing automation closes none of them, the proof scripts become dominated by arithmetic bookkeeping that is conceptually trivial but mechanically exhausting.
+We therefore see effective proof automation for nonlinear reasoning, ideally operating uniformly across \texttt{Nat}, \texttt{Int}, \texttt{Rat}, and \texttt{BitVec}, as the key enabling technology for verified floating-point arithmetic at scale.
+
+
+Overall, we mechanize the chain from SMT-LIB semantics down to circuits and symbolic rewriting,
+with each link proven correct relative to the QF\_FP theory.
+Along the way, we discover and repair implicit assumptions in SymFPU's circuits,
+generalizing them to support formats (e.g.\ E4M3, E5M2) that are increasingly important for emerging domains such as machine learning.
+We exercise our mechanized semantics against independent reference implementations,
+thereby validating that our mechanization faithfully implements the SMT-LIB floating-point specification
+and providing trustworthiness in our implementation.
+Our evaluation shows that verified bitblasting is practical:
+on SMT-COMP, a stratified cross-family sample of the SMT-LIB floating-point benchmarks,
+our solver certifies \SmtLibNumSolvedOurs{} of \SmtLibNumTotal{} instances within a
+\SmtLibGeomeanTimeElapsedRatioOB{} geomean slowdown of Bitwuzla (and never disagrees with a known status),
+in exchange for end-to-end correctness guarantees,
+while on small floating-point formats our solver is \SmallFpTimeElapsedRatioOKernel{} faster than the sound,
+exhaustive-enumeration baseline, and \SmallFpTimeoutSpeedupLB{} faster on the hardest instances that enumeration times out on.
+Thus, we close the gap between verified reasoning and practical floating-point SMT solving.

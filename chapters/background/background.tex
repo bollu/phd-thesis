@@ -1,6 +1,13 @@
 \chapter{Background}
 \label{ch:background}
 
+% --- Chapter-local macros (adapted from the bv_decide paper, OOPSLA'25). ---
+% Bitwise AND / OR in math mode.
+\newcommand{\bgband}{\mathbin{\text{\texttt{\&}}}}
+\newcommand{\bgbor}{\mathbin{\text{\texttt{|}}}}
+% Run-in heading for proof techniques ported from the paper.
+\newcommand{\bgprooftechnique}[1]{\paragraph*{Proof technique: #1.}}
+
 \paragraph*{Attribution.} Parts of this chapter, in particular the account of
 Lean's bitvector library and the \bvdecide{} tactic, are based on
 \emph{Interactive Bitvector Reasoning using Verified
@@ -24,41 +31,593 @@ the Lean 4 proof assistant, and Lean's verified bitblaster \bvdecide{}.
 \section{SMT Solving over Bitvectors}
 \label{sec:bg:smt}
 
-\sid{Port/summarize: \qfbv{}, bitblasting, AIGs, SAT solvers and LRAT
-certificates. Sources: collab paper \S 1--2
-(papers/collab-paper-lean-bitvectors/paper.tex, lines 433--626).}
+Satisfiability Modulo Theories (SMT) solvers such as Z3~\citep{de2008z3},
+cvc5~\citep{barrett2011cvc4,barbosa2022cvc5}, and
+Bitwuzla~\citep{niemetz2023bitwuzla} decide the satisfiability of first-order
+formulas interpreted over background theories. The SMT-LIB
+standard~\citep{barrett2010smt,smtlib}, supported by most solvers, specifies
+these theories; the one relevant to this thesis is \qfbv{}, the
+\emph{quantifier-free theory of fixed-width bitvectors}. \qfbv{} exposes a
+large vocabulary of operations over bitvectors of a fixed, concrete width $w$:
+modular arithmetic (addition, multiplication, signed and unsigned division and
+remainder), bitwise Boolean operations, shifts, comparisons, concatenation and
+extraction, and overflow predicates. Note that every \qfbv{} formula fixes the
+width of each of its variables to a concrete numeral; the standard has no
+notion of a formula that quantifies over widths. Internally, however, solvers
+make heavy use of \emph{width-agnostic} rewrites when canonicalising formulas,
+a point we return to in \cref{sec:bg:width-generic}.
+
+\paragraph*{Bitblasting.} Because a bitvector of width $w$ ranges over the
+finite domain $\{0,1\}^w$, \qfbv{} admits an effective reduction to Boolean
+satisfiability (SAT), called \emph{bitblasting}: each bitvector variable is
+replaced by $w$ Boolean variables, and each operation by the Boolean circuit
+that computes it, e.g.\ a ripple-carry adder for addition or a shifted-addition
+circuit for multiplication. To prove a universally quantified fixed-width
+statement, one negates it, bitblasts the negation, and asks a SAT solver
+whether the resulting circuit is satisfiable: if it is \emph{unsatisfiable}
+(UNSAT) the original statement is a theorem, and if it is satisfiable (SAT)
+the satisfying assignment is a counterexample. This reduction is the workhorse
+behind the strong \qfbv{} performance of modern SMT solvers.
+
+\paragraph*{And-Inverter Graphs.} The circuits produced by bitblasting are
+conventionally represented as \emph{And-Inverter Graphs} (AIGs): directed
+acyclic graphs whose nodes are inputs, constants, and binary AND gates, with
+optional negation markers on gate inputs. Despite this minimal gate set, AIGs
+can represent every Boolean circuit, and their simplicity makes them amenable
+to \emph{structural hashing} (sharing identical subcircuits) and cheap local
+rewrites~\citep{brummayer2006local}. SAT solvers, in turn, accept formulas in
+conjunctive normal form (CNF), so the AIG is translated to CNF by the Tseitin
+transformation~\citep{tseitin1983complexity}, which introduces one fresh
+variable per gate and produces a CNF that is \emph{equisatisfiable} with the
+circuit, at only linear size overhead.
+
+\paragraph*{Trust and UNSAT certificates.} The two possible answers of a SAT
+solver differ sharply in how easily they can be checked. A SAT answer comes
+with a satisfying assignment, which can be validated by evaluating the formula.
+An UNSAT answer, by contrast, asserts that \emph{no} assignment exists, and
+naively requires trusting the solver's entire implementation. Modern SAT
+solvers therefore emit \emph{UNSAT certificates}: step-by-step derivations of
+the empty clause (a contradiction) from the input CNF. The LRAT
+format~\citep{cruz2017efficient} annotates each derivation step with hints
+identifying the clauses it depends on, which makes certificates checkable by a
+simple and efficient program that is small enough to verify formally. The
+state-of-the-art solver CaDiCaL~\citep{biere2024cadical} can emit LRAT
+certificates directly. Checking certificates removes the SAT solver from the
+trusted code base: a buggy solver can at worst produce a certificate that the
+checker rejects. Notably, no comparable mature certificate format exists at the
+\emph{SMT} level for bitvectors~\citep{barrett2015proofs}, which is why the
+architecture described in \cref{sec:bg:bvdecide} performs bitblasting inside
+the proof assistant and only outsources the SAT search.
 
 \section{The Lean 4 Proof Assistant}
 \label{sec:bg:lean}
 
-\sid{Port/summarize: Lean 4, kernel reduction, \texttt{Decidable}, FBIP
-(functional-but-in-place) execution. Source: collab paper \S 2--3.}
+Lean 4~\citep{demoura2021lean} is a dependently typed interactive theorem
+prover (ITP) that doubles as a general-purpose, purely functional programming
+language. Proofs are terms of the dependent type theory, checked by a small
+trusted kernel; the surrounding elaborator, tactic framework, and even large
+parts of the compiler are themselves written in Lean and need not be trusted.
+The kernel can also \emph{evaluate} terms, and has special support for the
+natural numbers: numbers up to 63 bits are represented as machine integers,
+and larger ones fall back to GMP~\citep{granlund1996gnu}, a high-performance
+arbitrary-precision arithmetic library. Consequently, computations on
+\texttt{Nat} are fast both in compiled code and during kernel type checking, a
+fact that Lean's bitvector library exploits directly
+(\cref{sec:bg:bitvec}). Lean's mathematical library Mathlib~\citep{mathlib}
+provides the algebraic hierarchy (e.g.\ commutative rings) and tactics such as
+\texttt{ring} and \texttt{omega}, a decision procedure for linear integer
+arithmetic with support for modular reasoning.
+
+Two further mechanisms matter for this thesis. First, \emph{proof by
+reflection}~\citep{gonthier2010introduction}: the typeclass
+\texttt{Decidable} associates to a proposition a program that decides it, and
+the \texttt{decide} tactic proves a proposition by running that program and
+appealing to its soundness proof. Reflection replaces a potentially enormous
+proof term by a computation. When kernel reduction is too slow for that
+computation, Lean offers the \texttt{ofReduceBool} axiom: the decision
+procedure is compiled to native code and its Boolean result is trusted. This
+extends the trusted code base from the kernel to the Lean compiler---a
+trade-off we revisit in \cref{sec:bg:bvdecide}. Second, Lean's runtime uses
+reference counting and implements the \emph{functional but in-place} (FBIP)
+optimization~\citep{Ullrich2019}: a purely functional update to an object
+whose reference count is $1$ is performed by in-place mutation. Arrays and
+hash maps (which are built on arrays) therefore retain their usual imperative
+performance characteristics inside pure code, provided only a single reference
+to them is kept live.
 
 \section{Lean's Bitvector Library}
 \label{sec:bg:bitvec}
 
-\sid{Port/summarize: the design of Lean's canonical
-\texttt{BitVec} library---SMT-LIB 2.7 coverage, fast execution,
-width-independent API. Source: collab paper \S 3
-(papers/collab-paper-lean-bitvectors/paper.tex, lines 627--920).}
+Lean's standard library provides a canonical bitvector type,
+\texttt{BitVec w}, whose design was driven by the needs of proof automation
+and, in particular, by the proofs required to build the verified bitblaster of
+\cref{sec:bg:bvdecide}~\citep{leanbv}. The library covers all operations of
+SMT-LIB 2.7 \qfbv{}, including division, remainder, and the overflow
+predicates; at the time of the paper's publication its core API comprised
+roughly 150 definitions and over 900 theorems, and it has continued to grow
+since. This section summarizes its design and the recurring \emph{proof
+techniques} the library codifies, which later chapters use freely.
+
+\subsection{Definition and Constructors}
+
+The low-level definition of \texttt{BitVec w} is a natural number $n$ together
+with a proof $\texttt{isLt} : n < 2^w$. This representation---rather than the
+alternative of a vector of Booleans---permits an efficient implementation of
+all operations, both arithmetic and bitwise, because it inherits the kernel's
+fast \texttt{Nat} arithmetic (\cref{sec:bg:lean}). The representation is
+\emph{signless}: a bitvector carries no notion of being signed or unsigned;
+instead, individual \emph{operations} interpret it as one or the other. This
+matches the semantics of SMT-LIB and of compiler IRs such as LLVM.
+
+Any natural number coerces to a bitvector by reduction modulo $2^w$:
+$\texttt{ofNat}\ (n : \N) \mapsto (n \bmod 2^w) : \BV{w}$. Conversely,
+\texttt{x.toNat} recovers the underlying natural number, and simplification
+lemmas such as $(\texttt{BitVec.ofNat}~w~x).\texttt{toNat} = x \bmod 2^w$
+relate the two.
+
+\subsection{Bitwise Operations}
+
+Bitwise operations reuse Lean's bitwise operations on natural numbers. The
+value of an individual bit is retrieved with \texttt{v.getLsbD i} (``get the
+\texttt{i}-th least significant bit, with default value \texttt{0}''), defined
+as $\texttt{v.toNat.testBit i}$ for fast kernel execution. Crucially,
+\texttt{getLsbD} is \emph{total}: it returns \texttt{false} for out-of-range
+indices instead of demanding a bounds proof, which avoids the repeated
+in-bounds obligations a list-based definition would incur. On top of
+\texttt{getLsbD}, the library provides, for every bitwise operation, lemmas
+relating indexing to the operation's arguments---for instance
+\texttt{(v.zeroExtend w').getLsbD i = v.getLsbD i}---so that bitwise problems
+reduce to Boolean problems.
+
+\subsection{Arithmetic Operations}
+
+Addition, subtraction, and multiplication are arithmetic modulo $2^w$; the
+result is less than $2^w$ by construction, discharging \texttt{isLt}.
+Sign-sensitive operations (signed division, sign extension, arithmetic shift
+right) are defined via coercions to and from \Z{}: \texttt{BitVec.toInt}
+computes the two's-complement value
+$2^0 b_0 + \dots + 2^{w-2}b_{w-2} - 2^{w-1}b_{w-1}$, and \texttt{BitVec.ofInt}
+maps an integer $i$ to $\texttt{BitVec.ofNat}\ (i \bmod 2^w)$ using the
+Euclidean remainder, which lies in $[0, 2^w)$.
+
+\bgprooftechnique{arithmetic equivalence with \texttt{toNat} and
+\texttt{toInt}} To prove two bitvector expressions equal, it often suffices to
+prove their interpretations as natural numbers (or integers) equal: the lemmas
+\texttt{eq\_of\_toNat\_eq} and \texttt{eq\_of\_toInt\_eq} state that
+\texttt{toNat} and \texttt{toInt} are injective. Paired with lemmas that push
+the interpretation through each operation---e.g.\
+$(x + y).\texttt{toNat} = (x.\texttt{toNat} + y.\texttt{toNat}) \bmod 2^w$ and
+$x \gg_s i = ((x.\texttt{toInt}) \gg i).\texttt{ofInt}$---this reduces
+bitvector reasoning to arithmetic over \N{} or \Z{} with modulo, where the
+\texttt{omega} decision procedure is highly effective. To move between the
+signed and unsigned views, the library provides lemmas governed by the most
+significant bit, such as
+\begin{leanfootnotesize}
+toInt_eq_toNat_cond : x.toInt =
+  if x.msb then (x.toNat : Int) - (2^w : Nat) else (x.toNat : Int)
+\end{leanfootnotesize}
+which enables case-splitting on the sign of a bitvector.
+
+\bgprooftechnique{circuit view for bitblasting} The library also
+characterizes each arithmetic operation as a Boolean \emph{circuit}, which is
+what the verified bitblaster consumes. For addition, the theorem
+\texttt{add\_eq\_adc} states \texttt{x + y = (adc x y false).snd}, where
+\texttt{adc} builds a ripple-carry adder from primitive bitwise operations; it
+is proven using \texttt{iunfoldr}, an iteration principle that constructs a
+bitvector bit-by-bit while threading a state (here, the carry), together with
+the truncation identity
+$x \bmod 2^{i+1} = 2^i \cdot (x.\texttt{testBit}\ i).\texttt{toNat} + x \bmod 2^i$,
+which plays the role of an induction principle over the bits of $x$.
+Multiplication is characterized by a recurrence \texttt{mulRec} encoding
+``high school'' multiplication as a sum of shifted copies of $x$:
+\begin{leanfootnotesize}
+mulRec_zero_eq : mulRec x y 0 = if y.getLsbD 0 then x else 0
+mulRec_succ_eq : mulRec x y (s + 1) =
+  mulRec x y s + if y.getLsbD (s + 1) then x <<< (s + 1) else 0
+\end{leanfootnotesize}
+More generally, for \emph{every} SMT-LIB operation \texttt{Op} there is a
+recursive circuit description with associated theorems
+\texttt{OpRec\_zero\_eq} and \texttt{OpRec\_succ\_eq}; these recurrences are
+exactly what the bitblaster's correctness proofs induct on. The circuit view
+also supports proving bit-twiddling identities directly, e.g.\
+$a \bgband b = 0 \implies a + b = a \bgbor b$.
+
+\bgprooftechnique{non-overflowing arithmetic} Lemmas such as
+\texttt{toNat\_add\_of\_lt}---if $a.\texttt{toNat} + b.\texttt{toNat} < 2^w$
+then $(a+b).\texttt{toNat} = a.\texttt{toNat} + b.\texttt{toNat}$---support
+the common program-verification pattern where a side condition guarantees the
+absence of overflow.
+
+\bgprooftechnique{decidable predicates at small widths} Since $\BV{w}$ is a
+finite type, quantified predicates over it are decidable by enumeration
+whenever the predicate body is decidable. The library provides the
+corresponding \texttt{Decidable} instances,
+\begin{leanfootnotesize}
+instance instDecidableForallBitVec :
+  ∀ (n : Nat) (P : BitVec n → Prop) [DecidablePred P], Decidable (∀ v, P v)
+instance instDecidableExistsBitVec :
+  ∀ (n : Nat) (P : BitVec n → Prop) [DecidablePred P], Decidable (∃ v, P v)
+\end{leanfootnotesize}
+so that Lean's general-purpose \texttt{decide} tactic can close quantified
+bitvector goals at small widths. Exhaustive enumeration is, of course,
+intractable beyond widths of roughly 20 bits; deciding realistic fixed-width
+problems is the job of \bvdecide{}, to which we now turn.
 
 \section{\texorpdfstring{\bvdecide{}}{bv\_decide}: Verified Bitblasting for Fixed Widths}
 \label{sec:bg:bvdecide}
 
-\sid{Port/summarize: the \bvdecide{} pipeline---normalization, AIG
-construction, CaDiCaL, LRAT certificate checking; end-to-end theorem. Source:
-collab paper \S 4 (lines 921--1294). This is the engine that
-\cref{ch:single-width-bv,ch:multi-width-bv,ch:floating-point} extend.}
+\begin{figure}
+	\includegraphics[width=\textwidth]{chapters/background/images/bitvec-paper.pdf}
+	\caption{\bvdecide{} provides an end-to-end verified bitblasting
+  pipeline inside Lean. The trusted code base for the respective steps is
+  listed in red; when rewriting alone proves a theorem, there is no need to
+  trust the compiler. Figure from \citet{leanbv}.}
+	\label{fig:bg:bvdecide}
+\end{figure}
+
+\bvdecide{}~\citep{leanbv} is Lean's decision procedure for the universally
+quantified, fixed-width theory of bitvectors, with full support for the
+SMT-LIB \qfbv{} operations. Rather than trusting an external SMT solver---
+which would add the solver's preprocessing, bitblasting, and (typically
+uncertified) SAT reasoning to the trusted code base---\bvdecide{} implements a
+\emph{verified} bitblaster inside Lean and outsources only the SAT search,
+whose UNSAT answers are re-checked against LRAT certificates
+(\cref{sec:bg:smt}). Because realistic UNSAT proofs are far too large for
+kernel type checking, the bitblaster and certificate checker do not produce
+proof terms; instead they run as compiled code via proof by reflection, using
+the \texttt{ofReduceBool} axiom (\cref{sec:bg:lean}). The user thus trusts the
+Lean compiler in addition to the kernel---a much smaller leap of faith than
+trusting a full SMT solver, and one already made by anyone using Lean as a
+programming language.
+
+To prove a fixed-width goal, \bvdecide{} performs the following steps
+(\cref{fig:bg:bvdecide}):
+\begin{enumerate}
+  \item Initiate a proof by contradiction, replacing the goal with
+  \texttt{False} and adding the goal's negation as a hypothesis.
+  \item Simplify and canonicalize all fixed-width bitvector hypotheses
+  (the \bvnormalize{} pass).
+  \item Bitblast the conjunction of the simplified hypotheses into an
+  equisatisfiable AIG, and translate the AIG to CNF.
+  \item Hand the CNF to the SAT solver \cadical{}. A SAT answer yields a
+  counterexample presented to the user; an UNSAT answer yields an LRAT
+  certificate, which a verified checker validates inside Lean.
+  \item Since every step is proven to preserve satisfiability, the tactic
+  concludes that the hypotheses are inconsistent, finishing the proof.
+\end{enumerate}
+
+\subsection{Canonicalization and Simplification}
+\label{sec:bg:bvdecide-simplification}
+
+The \bvnormalize{} pass applies a subset of the rewriting rules of
+Bitwuzla~\citep{niemetz2023bitwuzla}, the SMT solver that dominated the
+bitvector divisions of SMT-COMP 2024~\citep{smtcomp2024}; at the time of
+publication, 132 of Bitwuzla's 200+ rules had been ported. Each ported rule
+must not merely be implemented but \emph{verified for all bit-widths}, using
+the width-generic reasoning of \cref{sec:bg:width-generic}. The rules fall
+into two categories: \emph{canonicalization} rules reduce complex operations
+to a small core (e.g.\ $-x \mapsto\ \sim\!x + 1$), shrinking both the rewrite
+system and the amount of bitblaster logic that must be verified;
+\emph{simplification} rules eliminate terms that would otherwise produce
+complicated circuits (e.g.\ $\sim\!x \bgband x \mapsto 0$), decreasing the
+load on the SAT solver. Two further Bitwuzla-style preprocessing steps are
+implemented: normalization of expressions up to associativity and
+commutativity (essential for goals such as $x * y = y * x$, which raw
+bitblasting handles poorly at large widths), and embedded constraint
+substitution, which replaces occurrences of known-true hypotheses inside other
+hypotheses by \texttt{true}.
+
+\subsection{Intrinsically Well-Typed AIGs}
+\label{sec:bg:bvdecide-aig}
+
+\begin{figure}
+\begin{leanfootnotesize}
+inductive Decl (α : Type) where
+  | const (b : Bool)
+  | atom (idx : α)
+  | gate (l r : Nat) (linv rinv : Bool)
+
+def IsDAG (α : Type) (ds : Array (Decl α)) :=
+  ∀ {i lhs rhs linv rinv} (h : i < ds.size),
+    ds[i] = .gate lhs rhs linv rinv → lhs < i ∧ rhs < i
+
+structure AIG (α : Type) [DecidableEq α] [Hashable α] where
+  decls : Array (AIG.Decl α)     -- the circuit
+  cache : AIG.Cache α decls      -- verified cache for subterm sharing
+  invariant : AIG.IsDAG α decls  -- acyclicity
+\end{leanfootnotesize}
+\caption{Core AIG data structures (simplified). Acyclicity is encoded by the
+proposition \texttt{AIG.IsDAG}, which forces gates to point only to
+lower-indexed nodes; the cache is a verified hash map that is well-formed with
+respect to the declaration array, enabling full subterm sharing while
+remaining correct by construction. Adapted from \citet{leanbv}.}
+\label{fig:bg:aig-data-structures}
+\end{figure}
+
+The bridge between bitvector expressions and the SAT solver is an AIG
+(\cref{sec:bg:smt}). Lean, being purely functional, cannot build DAGs in the
+traditional pointers-to-heap-values style. Instead, an AIG is an \emph{array}
+of declarations---constants, input atoms, and AND gates whose inputs are
+array indices, each with an optional negation flag
+(\cref{fig:bg:aig-data-structures}). Acyclicity is captured intrinsically by
+the invariant that a gate's inputs have strictly smaller indices than the gate
+itself. The AIG additionally carries a verified hash map from declarations to
+indices, enabling structural sharing; its well-formedness invariant states
+that it only maps declarations to the index at which they actually occur. The
+construction is heavily inspired by AIGNET~\citep{davis2013verified}. Thanks
+to FBIP (\cref{sec:bg:lean}), keeping a single live copy of the AIG means the
+array and hash map are mutated in place, so the purely functional code has
+imperative performance. The gate constructor is a \emph{smart constructor}
+that applies (verified versions of) the level-1 local
+rewrites of \citet{brummayer2006local} and orders gate inputs by index to
+improve sharing; it is proven to produce results equisatisfiable with the
+naive constructor.
+
+Operations built on top of these primitives---complex gates, arithmetic
+circuits---are verified through the notion of a \emph{lawful operator}: a
+function that takes an AIG (plus references into it) and returns an extended
+AIG together with a reference to its output, without shrinking the array or
+modifying existing entries. Lawfulness enables local reasoning: when reasoning
+about a subcircuit, all later lawful extensions can simply be forgotten, and
+since compositions of lawful operators are lawful, lawfulness is proven once
+for the primitives and inherited by everything built from them.
+
+\subsection{Verified Bitblasting}
+\label{sec:bg:bvdecide-bitblasting}
+
+After simplification, all hypotheses consisting only of fixed-width bitvector
+or Boolean statements are collected; subterms with custom definitions are
+abstracted as uninterpreted bitvector atoms, which preserves at least basic
+reasoning for user-defined functions. The conjunction of the hypotheses is
+then bitblasted into an equisatisfiable AIG using circuit constructions from
+Bitwuzla and Z3~\citep{de2008z3}. Bitwise operations bitblast to trivial
+gate-per-bit circuits verified directly from the AIG's evaluation semantics.
+Arithmetic operations require genuine circuits---e.g.\ a ripple-carry adder
+for addition---and are verified in two steps: first, a recursive bitvector
+function modelling the circuit (such as \texttt{adc} or \texttt{mulRec},
+\cref{sec:bg:bitvec}) is proven equal to the operation for all widths; then,
+by induction, each recursive step of the bitblaster is shown to add a
+subcircuit to the AIG that mirrors the corresponding step of the model
+function. For performance, the bitblaster also maintains a verified
+expression-level cache mapping bitvector expressions to vectors of AIG
+references, using Lean's pointer-equality primitives~\citep{Selsam2020} on
+maximally shared expression nodes for fast lookups.
+
+\subsection{Certified UNSAT Answers via LRAT Checking}
+\label{sec:bg:bvdecide-sat}
+
+\begin{figure}
+\begin{leanfootnotesize}
+-- Parse and check an LRAT proof.
+def verifyCert (cnf : CNF Nat) (cert : LratCert) : Bool :=
+  match LRAT.parseLRATProof cert with
+  | .ok lratProof => LRAT.check lratProof cnf
+  | .error _ => false
+
+-- `verifyCert` returning true implies that the CNF is UNSAT.
+theorem verifyCert_correct : ∀ cnf cert, verifyCert cnf cert = true → cnf.Unsat
+
+-- Verify a BV expression is UNSAT by using the certificate to witness UNSAT.
+def verifyBVExpr (bv : BVLogicalExpr) (cert : LratCert) : Bool :=
+  verifyCert (AIG.toCNF bv.bitblast.relabelNat) cert
+
+-- The computable verifier producing `true` implies that the formula is UNSAT.
+theorem unsat_of_verifyBVExpr_eq_true (bv : BVLogicalExpr) (c : LratCert)
+    (h : verifyBVExpr bv c = true) : bv.Unsat
+\end{leanfootnotesize}
+\caption{The verified LRAT checker and its connection to the bitblaster. This
+enables Boolean reflection: the computable hypothesis
+\texttt{verifyBVExpr bv c = true}, whose proof is \texttt{Eq.refl}, implies
+the proposition \texttt{bv.Unsat}. Adapted from \citet{leanbv}.}
+\label{fig:bg:unsat-cert-check}
+\end{figure}
+
+The AIG is translated to CNF by a Tseitin
+transformation~\citep{tseitin1983complexity} proven to produce an
+equisatisfiable formula, and the CNF is passed to
+\cadical{}~\citep{biere2024cadical}. If \cadical{} finds a satisfying
+assignment, \bvdecide{} maps it back to an assignment of the original
+bitvector variables and reports it as a counterexample. If \cadical{} reports
+UNSAT, it emits an LRAT certificate~\citep{cruz2017efficient}, which is parsed
+(by a port of the binary parser of \texttt{lrat-trim}) and trimmed, typically
+dropping about half of the steps. Neither parsing nor trimming needs to be
+verified: they merely prepare the input for the \emph{verified} LRAT checker,
+and a bug in them can only cause the checker to fail, never to accept a wrong
+proof. Running the checker establishes that the CNF---and hence, by the chain
+of equisatisfiability proofs, the original conjunction of hypotheses---is
+UNSAT (\cref{fig:bg:unsat-cert-check}), completing the contradiction proof.
+In principle this entire computation could run inside Lean's kernel with no
+new axioms; in practice LRAT proofs are too large and kernel reduction too
+slow, so the checker runs as compiled code under \texttt{ofReduceBool},
+trusting the Lean compiler as discussed above. This remains a far smaller
+trusted code base than an SMT solver such as Bitwuzla, which must be trusted
+in its entirety, along with its compiler, and typically without certificate
+checking of its internal SAT solver.
+
+\subsection{C-Style Integers, Structs, Enums, and Overflow}
+\label{sec:bg:bvdecide-structs-enums}
+
+Beyond raw bitvectors, \bvdecide{} handles the finite types that arise when
+modelling imperative programs, via additional preprocessing before rewriting.
+Lean's \texttt{UIntX}/\texttt{IntX} families (the analogues of C's
+\texttt{uintx\_t}/\texttt{intx\_t}) are reduced to their \texttt{BitVec}
+representations by rewrites such as
+\texttt{x = y ↔ x.toBitVec = y.toBitVec}. Structures containing bitvectors,
+Booleans, machine integers, enums, or other such structures are split into
+their fields with the \texttt{cases} tactic, applied recursively. Enum
+inductives (inductives mirroring C enums) are handled by generating, per type,
+a function \texttt{enumToBitVec} mapping each constructor to the bitvector of
+its index, together with theorems reducing enum equality to bitvector
+equality (proven via a left inverse, in a linear rather than quadratic number
+of cases), theorems turning pattern matches into chains of \texttt{if}
+statements, and---when the number of constructors is not a power of
+two---bounds theorems that prevent the SAT solver from inventing nonexistent
+constructors. Finally, \bvdecide{} supports all overflow predicates of
+SMT-LIB 2.7, each with an if-and-only-if characterization of when overflow
+occurs, so that \emph{absence} of overflow can also be established.
+
+\begin{figure}
+\centering
+\begin{subfigure}{0.55\textwidth}
+\begin{leanfootnotesize}
+inductive Direction where
+  | goingDown
+  | goingUp
+
+structure State where
+  val  : UInt16 -- implemented as BitVec 16
+  low  : UInt16 -- implemented as BitVec 16
+  high : UInt16 -- implemented as BitVec 16
+  direction : Direction
+
+def State.step (s : State) : State :=
+  match s.direction with
+  | .goingDown =>
+    if s.val = s.low then
+      { s with direction := .goingUp }
+    else
+      { s with val := s.val - 1 }
+  | .goingUp =>
+    if s.val = s.high then
+      { s with direction := .goingDown }
+    else
+      { s with val := s.val + 1 }
+\end{leanfootnotesize}
+\end{subfigure}
+\hfill
+\begin{subfigure}{0.42\textwidth}
+\centering
+\includegraphics[width=0.85\textwidth]{chapters/background/images/bitvec-example.pdf}
+\end{subfigure}
+\begin{subfigure}{\textwidth}
+\begin{leanfootnotesize}
+def State.steps (s : State) (n : Nat) : State :=
+  match n with
+  | 0 => s
+  | n + 1 => (State.steps s n).step
+
+def Inv (s : State) : Prop := s.low ≤ s.val ∧ s.val ≤ s.high ∧ s.low < s.high
+
+example (s : State) (h : Inv s) (n : Nat) : Inv (State.steps s n) := by
+  induction n with
+  | zero => simp only [State.steps, Inv] at * ; bv_decide
+  | succ n ih => simp only [State.steps, State.step, Inv] at * ; bv_decide
+\end{leanfootnotesize}
+\end{subfigure}
+\caption{\bvdecide{} is deeply integrated with Lean's type system, enabling
+the automated verification of a transition system involving machine integers,
+structures, enums, and pattern matches. Adapted from \citet{leanbv}.}
+\label{fig:bg:bvdecide-extended}
+\end{figure}
+
+\Cref{fig:bg:bvdecide-extended} illustrates this integration on a small
+transition system modelling an elevator: the \texttt{State} contains
+\texttt{low} and \texttt{high} bounds on the floor number, the current floor
+\texttt{val} (all \texttt{UInt16}), and a \texttt{direction} enum. The
+invariant---that the current floor stays between the bounds---is proven by
+induction on the number of steps, where both the base case and the inductive
+step are discharged by \bvdecide{} after unfolding definitions with
+\texttt{simp}. All case splits (on the direction enum, and on the branch
+conditions) happen inside a single SAT solver invocation, so no work is
+duplicated.
 
 \section{The Limits of Fixed-Width Reasoning}
 \label{sec:bg:width-generic}
 
-\sid{Port/summarize: width-generic proof automation pain points; motivates
-\cref{ch:single-width-bv}. Source: collab paper \S 5 (lines 1295--1428).}
+Everything in \cref{sec:bg:bvdecide} is confined to \emph{fixed}, concrete
+widths: SMT-LIB \qfbv{} has no formulas of symbolic width, and bitblasting
+inherently requires knowing how many bits to blast. Yet width-generic theorems
+are pervasively needed. Bitblasters themselves---Bitwuzla no less than
+\bvdecide{}---rely on width-agnostic rewrite and normalization rules, and each
+of \bvdecide{}'s normalization rules must be verified \emph{for all widths}
+(\cref{sec:bg:bvdecide-simplification}). Manual proof developments in
+hardware design and cryptography likewise target symbolic widths, since
+widths beyond 32/64 bits are common there. No decision procedure is known for
+the full width-generic \qfbv{} theory, but the \bvdecide{} work introduced
+verified automation for three useful subclasses~\citep{leanbv}.
+
+\paragraph*{Extensionality for bitwise operations.} Bitwise operations
+(\texttt{and}, \texttt{or}, \texttt{xor}, \texttt{not}, and the constants
+\texttt{zero} and \texttt{allOnes}) share the property that bit $i$ of the
+output depends only on bit $i$ of the inputs. Extensionality turns a
+bitvector equation such as $x \bgbor y = y \bgbor x$ into
+$\forall i,\ (x \bgbor y)[i] = (y \bgbor x)[i]$, and the library's
+\texttt{getElem\_<op>} lemmas push the indexing to the leaves, yielding
+$\forall i,\ x[i] \bgbor y[i] = y[i] \bgbor x[i]$---a purely Boolean statement
+decidable by enumeration of the finitely many Boolean valuations. The
+combination \texttt{ext; simp; bv\_decide} thus decides all bitwise-only
+expressions at all widths, limited in scale only by the underlying SAT solver.
+
+\paragraph*{Equivalence modulo associativity and commutativity.} The library
+proves associativity, commutativity, identities, and (where applicable)
+idempotence for \texttt{add}, \texttt{mul}, \texttt{and}, \texttt{or}, and
+\texttt{xor}, making Lean's datatype-generic \texttt{ac\_rfl} tactic
+applicable to bitvectors; the accompanying \texttt{ac\_nf} tactic normalizes
+(sub)expressions up to AC interactively. Inside \bvdecide{}, a dedicated
+AC-normalization pass additionally enables \emph{multiplication
+short-circuiting}: an equality $z \cdot x' = z \cdot y'$ (after factoring out
+common terms $z$) is transformed to $(x' = y') \lor (z \cdot x' = z \cdot y')$,
+letting the SAT solver skip the expensive multiplication circuit whenever
+$x' = y'$ can be established directly.
+
+\paragraph*{Ring normalization.} $\BV{w}$ is isomorphic to
+$\Z/2^w\Z$ and hence a commutative ring; the corresponding Mathlib instance
+makes Mathlib's \texttt{ring} tactic~\citep{mathlib,russinoff2017polynomial}
+available, deciding all \emph{free theorems}---equalities that hold in every
+commutative ring---by normalizing both sides to Horner normal form. Not every
+true bitvector equation is a free theorem at a fixed width: $2 + 2 = 0$ holds
+at width $2$ by overflow but fails in \Z{}. However, restricted to ring
+operations and a \emph{truly generic} (universally quantified) width, the
+theorems that hold at all widths are exactly the free theorems, so
+\texttt{ring} is complete in that setting.
+
+These procedures cover valuable fragments---bitwise-only expressions, AC
+equivalence, and ring identities---but leave open the general problem of
+\emph{deciding} bitvector properties uniformly in the width, including the
+interaction of arithmetic with bitwise structure. Developing such a
+width-generic decision procedure is the subject of
+\cref{ch:single-width-bv}.
 
 \section{SSA and MLIR}
 \label{sec:bg:ssa}
 
-\sid{One or two pages of SSA/MLIR background for \cref{ch:lean-mlir}: SSA
-form, def-use chains, MLIR dialects and regions. Sources:
-papers/paper-lean-mlir/paper.tex \S 1--2.}
+The final chapters of this thesis reason about compiler intermediate
+representations, so we briefly recall the relevant background. Static single
+assignment (SSA) form~\citep{rastello2022ssa} is the dominant style of
+compiler IR: every variable is assigned exactly once, which makes def-use
+relationships immediate and thereby simplifies analyses and transformations.
+\emph{Peephole optimizations}~\citep{mckeeman1965peephole}, which replace
+short instruction sequences by semantically equivalent cheaper ones, are the
+workhorse transformation on SSA IRs: roughly 10\% of all IR-transforming code
+in LLVM~\citep{lattner2004llvm} belongs to its InstCombine peephole
+optimizer, and the SMT-based peephole verifier Alive~\citep{lopes2021alive2}
+is the most referenced tool in LLVM's commit log. Crucially, peephole
+rewriting on SSA operates along the \emph{def-use chain} rather than on
+syntactically contiguous instructions: the rewrite
+$(y = x + 1;\ z = y - 1) \mapsto (z = x)$ applies to any program containing
+$(y = x + 1;\ \ldots;\ z = y - 1)$, regardless of the interleaved
+instructions---unlike classical straight-line peephole rewriting over
+assembly, as previously mechanized in the context of
+CompCert~\citep{leroy2016compcert,mullen2016verified}.
+
+The MLIR compiler framework~\citep{lattner2020mlir} lowers the cost of
+instantiating \emph{domain-specific} SSA IRs. An MLIR \emph{dialect} packages
+a set of operations and types at a chosen abstraction level, and dialects for
+machine learning, quantum computing, and fully homomorphic encryption
+(FHE)~\citep{gentry2009fully,viand2022heco} coexist in one infrastructure.
+High-level dialects often have \emph{value semantics} (referential
+transparency), enabling local, side-effect-free algebraic reasoning that is
+simply unavailable at the level of LLVM-style load/store/branch code: an FHE
+rewrite such as $a + X^{2^n} + 1 \mapsto a$ is a one-line quotient-ring
+identity in a polynomial dialect, but a heroic exercise in reasoning about
+loops and memory once lowered to LLVM. MLIR additionally introduces
+\emph{regions}, which let operations contain nested code and so express
+structured control flow (loops, conditionals) without unstructured branches,
+simplifying termination and semantics arguments.
+
+\Cref{ch:lean-mlir} builds on this background: it presents
+Lean-MLIR~\citep{leanmlir}, a framework for intrinsically well-typed SSA with
+regions in Lean, generic over a user-defined dialect, with a verified
+peephole rewriter whose local rewrite proofs lift to whole-program semantic
+preservation, and proof automation that reduces each rewrite obligation to a
+clean mathematical goal.

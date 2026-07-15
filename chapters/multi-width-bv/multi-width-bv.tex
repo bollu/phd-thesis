@@ -1,3 +1,33 @@
+%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%
+%% Generated statistics for the evaluation.
+%% Machine/config commands are prefixed Mw (\MwSystemSpecs*, \MwConfig*);
+%% per-experiment cactus/stats commands keep their original names.
+%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%
+\input{chapters/multi-width-bv/plots/output/alive-cactus/triple.tex}
+\input{chapters/multi-width-bv/plots/output/alive-cactus/cactus.tex}
+\input{chapters/multi-width-bv/plots/output/rover-cactus/cactus.tex}
+\input{chapters/multi-width-bv/plots/output/sext-zext-instcombine/cactus.tex}
+\input{chapters/multi-width-bv/plots/output/everybench/cactus.tex}
+\input{chapters/multi-width-bv/plots/output/everybench/config.tex}
+
+%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%
+%% Chapter-local macros (hoisted from the OOPSLA'26 multi-width paper).
+%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%
+\newcommand{\IsEq}{\ensuremath{\mathsf{IsEq}}}
+\newcommand{\rhob}{\bar{\rho}}
+\newcommand{\ourtactic}{\texttt{bv\_multi\_width}}
+%% TikZ style for the automata figures; kept as a named chapter-local style so
+%% that the paper's global tikzset does not leak into other chapters.
+\tikzset{
+  mwbvautomaton/.style={
+    ->, % arrows by default
+    >=stealth',
+    node distance=3cm,
+    every state/.style={thick, fill=gray!10},
+    every edge/.style={draw, thick},
+  },
+}
+
 \chapter{Sound and Complete Solving for Multi-Width Parametric Bitvectors}
 \label{ch:multi-width-bv}
 
@@ -44,46 +74,1552 @@ the state-of-the-art CVC5-based solver.
 \section{The Algorithmic Idea: Masks and Binary Values}
 \label{sec:mwbv:idea}
 
-\sid{Port from papers/paper-multi-width-bv/paper.tex \S 2 (lines 671--826).}
+We give a self-contained overview of the algorithmic ideas, before diving into
+the formal development in the next sections.
+%
+Informally, a $\text{PBV}_n$ formula is a bitvector formula with $n$ width
+variables, each ranging over the naturals. Naive enumeration, i.e.,
+instantiating every combination of widths up to a bound~$o$, requires on the
+order of~$o^n$ solver calls, quickly becoming impractical (e.g., $64^3 =
+262{,}144$ calls for three widths). Our goal is to collapse \emph{all} these
+width combinations into a single bitvector universe so that one solver call
+suffices. We explain the key idea via a worked example, which we will then
+generalize.
+
+Consider the following formula, which states that sign extending a
+zero extended value is equivalent to zero extending it directly, when
+the widths are compatible:
+\[
+\forall (u~v~w : \N)~(a : \BV{u}),~
+u < v \to v \leq w \to
+\sext(\zext(a, u, v), v, w) = \zext(a, u, w)
+\]
+We will translate this into a single \qfbv{} query which, for a given bound~$o$
+on the widths, proves the identity for all widths up to~$o$.
+%
+Fix a global bit-width~$o$ (say $o = 64$); every variable from the original
+formula ($u, v, w, a$) will be a new variable of type ~$\BV{o}$ in the new
+formula.
+
+The width variables $u, v, w : \N$ become bitvector variables
+$u', v', w' : \BV{o}$, each storing the width value directly.
+Whenever we need to constrain a value to~$u$ bits, we compute the
+\emph{mask} $(1 \bitshl u') - 1 = 2^{u'} - 1$, which has exactly~$u'$
+ones in the low-order bits: for instance, $u' = 3$ gives
+$(1 \bitshl 3) - 1 = 7 = \langle\redbox{00}\bluebox{111}\rangle$.
+
+Next, the bitvector variable $(a : \BV{u})$ becomes $(a' : \BV{o})$, with the
+\emph{pre-masking} constraint $a' \bitand ((1 \bitshl u') - 1) = a'$ asserting
+that its bits above position~$u$ are zero.
+The invariant that $a$ is masked to have bits only up to $u$ active is
+the key idea of the translation: it lets every subsequent operation work
+uniformly in~$\BV{o}$, while still respecting the original width $u$.
+%
+The hypotheses translate directly: since $u'$ and $v'$ store the widths
+themselves, the ordering hypothesis $u < v$ becomes $u' \bitult v'$,
+and $v \leq w$ becomes $\neg(w' \bitult v')$. Signed comparisons are translated similarly,
+using the most significant bit of the variables to reduce to unsigned comparisons (\cref{mwbv:fig:mono-translation}).
+
+Next, zero extension $\zext(a, u, w)$
+embeds a $u$-bit value into $w$~bits by padding with zeros. In the
+translated world, every value already lies in~$(\BV{o})$, so zero-extending to
+width~$w$ is simply masking: $a' \bitand ((1 \bitshl w') - 1)$. Sign extension
+$\sext(a, u, v)$ is slightly more involved: it must test the most significant
+bit, fill the extension region with the sign, and mask to the target width. This
+is achieved by performing bit-fiddling to compute the sign fill and extension
+mask on the fly, where $\msb_u(a')$ tests the most significant bit of $a'$ at position~$u$.
+% \grosser{How is $msb_u$ defined?}
+%
+\begin{align*}
+  \denote{\mathsf{sext}(a, u, v)} \;=\;\;
+  &\textbf{let } s = \mathsf{ite}(\msb_u(a'),\; \bitnot 0,\; 0)
+    \quad\text{\dimtext{(sign fill)}} \\[-2pt]
+  &\textbf{let } \mathit{ext} = s \bitand \bitnot((1 \bitshl u') - 1)
+    \quad\text{\dimtext{(bits above width~u)}} \\[-2pt]
+  &(a' \bitor \mathit{ext}) \bitand ((1 \bitshl v') - 1)
+\end{align*}
+
+Applying these rules to the full formula
+(\cref{mwbv:fig:worked-example}) yields a single \qfbv{}
+satisfiability problem over~$\BV{o}$.
+See that the translation creates a single formula that captures the behavior of the original formula for \emph{all} widths up to~$o$ simultaneously,
+without any case splits on widths.
+Instantiating $o = 64$ and checking unsatisfiability proves the identity for
+\emph{all widths $\leq 64$} in seconds.
+
+\begin{figure}[htb]
+\footnotesize
+\begin{tabular}{llll}
+\toprule
+\textbf{\#} & \textbf{Subexpression} & \textbf{Rule} & \textbf{Translation} \\
+\midrule
+\rowcolor{black!10!white}
+1 & width var $u$ & bitvector var & $u' : \BV{o}$ \\
+2 & width var $v$ & bitvector var & $v' : \BV{o}$ \\
+\rowcolor{black!10!white}
+3 & width var $w$ & bitvector var & $w' : \BV{o}$ \\
+  4 & $a : \BV{u}$ & BV variable & $a' : \BV{o}$, assert $a' \bitand ((1 \bitshl u') - 1) = a'$ \\
+\midrule
+\rowcolor{black!10!white}
+5 & $u < v$ & wlt & assert $u' \bitult v'$ \\
+6 & $v \leq w$ & $\neg\,$wlt & assert $\neg(w' \bitult v')$ \\
+\midrule
+\rowcolor{black!10!white}
+7 & $\zext(a, u, v)$ & zext & $a' \bitand ((1 \bitshl v') - 1)$ \\
+8 & $\sext((7), v, w)$ & sext & $\textbf{let } s = \mathsf{ite}(\msb_v((7)),\; \bitnot 0,\; 0)$ \quad\dimtext{(sign-extend fill)} \\
+  &                  &      & $\textbf{let } \mathit{ext} = s \bitand \bitnot((1 \bitshl v') - 1)$ \quad\dimtext{(bits above width $v$)} \\
+  &                  &      & $((7) \bitor \mathit{ext}) \bitand ((1 \bitshl w') - 1)$ \\
+\rowcolor{black!10!white}
+9 & $\zext(a, u, w)$ & zext & $a' \bitand ((1 \bitshl w') - 1)$ \\
+\midrule
+10 & $(8) = (9)$ (negated) & equality & $(8) \neq (9)$ \\
+\bottomrule
+\end{tabular}
+\caption{Worked example: translating
+$\forall (u\;v\;w : \N)\;(a : \BV{u}),\;
+u < v \to v \leq w \to \sext(\zext(a, v), w) = \zext(a, w)$
+from $\text{PBV}_n$ to a single \qfbv{} query over $\BV{o}$,
+previewing the rules formalized in \cref{mwbv:fig:mono-translation}.
+Primed variables ($u', v', w', a'$) denote the translated bitvector counterparts.
+Unsatisfiability at $o = 64$ proves the identity for all widths $\leq 64$.}
+\label{mwbv:fig:worked-example}
+\end{figure}
+
+\paragraph{The general principle.}
+%
+The worked example illustrates a general pattern: every $\text{PBV}_n$
+operation maps to a fixed sequence of $\BV{o}$ operations, with widths stored
+directly as bitvector variables and masks computed on the fly as
+$(1 \bitshl w') - 1$.
+The pre-masking invariant—each value is masked to its logical width—ensures that
+the translation is homomorphic: no case splits on widths are needed, and width
+comparisons reduce to ordinary unsigned bitvector comparisons. The formal
+development (Figure~\ref{mwbv:fig:mono-translation},
+page~\pageref{mwbv:fig:mono-translation}) makes this precise; the primed notation is
+dropped there, as the context is unambiguous.
+
+This translation yields two paths, depending on whether we wish to prove the
+formula up to a bound, or to completely prove it when it lies in the
+linear-bitwise fragment.
+
+\paragraph{Path 1: Bounded model checking via a single \qfbv{} call.}
+%
+After reducing $\text{PBV}_n$ to $\text{PBV}_1$, we instantiate the unique
+width parameter~$o$ to a concrete value (e.g., $64$), yielding a standard
+\qfbv{} formula that any off-the-shelf SMT solver can discharge in a single
+call.  This handles the full theory, including multiplication and
+concatenation.  The cost drops from~$o^k$ solver calls under naive enumeration
+to exactly one call.
+
+\paragraph{Path 2: Sound and complete decision via automata.}
+%
+For the linear-bitwise fragment, we can do better: prove validity for \emph{all}
+widths simultaneously.  The idea is to extend bitvectors to infinite bitstreams
+that are computable by finite state transducers, and decide the resulting
+formula by model checking. One nuance is that widths are directly represented by
+their associated masks, which can be seen as their unary encodings.
+
+\medskip
+Overall, the same idea of reducing widths to masks provides two
+reductions, one to a single \qfbv{} query for bounded model checking, and one to
+a complete automata-theoretic decision procedure for the unbounded case. We will
+now formalize the syntax and semantics of the multi-width theory and then state
+these reductions precisely.
+
 
 \section{A Unified Presentation of Zero, One, Many Width Parametric Bitvector Theory}
 \label{sec:mwbv:theory}
 
-\sid{Port from papers/paper-multi-width-bv/paper.tex \S 3 (lines 827--1034).}
+We now define syntax and semantics for a family of multi-width
+parametric bitvector theories $\text{PBV}_n$, where~$n$ is the number of
+bitvector width variables.
+%
+If we restrict width expressions to have no width variables ($\text{PBV}_0$), we
+recover the standard theory of fixed-width bitvectors (\qfbv{}). If we allow
+only a single width variable, we recover the mono-width parametric bitvector
+theory of prior work ($\text{PBV}_1$) \cite{bhat2025certified}.
+%
+Thus, this unifies the presentation of all three theories, and allows us to
+state our reductions: an equisatisfiable translation from $\text{PBV}_n$ to
+$\text{PBV}_1$, followed by bounded model checking via a single \qfbv{}
+call, all in a unified framework, parameterized by $n$.
+
+\subsection{Syntax}
+\label{mwbv:sec:syntax}
+
+Our theory is a multi-sorted language (\cref{mwbv:fig:syntax}, left) with two sorts of variables:
+\emph{width variables}~$x_w$ (ranging over natural numbers) and
+\emph{bitvector variables}~$x$ (ranging over bitvectors whose widths are given by width expressions).
+%
+Width expressions~$w$ comprise constants, variables, and simple operations
+such as min, max, and addition.
+%
+Bitvector expressions contain the standard operations from the SMT-LIB 2 \cite{barrett2010smt}
+format, such as arithmetic operations, bitwise operations, append,
+and extension operations. For example $\mathsf{zext}(a, w_1, w_2)$ extends the
+width of the bitvector~$a$ from~$w_1$ to~$w_2$ by adding zeros, and
+$\mathsf{sext}(a, w_1, w_2)$ by duplicating the sign bit of~$a$.
+%
+Finally, the predicates we consider are Boolean combinations of equality and
+signed and unsigned order predicates.
+For bounded solving, our algorithm allows all operations from SMT-LIB. For unbounded solving,
+our algorithm restricts to operations within our fragment.
+
+\begin{figure}[htb]
+\begin{minipage}{0.55\textwidth}
+{\footnotesize
+\begin{tabular}{llll}
+%\toprule
+% \multicolumn{4}{@{}l}{\textit{Width Expressions}} \\[2pt]
+$w$ & $::=$ & $\mathsf{wconst}(c)$ & constant width $c \in \N$ \\
+      & $\mid$ & $\Var(x_w)$ & width variable \\
+      & $\mid$ & $\mathsf{wmax}(w_1, w_2)$ & maximum of two widths \\
+      & $\mid$ & $\mathsf{wmin}(w, w_2)$ & minimum of two widths \\
+      & $\mid$ & $\mathsf{wadd}(w_1, w_2)$ & width addition \\[4pt]
+%\multicolumn{4}{@{}l}{\textit{Bitvector Expressions}} \\[2pt]
+$a, b$ & $::=$ & $\Var(x, w)$ & bitvector variable of width $w$ \\
+    & $\mid$ & $\mathsf{Const}(c, w)$ & constant $c$ at width $w$ \\
+    & $\mid$ & $\mathsf{add}(a, b, w)$ & addition at width $w$ \\
+    & $\mid$ & $\mathsf{mul}(a, b, w)$ & multiplication at width $w$ \\
+    & $\mid$ & $\mathsf{nand}(a, b, w)$ & bitwise NAND at width $w$ \\
+    & $\mid$ & $\mathsf{append}(a, w_1,  b, w_2)$ & append two bitvectors \\
+    & $\mid$ & $\zext(a, w_1, w_2)$ & zero-extend from $w_1$ to $w_2$ \\
+    & $\mid$ & $\sext(a, w_1, w_2)$ & sign-extend from $w_1$ to $w_2$ \\[4pt]
+%\multicolumn{4}{@{}l}{\textit{Predicate Expressions}} \\[2pt]
+$p$ & $::=$ & $\mathsf{eq}(a, b, w)$ & bitvector equality \\
+    & $\mid$ & $\mathsf{ult}(a, b, w)$ & unsigned less-than \\
+    & $\mid$ & $\mathsf{slt}(a, b, w)$ & signed less-than \\
+    & $\mid$ & $\mathsf{and}(p, q)$ & conjunction \\
+    & $\mid$ & $\mathsf{or}(p, q)$ & disjunction \\
+    & $\mid$ & $\mathsf{weq}(u, v)$ & width equality \\
+    & $\mid$ & $\mathsf{wlt}(u, v)$ & width less-than \\
+%\bottomrule
+\end{tabular}
+}
+\end{minipage}%
+%\hfill
+\begin{minipage}{0.45\textwidth}
+{\footnotesize
+\begin{tabular}{ll}
+$\Delta \defn$ \dimtext{(Width Typing Contexts)} \\
+$\Gamma \defn$ \dimtext{(Bitvector Typing Contexts)} \\
+$\Delta \vdash w$ \dimtext{($w$ well-typed in $\Delta$)} \\
+$\Delta; \Gamma \vdash x : \BV{w}$ \dimtext{($x$ has width $w$ in $\Gamma$)} \\
+$\Delta \vdash \IsEq(v, w)$ \dimtext{($v$, $w$ equal in $\Delta$)}
+\end{tabular}
+% \vspace{0.5em}
+\begin{tabular}{@{}l@{}}
+\rowcolor{black!10!white}
+\inferrule{ }{\Delta \vdash \mathsf{wconst}(c) : \N} \\[1em]
+\inferrule{ x_w \in \Delta}{\Delta \vdash x_w : \N} \\[1em]
+\rowcolor{black!10!white}
+\inferrule{ \Delta \vdash w_1 : \N \quad \Delta \vdash w_2 : \N}{\Delta \vdash \mathsf{wmax}(w_1, w_2) : \N} \\[1em]
+\inferrule{\Delta \vdash w }{\Delta; \Gamma \vdash \mathsf{Const}(c, w) : \BV{w}} \\[1em]
+\rowcolor{black!10!white}
+\inferrule{\Delta \vdash w \quad (x, w) \in \Gamma}{\Delta; \Gamma \vdash x : \BV{w}} \\[1em]
+\inferrule{\Delta; \Gamma \vdash x : \BV{w_x} \\ \Delta; \Gamma \vdash y : \BV{w_y} \\ \Delta \vdash \IsEq(w_x, w_y)}{\Delta; \Gamma \vdash x + y : \BV{w_x}} \\[1em]
+\rowcolor{black!10!white}
+\inferrule{\Delta; \Gamma \vdash x : \BV{w_1} \quad \Delta \vdash w_2  }{\Delta; \Gamma \vdash \zext(x, w_1, w_2) : \BV{w_2}} \\
+\end{tabular}
+}
+\end{minipage}
+\caption{Left: Syntax fragment of the multi-width parametric bitvector theory.
+Right: Representative typing rules. Note the stratified typing contexts for widths ($\Delta$) and bitvector variables ($\Gamma$).}
+\label{mwbv:fig:syntax}
+\label{mwbv:fig:typing}
+\end{figure}
+
+
+\subsection{Type System}
+\label{mwbv:sec:type-system}
+
+Bitvectors in our theory are dependently typed: the type $\BV{w}$ is
+parameterized by a width value~$w$ of type~$\N$.
+%
+Formally, we stratify our typing contexts into two levels (\cref{mwbv:fig:typing},
+right).
+%
+We first have a context~$\Delta$ for width variables, of type~$\N$.
+%
+We also have a context~$\Gamma$ for bitvector variables, which depend on the
+width variables. This context maps each bitvector variable to a well-typed width
+expression. We consider typing contexts to be unordered sets of variables, and
+environments as functions from typing contexts to values.
+% \footnote{In our implementation,
+% we use ordered lists (instead of unordered sets) for better definitional equality,
+% but the theoretical type system obeys all structural rules.}
+As there are expressions in types, we need a notion of equality for these
+expressions for type checking:
+Consider the rule for addition, where we require that the two bitvector operands
+have the same width, in the sense that they denote the same natural numbers
+under every instantiation of the width variables, denoted by $\IsEq(w_1, w_2)$.
+%
+In our implementation, this is approximated by a syntactic equality check.
+
+\subsection{Semantics}
+\label{mwbv:sec:semantics}
+
+% \begin{figure}[htb]
+% \centering
+% \small
+% \setlength{\tabcolsep}{3pt}
+% \renewcommand{\arraystretch}{1.2}
+% \begin{tabular}{@{}p{12.5cm}@{}}
+% \toprule
+% \textbf{Semantics} \\
+% \midrule
+% \textit{Width Expressions}: $\denote{w}_{\Sigma_w} \in \N$ \\[2pt]
+% \rowcolor{black!10!white}
+% $\denote{\mathsf{wconst}(c)}_{\Sigma_w} \defn c$ \\
+% $\denote{\Var(w)}_{\Sigma_w} \defn \Sigma_w(w)$ \\
+% \rowcolor{black!10!white}
+% $\denote{\mathsf{wmax}(k, l)}_{\Sigma_w} \defn \max(\denote{k}_{\Sigma_w}, \denote{l}_{\Sigma_w})$ \\
+% $\denote{\mathsf{wmin}(k, l)}_{\Sigma_w} \defn \min(\denote{k}_{\Sigma_w}, \denote{l}_{\Sigma_w})$ \\
+% \rowcolor{black!10!white}
+% $\denote{\mathsf{wadd}(k, c)}_{\Sigma_w} \defn \denote{k}_{\Sigma_w} + c$ \\[4pt]
+% \midrule
+% \textit{Bitvector Expressions}: $\denote{e}_{\Sigma_w, \Sigma} \in \BV{\denote{w}_{\Sigma_w}}$ \\[2pt]
+% \rowcolor{black!10!white}
+% $\denote{\Var(x, w)}_{\Sigma_w, \Sigma} \defn \Sigma(x)$ \\
+% $\denote{\mathsf{Const}(c, w)}_{\Sigma_w, \Sigma} \defn c \bmod 2^{\denote{w}_{\Sigma_w}}$ \\
+% \rowcolor{black!10!white}
+% $\denote{\mathsf{add}(a, b, w)}_{\Sigma_w, \Sigma} \defn (\denote{a} + \denote{b}) \bmod 2^{\denote{w}_{\Sigma_w}}$ \\
+% $\denote{\mathsf{nand}(a, b, w)}_{\Sigma_w, \Sigma} \defn \lnot(\denote{a} \bitand \denote{b}) \bmod 2^{\denote{w}_{\Sigma_w}}$ \\
+% \rowcolor{black!10!white}
+% $\denote{\zext(a, v, w)}_{\Sigma_w, \Sigma} \defn$ zero-extend $\denote{a}$ from width $\denote{v}_{\Sigma_w}$ to width $\denote{w}_{\Sigma_w}$ \\
+% $\denote{\sext(a, v, w)}_{\Sigma_w, \Sigma} \defn$ sign-extend $\denote{a}$ from width $\denote{v}_{\Sigma_w}$ to width $\denote{w}_{\Sigma_w}$ \\[4pt]
+% \midrule
+% \textit{Predicate Expressions}: $\denote{p}_{\Sigma_w, \Sigma} \in \{\true, \false\}$ \\[2pt]
+% \rowcolor{black!10!white}
+% $\denote{\mathsf{eq}(a, b, w)} \defn [\denote{a} = \denote{b}]$ \\
+% $\denote{\mathsf{ult}(a, b, w)} \defn [\natofbv{\denote{a}} < \natofbv{\denote{b}}]$ \\
+% \rowcolor{black!10!white}
+% $\denote{\mathsf{slt}(a, b, w)} \defn [\intofbv{\denote{a}} < \intofbv{\denote{b}}]$ \\
+% $\denote{\mathsf{and}(p, q)} \defn \denote{p} \land \denote{q}$ \\
+% \rowcolor{black!10!white}
+% $\denote{\mathsf{or}(p, q)} \defn \denote{p} \lor \denote{q}$ \\
+% $\denote{\mathsf{weq}(u, v)} \defn [\denote{u}_{\Sigma_w} = \denote{v}_{\Sigma_w}]$ \\
+% \rowcolor{black!10!white}
+% $\denote{\mathsf{wlt}(u, v)} \defn [\denote{u}_{\Sigma_w} < \denote{v}_{\Sigma_w}]$ \\
+% \bottomrule
+% \end{tabular}
+% \caption{Model-theoretic semantics for the multi-width parametric bitvector theory.
+% Iverson brackets $[\cdot]$ denote truth values.}
+% \label{mwbv:fig:semantics}
+% \end{figure}
+
+We now give standard semantics for our theory.
+% A key difference between the semantics we adopt versus model-theoretic semantics is that
+We only assign semantics to well-typed terms,
+which lets us avoid having to define
+partial functions for operations such as bitvector addition for bitvectors of
+two different widths. Our models~$\rho$ assign a natural number $\rho(x_w)$ for
+every width variable~$x_w$. This function is extended to associate a natural
+number $\rho(w)$ to every width expression~$w$ in the expected way.
+
+A model~$\rho$ also associates a bitvector $\rho(x)$ of width~$\rho(w)$ for a
+bitvector $x : \BV{w}$.
+%
+We extend this to a function $\rho$ over well-typed bitvector expressions using
+the standard semantics of bitvector operators such as addition or extension. We
+obtain a function which associates a bitvector expression $a$ of type~$\BV{w}$
+with a bitvector~$\rho(a) \in \BV{w}$.
+
+Finally, we define when a model satisfies a formula, which we denote with $\rho
+\vDash p$ in the expected way: for instance, $\rho \vDash \mathsf{eq}(a, b, w)$ when
+$\rho(a) = \rho(b)$.
+%
+We write $\vDash p$ when all models satisfy~$p$.
+%
+See the accompanying Lean development for more
+details.
 
 \section{Equisatisfiable Reduction: Multi-Width to Mono-Width}
 \label{sec:mwbv:reduction}
 
-\sid{Port from papers/paper-multi-width-bv/paper.tex \S 4 (lines 1035--1260).}
+We now formalize the reduction previewed in \cref{sec:mwbv:idea}:
+an equisatisfiable translation from $\text{PBV}_n$ to $\text{PBV}_1$,
+translating multi-width $\text{PBV}_n$ problems (as defined in \cref{sec:mwbv:theory})
+into a mono-width $\text{PBV}_1$ problem.
+The second reduction, bounded model checking via a single \qfbv{} call, follows immediately: fixing a concrete width $o$ proves
+the property for all widths $\leq o$.
+Composing the two, the entire multi-width formula maps to
+one \qfbv{} satisfiability check, so any off-the-shelf SMT solver can discharge it,
+with no external looping or enumeration to make multiple \qfbv{} calls, which is a significant improvement over the state of the art.
+
+The core idea is to represent each width~$w$ as a bitvector variable storing the
+width value directly, and to compute \emph{masks} on the fly whenever a
+masking operation is needed:
+the mask corresponding to a width~$w$ is $(1 \bitshl w) - 1 = 2^{w} - 1$, a
+bitvector with~$w$ ones in the lower bits.
+%
+For example, a width variable holding $u = 3$ yields the mask
+$(1 \bitshl 3) - 1 = 7 = \langle \redbox{00}\bluebox{111} \rangle$,
+with ones at the three low-order positions~$0$--$2$.
+
+\subsection{Syntax-Directed Translation to Mono-Width PBV}
+
+\begin{figure}[htb]
+\small
+\setlength{\tabcolsep}{3pt}
+\renewcommand{\arraystretch}{1.1}
+\centering
+\begin{tabular}{@{}p{4.5cm}p{8cm}@{}}
+\toprule
+\textbf{Multi-width PBV} & \textbf{Mono-width PBV} $\denote{\cdot}$ \\
+\midrule
+\multicolumn{2}{@{}l}{\textit{Variable Declarations} (preconditions asserted)} \\[2pt]
+\rowcolor{black!10!white}
+$\textsf{Var}(x_w) : \N$     & $(x_w : \BV{o})$ \\
+$\textsf{Var}(x, w) : \BV{e}$           & $(x : \BV{o})$, \quad assert $(x \bitand \denote{e}^\mask = x)$ \\[4pt]
+\midrule
+\multicolumn{2}{@{}l}{\textit{Width Expressions} (widths stored directly as bitvectors)} \\[2pt]
+\rowcolor{black!10!white}
+  $\textsf{Var}(x_w)$          & $x_w$ \\
+$\textsf{const}(c)$           & $c$ \\
+\rowcolor{black!10!white}
+$\textsf{min}(u, v)$           & $\mathsf{ite}(\denote{u} \bitult \denote{v},\; \denote{u},\; \denote{v})$ \\
+$\textsf{wadd}(u, v)$           & $\denote{u} + \denote{v}$ \\[4pt]
+\midrule
+\multicolumn{2}{@{}l}{\textit{Bitvector Expressions} (mask result to width via $\denote{w}^\mask = (1 \bitshl \denote{w}) - 1$)} \\[2pt]
+\rowcolor{black!10!white}
+$\textsf{Var}(a, w)$       & $a$ \quad\dimtext{(pre-masked by variable declaration)} \\
+$\textsf{Const}(x, w)$     & $x \bitand \denote{w}^\mask$ \\
+\rowcolor{black!10!white}
+$\textsf{add}(a, b, w)$    & $(\denote{a} + \denote{b}) \bitand \denote{w}^\mask$ \\
+$\textsf{nand}(a, b, w)$   & $\bitnot(\denote{a} \bitand \denote{b}) \bitand \denote{w}^\mask$ \\
+\rowcolor{black!10!white}
+$\textsf{zext}(a, v, w)$       & $\denote{a} \bitand \denote{w}^\mask$ \\
+$\textsf{sext}(a, v, w)$       & $\textbf{let } s = \mathsf{ite}(\msb_v(\denote{a}),\; \bitnot 0,\; 0)$ \quad\dimtext{(sign-extend fill)} \\
+                       & $\textbf{let } \mathit{ext} = s \bitand \bitnot \denote{v}^\mask$ \quad\dimtext{(bits above width $v$)} \\
+                       & $(\denote{a} \bitor \mathit{ext}) \bitand \denote{w}^\mask$ \\
+\rowcolor{black!10!white}
+$\textsf{append}(a, v, b, w)$  & $(\denote{a} \bitshl \denote{w}) \bitor \denote{b}$ \\
+% \rowcolor{black!10!white}
+                       % & \dimtext{result width $v{+}w$ encoded as $\denote{v} \cdot \denote{w}$} \\[4pt]
+\midrule
+\multicolumn{2}{@{}l}{\textit{Predicate Expressions}} \\[2pt]
+\rowcolor{black!10!white}
+$\textsf{eq}(a, b, w)$  & $\denote{a} = \denote{b}$ \quad\dimtext{(inputs pre-masked)} \\
+$\textsf{ult}(a, b, w)$  & $\denote{a} \bitult \denote{b}$ \quad\dimtext{(inputs pre-masked)} \\
+\rowcolor{black!10!white}
+% if the signs are equal,
+% then the result is that of unsigned comparison of 'a < b', flipped if a (and b) are negative.
+% otherwise the signs are different, the negative number is less than the positive number, so return if 'a' is negative.
+  $\textsf{slt}(a, b, w)$ & $\mathsf{ite}(\msb_w(\denote{a}) = \msb_w(\denote{b})$, \\
+\rowcolor{black!10!white}
+                          & \quad $\msb_w(\denote{a})\oplus\textsf{ult}(\denote{a}, \denote{b})$, \\
+\rowcolor{black!10!white}
+                          & \quad $\msb_w(\denote{a}))$ \\
+$\textsf{and}(p, q)$     & $\denote{p} \land \denote{q}$ \\
+\rowcolor{black!10!white}
+$\textsf{or}(p, q)$      & $\denote{p} \lor \denote{q}$ \\
+$\textsf{weq}(u, v)$                & $\denote{u} = \denote{v}$ \\
+\rowcolor{black!10!white}
+$\textsf{wlt}(u, v)$                & $\denote{u} \bitult \denote{v}$ \\[2pt]
+\bottomrule
+  \multicolumn{2}{@{}l}{\dimtext{where $\msb_w(a) \defn (a \bitand ((1 \bitshl \denote{w}) \gg 1)) \neq 0$.}} \\
+\end{tabular}
+\caption{Syntax-directed translation from $\text{PBV}_n$ to $\text{PBV}_1$.}
+\label{mwbv:fig:mono-translation}
+\end{figure}
+
+% \paragraph{Width Operations via Bit Manipulation}
+% Width operations on masks translate to standard bitvector operations.
+% Given masks $m, n$ (each of the form $w^{\pot} - 1$), we have
+% $\min(m, n) = m \bitand n$,
+% $\max(m, n) = m \bitor n$, and
+% \mbox{$m + 1 = (m \bitshl 1) \bitor 1$}.
+% Width predicates are equally direct:
+% $m$ and $n$ are equal iff $m \bitxor n = 0$,
+% and $m < n$ iff $\bitnot n \bitand m = 0$.
+
+We combine these observations into the syntax-directed translation
+of \cref{mwbv:fig:mono-translation}, which covers every operation
+from our multi-width calculus (\cref{mwbv:fig:syntax}).
+Given a multi-width formula over width variables $x_w^1, \ldots, x_w^k$ and bitvector variables
+$\textsf{Var}(x_1, w_1), \ldots, \textsf{Var}(x_n, w_n)$,
+we consider a global width $o$ and translate all variables and expressions to $\BV{o}$.
+Width variables are translated to bitvector variables $w : \BV{o}$ storing the
+width value directly (we denote the translated width with the same name).
+%
+Width expressions~$w$ are interpreted as bitvectors $\denote{w}$, and the
+corresponding mask $\denote{w}^\mask$ is computed on the fly as
+$(1 \bitshl \denote{w}) - 1 = 2^{\denote{w}} - 1$.
+
+Bitvector variables $\textsf{Var}(x, w)$ become $x : \BV{o}$, constrained to be
+correctly masked to their logical width: $x \bitand \denote{w}^\mask = x$.
+%
+Bitvector expressions are translated by masking their result back to the result
+width. Predicates and Boolean connectives translate homomorphically.
+
+
+\subsection{Equisatisfiability}\label{mwbv:sec:bounded-proof}
+
+We prove that the translation $\denote{\cdot}$ of \cref{mwbv:fig:mono-translation} is correct:
+every $\text{PBV}_n$ formula~$p$ is equisatisfiable with its
+translation~$\denote{p}$. We prove this through a single relation between the
+models of the two formulas. Intuitively, a mono-width model represents a
+multi-width one by storing each narrow bitvector as its zero-extension to the
+global width~$o$, keeping the logical bits unchanged and forcing every bit above
+the width to zero. We call such paired models \emph{compatible}
+(\cref{mwbv:def:compat}), show that compatible models satisfy exactly the same
+formulas (\cref{mwbv:lem:correspondence}), and conclude equisatisfiability by
+building a compatible partner from multi-width to mono-width and vice versa (\cref{mwbv:thm:equisat}).
+
+\begin{definition}[Compatibility]\label{mwbv:def:compat}
+Let $\rho$ be a multi-width model of~$p$, and let $W$ be the
+  maximum width of any subexpression in $p$. Formally, we define $W \defn \max\{\rho(w) : w
+\text{ a width subexpression of } p\}$.
+  Let $\rhob$ be a mono-width model over the translated global width~$o$. We call
+$\rho$ and $\rhob$ \emph{compatible}, written $\rho \approx \rhob$, when $o > W$
+and
+\begin{align*}
+  \rhob(x_w) \;&=\; \ofNat_o(\rho(x_w)) && \text{for every width variable } w, \\
+  \rhob(x)   \;&=\; \mathsf{zext}_o(\rho(x))     && \text{for every bitvector variable } x : \BV{w}.
+\end{align*}
+Here $\ofNat_o(n)$ writes the natural number~$n$ as a $\BV{o}$, and
+$\mathsf{zext}_o$ zero-extends a bitvector of width $w$ to a width $o$.
+The latter is exactly masking as zero-extension is implemented by a bitmask:
+$\mathsf{zext}_o(\rho(x))$ equals $\rhob(x) \bitand \denote{w}^\mask$.
+\end{definition}
+
+The constraint $o > W$ leaves room for every width and every mask: each width
+value $\rho(w) \le W < o$ is representable in~$\BV{o}$, and each mask $(1 \bitshl
+\denote{w}) - 1$ is computed without overflow.
+
+\begin{lemma}[Correspondence]\label{mwbv:lem:correspondence}
+If $\rho \approx \rhob$ then
+\begin{enumerate}
+  \item for every width expression~$w$,\quad $\rhob(\denote{w}) = \ofNat_o(\rho(w))$;
+  \item for every bitvector expression~$a : \BV{w}$,\quad $\rhob(\denote{a}) = \mathsf{zext}_o(\rho(a))$;
+  \item for every formula~$q$,\quad $\rho \vDash q \iff \rhob \vDash \denote{q}$.
+\end{enumerate}
+\end{lemma}
+\begin{proof}
+All of the claims are proven by an induction on the structure of the well-typed expression,
+reading the translation from \cref{mwbv:fig:mono-translation}.
+
+\emph{(1) Widths.} Width variables hold by compatibility, and
+$\textsf{const}(c)$ is immediate. For $\textsf{wadd}$ and $\textsf{min}$, the
+bound $o > W$ keeps every result below~$2^o$, so bitvector addition and
+$\bitult$ agree with addition and comparison on~$\N$.
+
+\emph{(2) Bitvectors.} The key fact is that masking by $\denote{w}^\mask$ at the
+wide width~$o$ commutes with performing the operation natively at the logical
+width~$\rho(w)$. Addition illustrates the pattern: assuming the claim for $a$
+and~$b$,
+\noindent
+\begin{align*}
+  \rhob(\denote{\textsf{add}(a,b,w)}) &= (\mathsf{zext}_o(\rho(a)) + \mathsf{zext}_o(\rho(b))) \bitand \denote{w}^\mask \\
+  &= \mathsf{zext}_o\big((\rho(a) + \rho(b)) \bitand (2^{\rho(w)} - 1)\big) \\
+  &= \mathsf{zext}_o(\rho(\textsf{add}(a,b,w))),
+\end{align*}
+as the mask erases exactly the high bits, where the overflow from the larger width $o$
+can disagree with the smaller width $\rho(w)$. The remaining cases (bitwise, extensions, append)
+follow the same argument, where masking the wide result reproduces the narrow result.
+
+\emph{(3) Formulas.} By parts~(1) and~(2), each atomic predicate compares the
+same values in both models. For example, $\rho \vDash \textsf{eq}(a,b,w)$ iff
+$\rho(a) = \rho(b)$ iff $\mathsf{zext}_o(\rho(a)) = \mathsf{zext}_o(\rho(b))$ iff
+$\rhob \vDash \denote{\textsf{eq}(a,b,w)}$. Boolean connectives
+remain unchanged, and thus the truth value of the entire formula is preserved.
+\end{proof}
+
+\begin{theorem}[Equisatisfiability]\label{mwbv:thm:equisat}
+A $\text{PBV}_n$ formula~$p$ is satisfiable iff its translation $\denote{p}$ is satisfiable.
+\end{theorem}
+\begin{proof}
+We will use the correspondence lemma (\cref{mwbv:lem:correspondence})
+to pair the multi-width formula $p$ with a compatible model of the mono-width formula $\denote{p}$ (and vice versa).
+
+\emph{(multi-width $\Rightarrow$ mono-width)} Let $\rho \vDash p$. Set $o = W + 1$ and define $\rhob$ by
+$\rhob(x_w) = \ofNat_o(\rho(x_w))$ and $\rhob(x) = \mathsf{zext}_o(\rho(x))$.
+Then $\rho \approx \rhob$ by construction, and every masking precondition
+$x \bitand \denote{w}^\mask = x$ holds because $\rhob(x)$ is a zero-extension.
+The lemma gives $\rhob \vDash \denote{p}$.
+
+\emph{(multi-width $\Leftarrow$ mono-width)} Let $\rhob \vDash \denote{p}$ over global width~$o$. Define
+$\rho$ for widths by interpreting the bitvectors $\rhob(w) : \BV{o}$ as natural numbers: $\rho(w) = \toNat(\rhob(w))$.
+Similarly, translate the bitvectors $x : \BV{o}$ as bitvectors of width
+$\rho(w)$ by masking: $\rho(x) = \ofNat_w (\toNat (\rhob(x)))$.
+The precondition $\rhob(x) \bitand \denote{w}^\mask = \rhob(x)$ ensures that $\toNat \rho(x) = \toNat \rhob(x)$, so
+this truncation does not lose information (as \toNat~is injective), and thus $\rho \approx \rhob$. The lemma gives $\rho \vDash p$.
+\end{proof}
+
+\begin{remark}[Choice of the global width $o$]\label{mwbv:rem:width-choice}
+The two maps in the proof of \cref{mwbv:thm:equisat} are a one-sided inverse.
+Starting from a multi-width model~$\rho$, building $\rhob$ and then truncating recovers $\rho$ exactly.
+So, this translation is lossess.
+
+On the other hand, the global width~$o$ is not fully determined by~$p$, as any $o$
+that is sufficient to not cause overflow ($o \ge W + 1$) yields a valid compatible model.
+Our construction simply takes the smallest such width, $o = W + 1$, for efficiency.
+\end{remark}
+
 
 \section{Extending Automata-Based PBV Solving to Multiple Widths}
 \label{sec:mwbv:automata}
+The previous section reduced $\text{PBV}_n$ to $\text{PBV}_1$ via bounded model
+checking, yielding a single \qfbv{} call that proves validity for all widths up
+to a bound~$o$.
+%
+For an \emph{unbounded} decision procedure that proves validity for
+\emph{all} widths simultaneously, we turn to automata.
+%
+As the full theory is undecidable, we need to restrict ourselves to a fragment
+of~$\text{PBV}_n$ which contains linear arithmetic operations as well as bitwise
+operations.
+%
+We combine the idea of the reduction from $\text{PBV}_n$ to $\text{PBV}_1$ with
+the verified mono-width solver of~\citet{bhat2025certified} to build a decision
+procedure which supports multiple widths and zero and sign extension.
 
-\sid{Port from papers/paper-multi-width-bv/paper.tex \S 5 (lines 1261--1764).}
+
+\subsection{The linear-bitwise fragment of $\text{PBV}_n$}
+
+The theory we consider is the fragment of $\text{PBV}_n$ which restricts the
+bitvector operations to linear arithmetic (addition, subtraction,
+multiplication by a constant), bitwise operations (and, or, xor, etc),
+size-changing operations (truncation, sign and zero extension), and comparisons (equality, unsigned and signed less-than).
+
+\subsection{From Bounded Masks to Automata-Encodable Masks}
+\label{mwbv:sec:mask-substitution}
+
+The translation of \cref{sec:mwbv:reduction} computes width masks on the fly as
+$\denote{w}^\mask = (1 \bitshl \denote{w}) - 1$, a left-shift by a variable
+amount (\cref{mwbv:fig:mono-translation}).  Variable shifts fall outside the
+linear-bitwise fragment, so the translation cannot be fed directly to an existing
+automata-based single-width solver~\citep{bhat2025certified}.
+%
+We exploit a classical bit-manipulation identity:
+%
+\begin{lemma}\label{mwbv:lem:mask-char}
+  A bitvector~$m$ equals $2^k - 1$ for some $k \geq 0$
+  if and only if $m \bitand (m + 1) = 0$.
+\end{lemma}
+%
+\noindent
+For each width variable~$w$ in the original $\text{PBV}_n$ formula, we
+can introduce a fresh bitvector variable~$m_w$ and assert
+$m_w \bitand (m_w + 1) = 0$.
+We can then perform the translation of \cref{mwbv:fig:mono-translation}
+with every occurrence of~$\denote{w}^\mask$ replaced by~$m_w$.
+The resulting formula is mono-width (all bitvectors live in~$\BV{o}$)
+and lies entirely within the linear-bitwise fragment,
+since every operation is either linear arithmetic, bitwise, or a constant shift.
+%
+This demonstrates that automata are expressible enough to decide linear-bitwise
+formulas with multiple widths.
+%
+Instead of using the above encoding and generating a single width formula, which
+would take significant effort to prove, we instead use this idea to directly
+translate multi-width formulas to automata by extending the existing
+infrastructure~\citep{bhat2025certified}.
+%
+We also conjecture that giving custom encodings of zero and sign extension yields
+smaller automata, which are easier to model check.
+
+\subsection{Background: The Automata Theoretic Approach to Mono-Width PBV}
+
+We describe a recent decision procedure~\citep{bhat2025certified} for the
+mono-width linear-fragment of PBV (i.e., without the three size-changing
+operations listed above).
+
+\begin{wrapfigure}[5]{r}{0.4\textwidth}
+{
+% \footnotesize
+\vspace{-2em}
+\newcommand\SP{1em}
+\begin{tabular}{p{0.8cm}|p{\SP}p{\SP}p{\SP}p{\SP}p{\SP}p{\SP}}
+  \rowcolor{black!10!white}
+          & $\dots$ & $b_4$ & $b_3$ & $b_2$ & $b_1$ & $b_0$ \\
+  $x$           & $\dots$ & 0 & 0 & 0 & 1 & 1 \\
+  \rowcolor{black!10!white}
+  $y$           & $\dots$ & 0 & 0 & 0 & 0 & 1 \\
+  \rowcolor{black!5!white}
+  $x \bitand y$ & $\dots$ & 0 & 0 & 0 & 0 & 1 \\
+  \rowcolor{black!10!white}
+  $y \bitand x$ & $\dots$ & 0 & 0 & 0 & 0 & 1 \\
+\end{tabular}
+}
+\end{wrapfigure}
+
+For an arbitrary width $w$, suppose we have the bitvector predicate $P_w \defn
+\forall (x~y: \BV{w}), x \bitand y = y \bitand x$.
+Our objective is to prove that the predicate $P_\ast \defn \forall w, P_w$ holds.
+The first reduction step is to see that we can instead prove the equivalent predicate
+$\Phi \defn \forall (x~y : \Bitstream), x \bitand y = y \bitand x$, which is
+over infinite bitstreams, and where bitwise operations are defined in the
+expected way.
+%
+This first reduction converts an equality over parametric bitvectors into an equality over bitstreams.
+%
+We imagine these bitstreams as infinite sequences of bits indexed from $0$ to $\infty$,
+laid out on a strip. For a particular instantiation, suppose $x = 3\#5 = \langle 00011\rangle$
+(i.e. bitvector of value $3$, bitwidth $5$) and $y = 1\#5 = \langle 00001\rangle$.
+These become infinite bitstreams by extending them with an infinite sequence of $0$s.
+%
+Next, to decide $\Phi$, we need to be able to have a finite representation for
+the bitstreams $x \bitand y$ and $y \bitand x$.
+%
+We compute these bitstreams via finite state transducers, on which many
+properties are decidable.
+%
+For illustration, we depict the bitstreams for $x \bitand y$ and $y \bitand x$
+on the right.
+
+Now, for the predicate $x \bitand y = y \bitand x$, we consider equality itself as a bitstream.
+Here, the equality predicate is a stream of $T$ and $F$ values, where $T$ indicates that
+the two input bitstreams are equal up to that position,
+and $F$ indicates that the two input bitstreams have differed at some position.
+For our running example, since the expression is true, the equality bitstream is all $T$s.
+Now, the question of whether $\Phi$ holds reduces to whether the bitstream for $(x \bitand y) = (y \bitand x)$ is always $T$.
+
+\begin{figure}[t]
+%\begin{minipage}[t]{0.3\textwidth}
+\begin{tabular}{lll}
+  \begin{tikzpicture}[mwbvautomaton, font=\footnotesize,node distance=2cm, on grid, auto, background rectangle/.style={fill=black!10!white}, show background rectangle, rounded corners=0.3cm]
+
+    % Left automaton: (x, y) -> x
+      \node[state, initial, accepting] (x0) {$x_0$};
+      \path[->]
+        (x0) edge [loop above] node {$[0,0]/0, [0,1]/0$} ()
+             edge [loop below] node {$[1,0]/1, [1,1]/1$} ();
+      \node[above=1.9cm of x0, font=\small] {$(x, y) \mapsto x$};
+\end{tikzpicture}
+&
+  \begin{tikzpicture}[mwbvautomaton, font=\footnotesize,node distance=2cm, on grid, auto, background rectangle/.style={fill=black!10!white}, show background rectangle, rounded corners=0.3cm]
+      \node[state, initial, accepting] (y0) {$y_0$};
+      \path[->]
+        (y0) edge [loop above] node {$[0,0]/0, [1,0]/0$} ()
+             edge [loop below] node {$[0,1]/1, [1,1]/1$} ();
+      \node[above=1.9cm of y0, font=\small] {$(x, y) \mapsto y$};
+\end{tikzpicture}
+&
+%\end{minipage}
+%\begin{minipage}[t]{0.3\textwidth}
+  \begin{tikzpicture}[mwbvautomaton, font=\footnotesize,node distance=2cm, on grid, auto, background rectangle/.style={fill=black!10!white}, show background rectangle, rounded corners=0.3cm]
+    % \backgroundrectangle[fill=red!10!white]{} % optional extra settings
+    \node[state, initial, accepting] (x0) {$x_0$};
+    \path[->]
+        (x0) edge [loop above] node {$[0,0]/0, [0,1]/0, [1, 0]/0$} ()
+             edge [loop below] node {$[1,1]/1$} ();
+    \node[above=1.9cm of x0, font=\small] {$(p, q) \mapsto p \bitand q$};
+\end{tikzpicture}
+\end{tabular}
+\caption{Automata for $x$, $y$, and $x \bitand y$, operations with no state needed.}
+\end{figure}
+
+
+\paragraph{Finite State Transducers for Mono-Width Parametric Bitvectors}
+
+The next step is to decide $\Phi$.
+For this, we model the input bitstreams $x$ and $y$, as well as all intermediate expressions
+(e.g., $x \bitand y$) as the output of finite state transducers.
+These transducers receive a tuple of bits with one tuple element for each variable, at each timestep,
+and produce the bitstream corresponding to the expression's value at that timestep.
+As an example, the expression $x$ receives a tuple of bits as input $[x_i, y_i]$, and produces output $x_i$.
+Similarly, the automaton for the subexpression $y$ receives a tuple of bits $[x_i, y_i]$ as input and produces $y_i$ as output.
+
+For the subexpressions $x \bitand y$ and $y \bitand x$,
+we first see that there is a finite state transducer that computes $(p, q)\mapsto p \bitand q$.
+We obtain the automata for $x \bitand y$ as well as $y \bitand x$ by composing the automata for $x$, $y$ and the $\bitand$ transducer.
+While in this case, the automata appear identical, in general, they will differ based on the input expressions.
+We can construct an automaton for the predicate $\Phi$ by composing the automata for $x \bitand y$ and $y \bitand x$.
+
+
+
+\begin{figure}[t]
+\begin{tabular}{ll}
+\begin{tikzpicture}[mwbvautomaton, font=\footnotesize, shorten >=1pt, node distance=2cm, on grid, auto, background rectangle/.style={fill=black!10!white}, show background rectangle, rounded corners=0.3cm]
+    % \backgroundrectangle[fill=blue!10!white]{} % optional extra settings
+   % States
+   \node[state, initial] (eq) {=};
+   \node[state, right=of eq] (neq) {≠};
+
+   % Loops
+   \path[->]
+     (eq) edge[loop above] node {[1,1]/T} ()
+          edge[loop below] node {[0,0]/T} ()
+     (neq) edge[loop above] node {[$\star$, $\star$]/F} ();
+
+   % Transitions
+   \path[->]
+     (eq) edge[bend left] node {[0,1]/F} (neq)
+          edge[bend right] node[below] {[1,0]/F} (neq);
+    \node[above=1.9cm of eq, font=\small] {$(p, q) \mapsto p = q$};
+\end{tikzpicture} &
+\begin{tikzpicture}[mwbvautomaton, font=\footnotesize, shorten >=1pt, node distance=2cm, on grid, auto, background rectangle/.style={fill=black!10!white}, show background rectangle, rounded corners=0.3cm]
+   % States
+   \node[state, initial, accepting] (eq) {=};
+   \node[state, right=of eq] (neq) {$\neq$};
+
+   % Loops on = state
+   \path[->]
+    (eq) edge[loop above] node{$[0, 0]/T, [0, 1]/T$} ()
+         edge[loop below] node{$x:[1, 0]/T, [1, 1]/T$} ();
+
+   % Loop on != state
+   \path[->]
+    (neq) edge[loop above] node{$[\star, \star] / F$} ();
+
+   % Transition from = to !=
+   \path[->]
+    (eq) edge[bend left, above] node{} (neq);
+    \node[above=1.9cm of eq, font=\small] {$(x, y) \mapsto (x \bitand y) = (y \bitand x)$};
+\end{tikzpicture}
+\end{tabular}
+\caption{Automata for equality and the final predicate $\Phi$.}
+\end{figure}
+
+
+So far, all the automata we have constructed have been memoryless. The next automaton that we construct for $(p, q) \mapsto p = q$
+is more interesting, since it uses state to keep track of whether the two input bitstreams have differed at any prior timestep.
+The idea is that this automaton starts in the $(=)$ state, and remains in this state as long as the two input bitstreams are equal.
+If, at any timestep, the two input bitstreams differ, the automaton transitions to the $(\neq)$ state,
+and remains in this state forever. This matches our intuition of equality:
+two bitstreams that are disequal at any position must remain disequal forevermore.
+%
+Finally, we compose the automata for $x \bitand y$ and $y \bitand x$ with the automaton for equality,
+giving us the final automaton for the predicate $\Phi$. See that in the final automaton,
+the $F$ state is unreachable, so $\Phi$ holds.
+
+\subsection{Extending to Multiple Widths: New Automata}
+
+After the masking translation (\cref{mwbv:sec:mask-substitution}), width variables
+become mask bitstreams in the automata encoding.
+The mono-width automata handle arithmetic, bitwise operations, and masking,
+but we still need automata for the operations unique to the multi-width setting.
+We illustrate the construction with zero extension.
+Using the running example of
+\[
+\forall (u~v~w : \N)~(a : \BV{u}),~
+u < v \to v \leq w \to
+\sext(\zext(a, u, v), v, w) = \zext(a, u, w)
+\]
+
+We encode the width variables $u, v, w$ as mask bitstreams $m_u, m_v, m_w$.
+These bitstreams are such that the first $u$ bits of $m_u$ are $1$s and the rest are $0$s, and similarly for $m_v$ and $m_w$.
+Note that $m_u = 2^u - 1$, and similarly for $m_v, m_w$; each is the mask for its corresponding width.
+
+\begin{figure}[htb]
+\begin{tabular}{ll}
+\begin{tikzpicture}[mwbvautomaton, font=\footnotesize, shorten >=1pt, node distance=2cm, on grid, auto, background rectangle/.style={fill=black!10!white}, show background rectangle, rounded corners=0.3cm]
+    % \backgroundrectangle[fill=blue!10!white]{} % optional extra settings
+   % States
+   \node[state, initial] (T) {$\geq$};
+   \node[state, right=of T] (F) {F};
+
+   % Loops
+   \path[->]
+     (T) edge[loop above] node {[1,1]/T, [1, 0]/T} ()
+          edge[loop below] node {[0,0]/T} ()
+     (F) edge[loop above] node {[$\star$, $\star$]/F} ();
+
+   % Transitions
+   \path[->]
+     (T) edge[bend left] node {[0,1]/F} (F);
+   \node[above=1.9cm of T, font=\small] {$(z, w) \mapsto z \geq w$};
+\end{tikzpicture}\hspace{3em}
+&
+\begin{tikzpicture}[mwbvautomaton, font=\footnotesize, shorten >=1pt, node distance=2cm, on grid, auto, background rectangle/.style={fill=black!10!white}, show background rectangle, rounded corners=0.3cm]
+    % \backgroundrectangle[fill=blue!10!white]{} % optional extra settings
+   % States
+   \node[state, initial] (T) {$\zext$};
+   \node[state, right=of T] (F) {0};
+
+   % Loops
+   \path[->]
+    (T) edge[loop above] node {[1,1,1]/1, [0,1,1]/0} ()
+          edge[loop below, black!10!white] node {\phantom{[0,0]/T}} () % hack: invisible arrow to make the two figures the same height
+    (F) edge[loop above] node {[$\star$, $\star$, $\star$]/0} ();
+
+   % Transitions
+   \path[->]
+    (T) edge[bend left, above] node {[$\star$,0, $\star$]/F} (F)
+    (T) edge[bend right, below] node {[$\star$,$\star$,0]/F} (F);
+   \node[above=1.9cm of T, font=\small] {$(x, v, w) \mapsto \zext(x, v, w)$};
+\end{tikzpicture}
+\end{tabular}
+\caption{Automata for multi-width mask operators,  $z \geq w$ and $\zext(x, v, w)$.
+Note the mixture of mask bitstreams (for $z, w, v$) and binary bitstreams (for $x$).
+}
+\end{figure}
+
+Now, width comparisons such as $u < v$ and $v \leq w$ can be encoded as comparisons of the corresponding mask bitstreams $m_u < m_v$ and $m_v \leq m_w$.
+This works because the map $k \mapsto 2^k - 1$ is monotone, so $u < v$ if and only if $m_u < m_v$.
+
+Next, for zero extension, we construct an automaton for the operation $\zext(x, m_v, m_w)$,
+which takes as input a bitstream $x$ and two mask bitstreams $m_v$ and $m_w$,
+and produces the zero extension of $x$ from width $v$ to width $w$.
+The key idea is that zero extension simply masks the input bitstream $x$ with $m_v$ to keep the bits within width $v$,
+and then masks this result with $m_w$ to get the final zero-extended result.
+So, the zero extension $\zext(x, m_v, m_w)$ can be computed as $x \bitand m_v \bitand m_w$,
+which is in the linear-bitwise fragment and can be computed by a finite state transducer.
+The other size-changing operation, sign extension, needs a \msb{} automaton.
+This can be computed by using both the original mask $m_w$, and the mask shifted by one, $m_{w-1}$,
+to mask away just the top bit. Then, we check whether this masked bitvector is nonzero to determine the msb.
+Formally, $\msb(x)$ can be computed as $(x \bitand m_w \bitand \bitnot  m_{w-1} \neq 0)$.
+Sign extension can be computed in terms of msb and other automata-expressible operations.
+As explained, these extend prior work by also requiring width masks to be available as bitstreams,
+which allows one to encode zero and sign extension into the linear-bitwise fragment, which is automata decidable.
+
+\begin{figure}[t]
+\newcommand{\addCarry}{\textsf{addCarry}}
+\newcommand{\addOut}{\textsf{addOut}}
+\newcommand{\subBorrow}{\textsf{subBorrow}}
+\small
+\setlength{\tabcolsep}{3pt}
+\renewcommand{\arraystretch}{1.1}
+\centering
+\begin{tabular}{@{}p{3.8cm}p{9.5cm}@{}}
+\toprule
+\textbf{Syntax} & \textbf{Semantics} $\denote{\cdot}[n]$ \\
+\midrule
+\multicolumn{2}{@{}l}{\textit{Width Expressions} \newstuff{(mask encoding)}} \\[2pt]
+\rowcolor{black!10!white}
+$\newstuff{\textsf{const}(c)}$, $\newstuff{\textsf{Var}(v)}$
+& $\newstuff{\denote{\textsf{const}(c)}[n] \defn [n < c]}$ \\
+\rowcolor{black!10!white}
+& $\newstuff{\denote{\textsf{Var}(v)}_\omega[n] \defn \omega(v)[n]}$ \\[2pt]
+$\newstuff{\textsf{min}(v, w)}$
+& $\newstuff{\denote{\textsf{min}(v, w)}_\omega[n] \defn \denote{v}_\omega[n] \bitand \denote{w}_\omega[n]}$ \\[4pt]
+\midrule
+\multicolumn{2}{@{}l}{\textit{Bitvector Expressions} (binary encoding, \newstuff{width-indexed})} \\[2pt]
+\rowcolor{black!10!white}
+$\textsf{Var}(a, \newstuff{w})$, $\textsf{Const}(x, \newstuff{w})$
+& $\denote{\textsf{Var}(a, \newstuff{w})}_{\newstuff{\omega}, \beta}[n] \defn \beta(a)[n] \newstuff{\bitand \denote{w}_\omega[n]}$ \\
+\rowcolor{black!10!white}
+& $\denote{\textsf{Const}(x, \newstuff{w})}_{\newstuff{\omega}, \beta}[n] \defn \textsf{testbit}(x, n) \newstuff{\bitand \denote{w}_\omega[n]}$ \\[2pt]
+$\newstuff{\textsf{zext}(a, v, w)}$
+& $\newstuff{\denote{\textsf{zext}(a, v, w)}_{\omega, \beta}[n] \defn \denote{a}_{\omega, \beta}[n] \bitand \denote{\textsf{min}(v, w)}_\omega[n]}$ \\[2pt]
+\rowcolor{black!10!white}
+$\textsf{add}(a, b, \newstuff{w})$
+& $\denote{\textsf{add}(a, b, \newstuff{w})}_{\omega, \beta}[n] \defn \addOut(\denote{a}, \denote{b}, 0)[n] \newstuff{\bitand \denote{w}_\omega[n]}$ \\[2pt]
+$\textsf{nand}(a, b, \newstuff{w})$
+& $\denote{\textsf{nand}(a, b, \newstuff{w})}_{\omega, \beta}[n] \defn \lnot(\denote{a}[n] \bitand \denote{b}[n]) \newstuff{\bitand \denote{w}_\omega[n]}$ \\[4pt]
+\midrule
+\multicolumn{2}{@{}l}{\textit{Predicate Expressions} (true $=$ stream of 1s)} \\[2pt]
+\rowcolor{black!10!white}
+$\textsf{eq}(a, b, \newstuff{w})$
+& $\denote{\textsf{eq}(a, b, \newstuff{w})}_{\newstuff{\omega}, \beta}[n] \defn \newstuff{\forall i \leq n,\, (\denote{w}_\omega[i] {=} 1) \to} \denote{a}[i] {=} \denote{b}[i]$ \\[2pt]
+$\textsf{ult}(a, b, \newstuff{w})$
+& $\denote{\textsf{ult}(a, b, \newstuff{w})}[n] \defn \subBorrow(\denote{a}, \denote{b})[n] \newstuff{\bitand \denote{w}_\omega[n]}$ \\[2pt]
+\rowcolor{black!10!white}
+$\textsf{and}(p, q)$, $\textsf{or}(p, q)$
+& $\denote{\textsf{and}(p, q)}[n] \defn \denote{p}[n] \land \denote{q}[n]$ \quad (similarly for $\textsf{or}$) \\[2pt]
+$\newstuff{\textsf{weq}(v, w)}$, $\newstuff{\textsf{wlt}(v, w)}$
+& $\newstuff{\denote{\textsf{weq}(v, w)}_\omega[n] \defn \forall i \leq n,\, \denote{v}_\omega[i] = \denote{w}_\omega[i]}$ \\
+\rowcolor{black!10!white}
+& $\newstuff{\denote{\textsf{wlt}(v, w)}_\omega[n] \defn \exists i \leq n,\, \denote{v}[i] {>} \denote{w}[i] \land (\forall j < i,\, \denote{v}[j] {=} \denote{w}[j])}$ \\[4pt]
+\midrule
+\multicolumn{2}{@{}l}{\textit{Auxiliary}: $\addOut(x, y, c)[i] \defn x[i] \oplus y[i] \oplus \addCarry(x, y, c)[i{-}1]$, where $\addCarry$ computes the carry bit.} \\
+\multicolumn{2}{@{}l}{\phantom{\textit{Auxiliary}:} $\subBorrow(x, y)[i] \defn \addCarry(x, \lnot y, 1)[i]$ (borrow from subtraction $x - y$).} \\
+\bottomrule
+\end{tabular}
+\caption{Encoding of bitvector operations as regular languages.
+Widths are masks, values are binary, predicates are bitstreams.
+Extensions are \newstuff{highlighted}.}
+\label{mwbv:fig:encodings}
+\end{figure}
+
+
+\subsection{From Transducers to Model Checking}
+
+The key to decidability is to encode the bitstreams as outputs of finite state transducers.
+Encoding widths as mask bitstreams allows us to perform width-based bit-masking on the bitvector operations,
+thereby extending the mono-width encodings of prior work~\cite{bhat2025certified} to the multi-width setting.
+Our extensions to the original calculus are shown in \cref{mwbv:fig:encodings}, with extensions \newstuff{highlighted}.
+If one sets all the width variables to be equal to the all-ones bitstream,
+then one perfectly recovers the mono-width encodings of prior work.
+
+Given a finite state transducer $f$ which encodes the denotation of a bitvector predicate $\phi$,
+we can decide the truth value of $\phi$ by ensuring that all reachable states of $f$ produce an output of $1$.
+We use a mechanized $k$-induction solver to check this property of $f$.
+As $k$-induction is sound and our encodings are sound, our overall decision procedure is sound.
+Furthermore, we use the $k$-induction solver from prior work, which has cycle breaking, and thereby ensures completeness.
+We also have an implementation of a solver based on IC3,
+which is not proof producing, but is much more efficient on certain problem structures.
+
+
+\subsection{Soundness \& Completeness of Automata Encoding}
+
+The decision procedure is sound and complete:
+\begin{theorem}
+  Let $p$ be a predicate in the linear-bitwise fragment of $\text{PBV}_n$.
+  %
+  Then $\vDash p$ if and only if the associated transducer produces a stream
+  of~$T$.
+\end{theorem}
+%
+\noindent
+This result is mechanized using the Lean proof assistant. The idea of the proof
+is similar to that of \citet{bhat2025certified}. We reuse the library for expressing finite state machines,
+and the $k$-induction solver with proof certificates from prior work.
+We build the new syntax encodings, translations to automata, and soundness and completeness proofs for the translation on top of prior work.
+The proof takes the new width constraints into account: we relate expressions with their associated
+transducers, by stating that for a given environment, a bitvector term~$a$
+produces the bitstream (by completing it with zeros) as its associated
+transducer.
+%
+We can then lift this result to predicates, and prove that a predicate~$p$ is
+true in an environment iff the associated transducer only produces~$T$ with the
+environment as input.
 
 \section{Solver Implementation and Mechanization}
 \label{sec:mwbv:implementation}
 
-\sid{Port from papers/paper-multi-width-bv/paper.tex \S 6 (lines 1765--1961).}
+\begin{wrapfigure}[26]{R}{0.4\textwidth}
+    \centering
+    % https://docs.google.com/drawings/d/1OXxLRow6Swbr4vzk9T75vbfxAL1mwaDQp9q4tDeWonY/edit?usp=sharing
+    \includegraphics[width=0.4\textwidth]{chapters/multi-width-bv/images/Meta-Concrete-Picture-Multi-Width-BV-Vertical.pdf}
+    \caption{End-to-end tactic pipeline.
+    We reflect the goal state, and coordinate type-erased (at meta-level) \& intrinsically well-typed (at object-level) syntax.}
+    \label{mwbv:fig:pipeline}
+    \vspace{-5em}
+\end{wrapfigure}
+
+We implement our decision procedures in Lean~4, producing
+both a tactic (\ourtactic{}) for interactive theorem proving and a standalone CLI solver.
+The implementation has two layers of syntax representation,
+two solver backends and two frontends (\cref{mwbv:fig:pipeline}).
+
+\subsection{Intrinsically Well-Typed Syntax}
+
+Our implementation uses two syntax representations, connected by a type-erasing projection.
+The first is an \emph{intrinsically well-typed} syntax (implemented as
+\texttt{Term} and \texttt{Predicate})
+whose types are indexed by width and term contexts,
+ensuring well-formedness by construction;
+for instance, a binary operation can only be formed
+when both subterms share the same width expression.
+This representation is used for the soundness proof,
+which proceeds by induction on well-typed terms.
+The second is a \emph{type-erased} syntax
+(implemented as \texttt{Nondep.Term} and \texttt{Nondep.WidthExpr})
+that carries no dependent-type indices;
+it is used at the metaprogramming level
+(where manipulating dependent types is extremely painful)
+and serves as the shared input to all solver backends.
+A projection%
+\footnote{The function \texttt{ofDepTerm} in our codebase.}
+maps well-typed syntax to untyped syntax,
+and the FSM construction for well-typed terms is \emph{defined}
+by composing this projection with the FSM construction on untyped terms:
+$\texttt{Predicate} \rightarrow \texttt{Nondep.Predicate} \rightarrow
+\texttt{FSM}$. This ensures both representations produce identical automata,
+which is critical for soundness: proof certificates obtained from the untyped
+FSM are directly applicable to the well-typed term.
+
+\subsection{Verified Unbounded Solver By Automata Reduction}
+
+The unbounded solver targets the linear-bitwise fragment decidable by
+model-checking of transducers (\cref{sec:mwbv:theory}). It proceeds in
+two steps.
+
+First, the solver builds a finite-state transducer%
+\footnote{Via the function \texttt{mkTermFsmNondep}.}
+from the untyped syntax tree.
+The correctness theorem states that for every well-typed term,
+the FSM output matches the bitstream semantics.
+This is proved by induction on the well-typed syntax,
+using a reusable reasoning principle about FSM outputs
+in terms of inductive invariants over FSM states.
+
+Second, the solver decides whether the constructed FSM is safe.
+Here we offer two backend choices.
+The verified option invokes a $k$-induction solver with cycle breaking built on
+previous work by \citet{bhat2025certified}:
+the solver calls \cadical{} and produces LRAT proof certificates,
+which are checked by Lean's verified certificate checker
+(part of \texttt{bv\_decide}~\cite{boving2025interactive}),
+yielding a fully verified end-to-end proof.
+The new unverified option invokes the rIC3 model checker~\cite{ric3} as an
+external process; this is typically faster than $k$-induction, and the
+architecture is designed to be able to verify the certificates generated by
+rIC3, which contain witnesses for the invariants.
+
+\subsection{Bounded Solver By $\text{PBV}_n$ To $\text{PBV}_1$ Reduction}
+
+The bounded solver handles the full $\text{PBV}_n$ language, including
+operations outside the automata-encodable fragment. Unlike the unbounded solver,
+which offers a choice of backends, the bounded solver is a fixed three-stage
+pipeline, though it can be implemented as a frontend to any solver which
+supports the \qfbv{} theory.
+%
+The first stage applies the equisatisfiable reduction
+from $\text{PBV}_n$ to $\text{PBV}_1$ (\cref{sec:mwbv:reduction}).%
+\footnote{Implemented as \texttt{toSingleWidthNondepTerm}.}
+The second stage translates mono-width syntax to the input format
+for \texttt{bv\_decide}.%
+\footnote{Via \texttt{toBVLogicalExpr}, producing Lean's \texttt{BVLogicalExpr} type.}
+This pipeline is unverified.
+The third stage hands the resulting \qfbv{} problem to \texttt{bv\_decide},
+Lean's verified bitblaster~\cite{boving2025interactive}.
+
+The trust placed in this pipeline therefore rests on
+(1)~correctness of the unverified reduction, and
+(2)~the bounded model checking assumption that the chosen bound suffices.
+  In certain cases, this assumption might well be true, where the upper bound is known a priori,
+  such as when reasoning about fixed-width machine integers.
+The key advantage of this technique is that it handles the full PBV language,
+and requires only a \emph{single} solver call,
+as opposed to techniques that enumerate width combinations
+(exponential in the number of widths).
+
+\subsection{Tactic Frontend For Lean \& Command Line Executable For SMT-LIB}
+
+We implement two frontends: a Lean tactic for interactive theorem proving
+and a standalone executable for SMT-LIB input.
+
+\noindent\textbf{Lean tactic (unbounded solver).}
+When the user invokes \ourtactic{} on a goal that lies in the linear-bitwise
+fragment of $\text{PBV}_n$, the tactic traverses the goal's AST at the meta
+level, building a type-erased syntax tree together with typing contexts. This
+avoids the pain of manipulating dependent types during metaprogramming. The
+well-typed term is then constructed at the object level from the untyped syntax
+and the separately tracked typing information. The tactic invokes the unbounded
+solver on the untyped syntax tree and obtains a proof certificate (an LRAT
+string added to the Lean environment as a constant).
+% A ``master theorem'' then closes the goal by combining three components:
+% (1)~the definitional equality of the reflected syntax with the goal,
+% (2)~the equivalence of FSM semantics with bitstream semantics, and
+% (3)~the certificate checker returning \texttt{true}.
+% Each definitional equality is taken as a propositional hypothesis (proved by \texttt{refl})
+% rather than used directly, producing cleaner error messages
+% when reflection fails.
+
+\noindent\textbf{SMT-LIB executable.}
+We also create a standalone CLI that consumes SMT-LIB~2 files
+in a parametric bitvector fragment, with configurable choice of backend (bounded or unbounded).
+
+\subsection{Preprocessing \& SMT-LIB Interoperability}
+
+Our theory is built on well-typed expressions whose widths are natural numbers
+(\cref{mwbv:sec:syntax}), whereas the SMT-LIB PBV
+proposal~\cite{bit-precise-parametric-bv} uses integer-valued width expressions.
+To bridge the gap, our preprocessor performs three transformations:
+(1)~SMT-LIB's $\texttt{pzero\_extend}(d, x)$, which extends by a delta~$d$,
+is rewritten as $\texttt{zext}(x, w, w+d)$ in our target-width convention;
+(2)~each width subtraction $u - v$ is replaced by a fresh width variable~$k$
+with the constraint $k + v = u$; and
+(3)~bitvector if-then-else is eliminated into implications.
+
+\noindent\textbf{Natural-number width encoding.}
+Extension operations in our formalization take the \emph{target width}
+as argument---mirroring the convention used in Lean and LLVM---so that every
+argument is non-negative by construction.
+Concretely, SMT-LIB's $\texttt{pzero\_extend}(d, x)$ becomes
+$\texttt{zext}(x, w, w{+}d)$, and similarly for sign-extend.
+
+\noindent\textbf{If-then-else elimination.}
+Our automata construction operates on a linear fragment and does not
+directly support bitvector if-then-else.
+The preprocessor eliminates each $\texttt{bvIte}(c,\, t_1,\, t_2)$
+by introducing a fresh bitvector variable~$r$ of the same width
+and adding the implications
+$c \Rightarrow r = t_1$ and $\lnot c \Rightarrow r = t_2$
+as conjunctive preconditions; the original if-then-else is then replaced by~$r$.
+This is an equisatisfiable transformation that brings the formula
+into the if-then-else-free fragment handled by our solvers.
+
+\noindent\textbf{Width-subtraction elimination.}
+The subtraction-elimination pass replaces each width subtraction $a - b$
+with a fresh width variable~$(d : \N)$ and adds the precondition $d + b = a$,
+effectively encoding subtraction that truncates to zero, since we are subtracting natural numbers (monus).
+Identical subtractions are deduplicated, keeping the variable count small.
+
+We do not perform any more preprocessing such as normalization up to associativity-commutativity of bitvector expressions,
+as we wish to evaluate the solving technique directly, without transformations that may normalize the problem and thereby make it trivial to solve.
 
 \section{Evaluation}
 \label{sec:mwbv:evaluation}
 
-\sid{Port from papers/paper-multi-width-bv/paper.tex \S 7 (lines 1962--2236).
-Plots live under chapters/multi-width-bv/plots/output/<experiment>/; the
-generated numbers (cactus.tex, stats.tex) were copied with commands prefixed
-Mw (e.g. \textbackslash MwMachineHostname) --- \textbackslash input only the
-experiments the text uses, e.g.
-\textbackslash input\{chapters/multi-width-bv/plots/output/alive-cactus/cactus.tex\}.}
+\begin{figure}[htb!]
+\newcommand{\myspace}{1.5em}
+\centering
+\vspace{\myspace}
+\begin{subfigure}[t]{\textwidth}
+\centering
+\includegraphics[width=\textwidth]{chapters/multi-width-bv/plots/output/alive-cactus/cactus.pdf}
+\caption{PBV-Alive (\AliveCactusNumProblemsTotal{} mono-width problems).
+BMC-Ours saturates the dataset; both unbounded solvers outperform CVC5-berger.}
+\label{mwbv:fig:eval-all-cactus}
+\end{subfigure}
+
+\vspace{\myspace}
+
+\begin{subfigure}[t]{\textwidth}
+\centering
+\includegraphics[width=\textwidth]{chapters/multi-width-bv/plots/output/sext-zext-instcombine/cactus.pdf}
+\caption{InstCombine (\SextZextInstcombineNumProblemsTotal{} multi-width problems).
+BMC-Ours saturates the dataset despite multiple widths; BMC-Naive collapses from enumeration blowup.}
+\label{mwbv:fig:eval-sext-zext}
+\end{subfigure}
+
+\vspace{\myspace}
+
+\begin{subfigure}[t]{\textwidth}
+\centering
+\includegraphics[width=\textwidth]{chapters/multi-width-bv/plots/output/rover-cactus/cactus.pdf}
+\caption{ROVER (\RoverCactusNumProblemsTotal{} problems, up to 12 symbolic widths).
+Naive enumeration is completely impractical; BMC-Ours and the unbounded solvers remain effective.}
+\label{mwbv:fig:eval-all-rover}
+\end{subfigure}
+\caption{Elapsed time against problems solved across all three datasets.
+BMC-Ours saturates nearly every benchmark by using a single \qfbv{} query,
+while BMC-Naive's naive enumeration collapses on multi-width problems.
+Both our unbounded solvers consistently outperform CVC5-berger, proving strictly
+more problems with parametric bitwidths.}
+\label{mwbv:fig:eval-compiler}
+\end{figure}
+
+We evaluate our multi-width bitvector decision procedures
+by answering two research questions:
+
+\begin{itemize}[leftmargin=*]
+  \item \textbf{RQ1} Does our bounded solver, based on the equisatisfiable reduction from $\text{PBV}_n$ to $\text{PBV}_1$, eliminate the exponential blowup of
+naive enumeration; and, does a single \qfbv{} query suffice to saturate standard PBV benchmarks?
+(\cref{mwbv:sec:bounded-eval})
+
+\item \textbf{RQ2} Do our automata-theoretic decision procedures for unbounded
+bitwidth outperform the state of the art solver for parametric bitvector problems?
+(\cref{mwbv:sec:unbounded-eval})
+\end{itemize}
+Towards answering
+these questions, we evaluate our solvers on parametric bitvector benchmarks drawn
+from compiler verification and hardware optimization.
+First, we evaluate our bounded solver on the full PBV language,
+and compare against a naive enumeration-based approach (\textbf{RQ1}). Our results show that we
+saturate our benchmarks with a single \qfbv{} query, while naive enumeration
+collapses on multi-width problems---BMC-Ours solves \EverybenchNumSolvedMbmc{}/\EverybenchNumProblemsTotal{} benchmarks versus \EverybenchNumSolvedNbmc{} for BMC-Naive.
+We then evaluate our unbounded solvers on the
+automata-encodable fragment of PBV, and compare against the state of the art
+CVC5-based
+parametric-width solver of~\citet{bit-precise-parametric-bv} (\textbf{RQ2}). Our results show
+a significant improvement in terms of the number of
+width-generic theorems solved across all three datasets, with our unbounded solvers proving \EverybenchNumSolvedMr{}/\EverybenchNumProblemsTotal{} benchmarks compared to \EverybenchNumSolvedC{} for CVC5-berger.
+
+
+\subsection{Experimental Setup}
+Our experiments were performed on a system equipped with an \MwSystemSpecsProcessorName{} clocked at 4.3GHz and \MwSystemSpecsMemoryGb{}~GiB of RAM.\grosser{Can we double-check the GB number? Why this non-power-of-two number?}
+All experiments were executed under Ubuntu 24.04, with per-instance resource limits of \MwConfigTimeoutSec{}s of wall-clock time and \MwConfigMemoutMb{}~MB of memory.
+We run \MwConfigNproc{} experiments in parallel and report wall-clock time elapsed for each solver.
+
+\subsection{Datasets: Mono and Multi-Width Compiler and Many-Width Hardware Benchmarks}
+% \grosser{Clearly setup the datasets. What was our objective in picking the data-sets,
+% how do the datasets we picked satisfy the objective. For example, are we interested in compiler verification
+% and hardware optimization, and if so, why? Are these BV problems representative?
+% What about the benchmarks from the CVC5 people? Did they get dropped?}
+Answering \textbf{(RQ1)} and \textbf{(RQ2)} requires benchmark datasets that are
+(1)~representative of real-world applications of parametric bitvector solving,
+(2)~as well-established as possible,
+and (3)~challenging for existing solvers. Our datasets focus on two application domains:
+compiler verification and hardware optimization. Compiler verification is a
+well-known application domain for parametric bitvector solving with an
+established mono-width benchmark suite (\textbf{PBV-Alive}) which we complement
+with a newly-created multi-width dataset (\textbf{LLVM Instcombine (zext/sext)}). Hardware
+optimization adds a set of particularly challenging many-width problems (\textbf{ROVER}).
+
+\noindent\textbf{PBV-Alive.}
+The Alive dataset from~\citet{bit-precise-parametric-bv} contains 200 mono-width parametric bitvector problems.
+This is representative of the use of PBV in compiler verification, where one is interested in proving the correctness of optimizations for all bitwidths.
+These are drawn from the Alive2 translation validation tool for LLVM,
+covering five parts of InstCombine: \texttt{AddSub} (19), \texttt{AndOrXor} (130), \texttt{InstCombineShift} (11),
+\texttt{Select} (27), and \texttt{muldivrem} (13).
+Each problem has one symbolic width parameter \texttt{k},
+and the bitvector operations include arithmetic, bitwise operations, and comparisons.
+
+\noindent\textbf{LLVM InstCombine (zext/sext).}
+To provide compiler verification benchmarks that involve multiple widths, we create a new dataset from LLVM InstCombine patterns that involve zero and sign extensions.
+We extract \SextZextInstcombineNumProblemsTotal{} multi-width problems
+from the LLVM InstCombine source code for patterns that involve zero and sign extensions.
+We create the dataset by parsing InstCombine test files, and running LLVM's InstCombine pass on them to receive a before/after pair of LLVM IR.
+We take 20 representative transformations and manually convert them to SMT-LIB formulas, generalizing them to arbitrary width statements in the process.
+We leave the original LLVM problem as a comment in the SMT-LIB file.
+Then, using this as a few-shot prompt~\cite{brown2020language} for an agentic harness,\footnote{Claude Code, Opus 4.6, high effort}
+we group the remaining test files into representative transformations, and have the agent convert the before/after LLVM IR into SMT-LIB formulas.
+We instruct the agent to focus on problems that (a) have two or more zero/sign extend operations, and
+(b) have clean generalizations to parametric widths. During the translation, we allow tool use for the agent
+to verify the SMT-LIB translation by running a naive enumerative solver with a bound of $8$.
+This gives us \SextZextInstcombineNumProblemsTotal{} problems from 1500 tests.
+
+\noindent\textbf{ROVER.}
+We take all 19 problems from the ROVER hardware optimization tool~\cite{DBLP:journals/tcad/CowardDC24}'s benchmark suite,
+which involves up to 12 symbolic width variables with constraints, and a variety of bitvector operations.
+These problems arise from RTL optimization, where ROVER uses e-graphs to perform rewriting-based equivalence checking.
+These rewrites not only involve many width variables, but also have constraints that relate the widths of different bitvectors (e.g., $q \geq t$, $u \geq t$).
+The large number of widths makes them a particularly demanding test of \textbf{(RQ1)} (the enumeration blowup is high) and \textbf{(RQ2)} (scalability of unbounded solving to many width variables).
+
+\subsection{Solvers}
+
+To evaluate our solvers, we use the state-of-the-art algorithm for parametric bitvector solving from~\citet{bit-precise-parametric-bv} as a baseline for unbounded solving.
+For bounded solving, we implement a naive enumeration-based solver as the baseline, which is the approach taken by Alive2, LLVM's translation validation tool.
+We run our unbounded solver in two configurations: one using a verified $k$-induction backend, and the other using the unverified but more efficient rIC3 model checker.
+BMC-Ours and BMC-Naive address \textbf{(RQ1)} by comparing our reduction against naive enumeration.
+The unbounded solvers and CVC5-berger address \textbf{(RQ2)} by comparing our automata-based approach against the state of the art.
+
+\noindent\textbf{BMC-Ours (bounded).}
+Applies our $\text{PBV}_n \to \text{PBV}_1$ reduction, then instantiates the
+mono-width parameter to a concrete bound, encoding the entire problem as a
+\emph{single} \qfbv{} query. We use \bvdecide{}, Lean's verified \qfbv{} solver,
+since it provides a path toward an end-to-end verified decision procedure,
+and is the standard solver used in the Lean community for bitvector problems.
+
+\noindent\textbf{BMC-Naive (bounded).}
+The baseline bounded model checker that enumerates all width assignments up to a given bound,
+issuing one \qfbv{} query per assignment, as done by Alive2 for example.
+For $k$ width variables and bound $o$, this requires $O(o^k)$ solver calls.
+We use the same \bvdecide{} solver for each query, to isolate the impact of the reduction from the underlying solver performance.
+This ensures that improvement in query complexity is the main driver of performance gains.
+
+\noindent\textbf{Unbounded-Ours (ric3~$+$~k-induction).}
+Both unbounded solvers share the same frontend: they construct the multi-width automaton
+encoding of the $\text{PBV}_n$ formula (verified in Lean) and reduce validity to an
+automaton safety property. They differ only in the model-checking backend.
+The \emph{ric3} variant uses rIC3, a state of the art bit-level model checker~\cite{ric3};
+it is fast but currently unverified, though its architecture supports future verification
+via inductive-invariant certificates~\cite{hwmcc_certs}.
+The \emph{k-induction} variant uses a $k$-induction checker mechanized in Lean,
+producing fully verified proofs when it succeeds, at the cost of higher runtime.
+
+\noindent\textbf{CVC5-berger (baseline).}
+The parametric bitvector solver from~\citet{bit-precise-parametric-bv},
+implemented in a fork of CVC5. We run the binary for the solver\footnote{\texttt{pbvsolver --pbv --cvc5:"nl-ext-tplanes full-saturate-quant"}}  from their artifact
+\cite{zohar_2025_15143242}, which serves as the state of the art baseline for $\text{PBV}_n$ solving.
+
+% \input{chapters/multi-width-bv/plots/output/bmc-cactus/cactus.tex}
+% \subsection{Order of Magnitude Faster Bounded Model Checking for PBV}
+%
+% \begin{figure}[htb]
+% \includegraphics[width=\textwidth]{chapters/multi-width-bv/plots/output/bmc-cactus/cactus.pdf}
+% \label{mwbv:fig:eval-bmc-cactus}
+% \end{figure}
+%
+
+
+\begin{table}[htb]
+\centering
+% \grosser{What does 'Unknown' mean? Maybe explain in legend or call it out-of-fragment? Also, is there a chance we can extend this and/or model these unknowns as uninterpreted functions?}
+% \sid{Yes, we can eventually model these as uninterpreted functions, but I wanted to keep the TCB of our solver small.
+% Every extension has the potential to introduce bugs.}
+\caption{Summary of solver results across all three datasets.
+\textbf{Bold} marks the best value per column within each dataset.
+For \textbf{(RQ1)}, BMC-Ours saturates nearly every benchmark with a single \qfbv{} query, eliminating the enumeration bottleneck.
+For \textbf{(RQ2)}, our unbounded solvers consistently outperform CVC5-berger, proving strictly more problems for all bitwidths.
+    }
+\label{mwbv:tab:eval-summary}
+\begin{tabular}{ll rrrrrr}
+\toprule
+Dataset & Solver & Total & Solved & Timeout & Memout & Unknown & Geomean \\
+\midrule
+\multirow{5}{*}{PBV-Alive}
+  & BMC-Ours          & \AliveCactusNumProblemsTotal{} & \textbf{\AliveCactusNumSolvedMbmc{}} & \AliveCactusNumTimeoutMbmc{}          & \textbf{\AliveCactusNumMemoutMbmc{}} & \textbf{\AliveCactusNumUnknownMbmc{}} & \AliveCactusGeomeanMsMbmc{} \\
+  & BMC-Naive         & \AliveCactusNumProblemsTotal{} & \AliveCactusNumSolvedNbmc{}          & \AliveCactusNumTimeoutNbmc{}          & \AliveCactusNumMemoutNbmc{}          & \textbf{\AliveCactusNumUnknownNbmc{}} & \AliveCactusGeomeanMsNbmc{} \\
+  & Unb.-Ours(ric3)   & \AliveCactusNumProblemsTotal{} & \AliveCactusNumSolvedMr{}            & \textbf{\AliveCactusNumTimeoutMr{}}   & \textbf{\AliveCactusNumMemoutMr{}}   & \AliveCactusNumUnknownMr{} & \AliveCactusGeomeanMsMr{} \\
+  & Unb.-Ours(k-ind.) & \AliveCactusNumProblemsTotal{} & \AliveCactusNumSolvedMk{}            & \textbf{\AliveCactusNumTimeoutMk{}}   & \textbf{\AliveCactusNumMemoutMk{}}   & \AliveCactusNumUnknownMk{} & \AliveCactusGeomeanMsMk{} \\
+  & CVC5-berger         & \AliveCactusNumProblemsTotal{} & \AliveCactusNumSolvedC{}             & \AliveCactusNumTimeoutC{}             & \textbf{\AliveCactusNumMemoutC{}}    & \textbf{\AliveCactusNumUnknownC{}} & \textbf{\AliveCactusGeomeanMsC{}} \\
+\midrule
+\multirow{5}{*}{\shortstack[l]{InstCombine\\(zext/sext)}}
+  & BMC-Ours          & \SextZextInstcombineNumProblemsTotal{} & \textbf{\SextZextInstcombineNumSolvedMbmc{}} & \SextZextInstcombineNumTimeoutMbmc{}          & \textbf{\SextZextInstcombineNumMemoutMbmc{}} & \textbf{\SextZextInstcombineNumUnknownMbmc{}} & \SextZextInstcombineGeomeanMsMbmc{} \\
+  & BMC-Naive         & \SextZextInstcombineNumProblemsTotal{} & \SextZextInstcombineNumSolvedNbmc{}          & \SextZextInstcombineNumTimeoutNbmc{}          & \SextZextInstcombineNumMemoutNbmc{}          & \textbf{\SextZextInstcombineNumUnknownNbmc{}} & \SextZextInstcombineGeomeanMsNbmc{} \\
+  & Unb.-Ours(ric3)   & \SextZextInstcombineNumProblemsTotal{} & \SextZextInstcombineNumSolvedMr{}            & \textbf{\SextZextInstcombineNumTimeoutMr{}}   & \textbf{\SextZextInstcombineNumMemoutMr{}}   & \SextZextInstcombineNumUnknownMr{} & \SextZextInstcombineGeomeanMsMr{} \\
+  & Unb.-Ours(k-ind.) & \SextZextInstcombineNumProblemsTotal{} & \SextZextInstcombineNumSolvedMk{}            & \textbf{\SextZextInstcombineNumTimeoutMk{}}   & \textbf{\SextZextInstcombineNumMemoutMk{}}   & \SextZextInstcombineNumUnknownMk{} & \SextZextInstcombineGeomeanMsMk{} \\
+  & CVC5-berger         & \SextZextInstcombineNumProblemsTotal{} & \SextZextInstcombineNumSolvedC{}             & \SextZextInstcombineNumTimeoutC{}             & \textbf{\SextZextInstcombineNumMemoutC{}}    & \SextZextInstcombineNumUnknownC{} & \textbf{\SextZextInstcombineGeomeanMsC{}} \\
+\midrule
+\multirow{5}{*}{ROVER}
+  & BMC-Ours          & \RoverCactusNumProblemsTotal{} & \textbf{\RoverCactusNumSolvedMbmc{}} & \RoverCactusNumTimeoutMbmc{}          & \textbf{\RoverCactusNumMemoutMbmc{}} & \textbf{\RoverCactusNumUnknownMbmc{}} & \RoverCactusGeomeanMsMbmc{} \\
+  & BMC-Naive         & \RoverCactusNumProblemsTotal{} & \RoverCactusNumSolvedNbmc{}          & \textbf{\RoverCactusNumTimeoutNbmc{}} & \RoverCactusNumMemoutNbmc{}          & \textbf{\RoverCactusNumUnknownNbmc{}} & \RoverCactusGeomeanMsNbmc{} \\
+  & Unb.-Ours(ric3)   & \RoverCactusNumProblemsTotal{} & \RoverCactusNumSolvedMr{}            & \textbf{\RoverCactusNumTimeoutMr{}}   & \textbf{\RoverCactusNumMemoutMr{}}   & \RoverCactusNumUnknownMr{} & \RoverCactusGeomeanMsMr{} \\
+  & Unb.-Ours(k-ind.) & \RoverCactusNumProblemsTotal{} & \RoverCactusNumSolvedMk{}            & \textbf{\RoverCactusNumTimeoutMk{}}   & \textbf{\RoverCactusNumMemoutMk{}}   & \RoverCactusNumUnknownMk{} & \RoverCactusGeomeanMsMk{} \\
+  & CVC5-berger         & \RoverCactusNumProblemsTotal{} & \RoverCactusNumSolvedC{}             & \RoverCactusNumTimeoutC{}             & \textbf{\RoverCactusNumMemoutC{}}    & \RoverCactusNumUnknownC{} & \textbf{\RoverCactusGeomeanMsC{}} \\
+\bottomrule
+\end{tabular}
+\grosser{I am surprised that Alive leads to memouts. AFAIU, each problem BMC-Naive solves should be strictly
+simpler than BMC-Ours, so I would expect BMC-Naive to have fewer memouts than BMC-Ours. Do you have an explanation for this? My only guess is that you run many instances in parallel, which
+should (a) be documented and (b) discussed what the implications of this are with respect to memouts. I would believe
+that the parallelism and memouts will make our data not very clean. Is there a reason we cannot run this sequentially? Or at least with sufficient few threads to not
+run into memouts?}
+\end{table}
+
+\subsection{Bounded Solving Eliminates Enumeration \textbf{(RQ1)}}
+\label{mwbv:sec:bounded-eval}
+
+We now address \textbf{(RQ1)}: does our $\text{PBV}_n \to \text{PBV}_1$ reduction eliminate the enumeration bottleneck?
+Our reduction collapses an arbitrary number of symbolic widths
+into a mono-width parameter, encoding the entire problem as one \qfbv{} query.
+This makes BMC-Ours independent of the number of symbolic widths $k$,
+in contrast to BMC-Naive's naive enumeration which requires $O(o^k)$ solver calls
+for bound~$o$.
+Our experiments (\cref{mwbv:fig:eval-compiler}) show a consistent pattern across all three datasets:
+%
+BMC-Ours saturates nearly every benchmark, while naive enumeration degrades
+catastrophically as the number of width variables grows.
+On PBV-Alive (\cref{mwbv:fig:eval-all-cactus}), where each problem has a mono-width parameter ($k=1$),
+both bounded solvers are effective. Even in this setting, BMC-Ours is already an order of magnitude faster
+as it avoids iterating over 64 concrete widths.
+
+The gap widens dramatically on multi-width problems.
+On InstCombine (\cref{mwbv:fig:eval-sext-zext}), with $k \geq 2$ width parameters,
+BMC-Naive must issue at least $64^2 = 4096$ solver calls per problem;
+it solves only \SextZextInstcombineNumSolvedNbmc{}/\SextZextInstcombineNumProblemsTotal{}.
+BMC-Ours, by contrast, still nearly saturates the dataset:
+\SextZextInstcombineNumSolvedMbmc{}/\SextZextInstcombineNumProblemsTotal{}.
+
+Similarly, on ROVER (\cref{mwbv:fig:eval-all-rover}), with up to $k=12$ width variables,
+naive enumeration is completely impractical: $64^{12}$ is astronomical, and
+BMC-Naive solves only \RoverCactusNumSolvedNbmc{}/\RoverCactusNumProblemsTotal{}.
+BMC-Ours solves \RoverCactusNumSolvedMbmc{}/\RoverCactusNumProblemsTotal{}
+\grosser{Can we inline some examples that none of these solvers can solve?}
+%
+%
+It is surprising that BMC-Naive has memory-outs on quite a few problems,
+as we would expect it to time out before it runs out of memory.
+We suspect that the raw structure of the problem may trigger the SAT solver to
+consume memory more quickly than time.
+%
+%
+This answers \textbf{(RQ1)} affirmatively: our reduction eliminates the BMC enumeration bottleneck.
+
+\subsection{Unbounded Solving Scales to Real-World Problems \textbf{(RQ2)}}
+\label{mwbv:sec:unbounded-eval}
+
+We now address \textbf{(RQ2)}: does our unbounded solver scale to real-world compiler and hardware verification problems?
+While bounded solving is fast and practical,
+it can only verify correctness up to a chosen bound.
+Our unbounded solvers prove formulas for \emph{all} bitwidths,
+and consistently outperform the state of the art CVC5-berger across every dataset.
+On PBV-Alive (\cref{mwbv:fig:eval-all-cactus}), our unbounded solvers each prove \AliveCactusNumSolvedMr{} problems for all bitwidths,
+versus CVC5-berger's \AliveCactusNumSolvedC{}.
+On InstCombine (\cref{mwbv:fig:eval-sext-zext}), both prove \SextZextInstcombineNumSolvedMr{} versus CVC5-berger's \SextZextInstcombineNumSolvedC{}.
+On ROVER (\cref{mwbv:fig:eval-all-rover}), they prove \RoverCactusNumSolvedMr{} versus CVC5-berger's \RoverCactusNumSolvedC{}.
+The unsolved problems involve operations outside our linear-bitwise decidable fragment
+(e.g., multiplication), for which our solvers correctly return \texttt{unknown}
+rather than an unsound result.
+
+This answers \textbf{(RQ2)} affirmatively: our automata-based unbounded solvers outperform the state of the art on every benchmark.
+
+\subsection{Diagnostic Data: Formula and Automaton Sizes}
+\label{mwbv:sec:diagnostics}
+
+\cref{mwbv:tab:eval-diagnostics} reports, as geometric means, the size of the
+input $\text{PBV}_n$ formula, the mono-width $\text{PBV}_1$ \qfbv{} formula
+emitted by our reduction, and the multi-width automaton state space, each as a
+structural term size and an AIG (bit-level) size.
+Problem size does not grow too much under the reduction, as the generated \qfbv{}
+query stays a small factor larger than the input regardless of the number of
+width variables, On the other hand, the automaton state space grows on the many-width ROVER
+datases, tracking the harder unbounded instances and the
+residual timeouts in \cref{mwbv:tab:eval-summary}.
+
+\sid{TODO: address comment on solver-time breakdown for translation vs.\ solving.
+The raw per-instance translation and solve times are recorded in
+\texttt{plots/output/stats/data.jsonl} (\texttt{solver-time} vs.\ total
+\texttt{Time elapsed}); add a column or companion table reporting the
+translation-vs-solving split so reviewers can see that translation is a
+negligible fraction of end-to-end time.}
+
+\begin{table}[htb]
+\centering
+\caption{Size diagnostics across the three datasets, reported as geometric means.
+For each dataset we give the size of the input $\text{PBV}_n$ formula, the
+mono-width $\text{PBV}_1$ \qfbv{} formula emitted by our reduction, and the
+multi-width automaton state space, each measured both as a structural term size
+(AST nodes) and as an AIG (bit-level) size. The $\text{PBV}_1$ formula stays a
+small constant factor larger than the input, confirming the linear-size
+reduction; the automaton state space grows on the many-width datasets, tracking
+the harder unbounded instances.}
+\sid{TODO: regenerable table in a single run with the full camera ready script.}
+\label{mwbv:tab:eval-diagnostics}
+\input{chapters/multi-width-bv/plots/output/stats/stats-table.tex}
+\end{table}
+
+\subsection{Summary of Experimental Results}
+
+Overall, our results (\cref{mwbv:tab:eval-summary}) answer our research questions affirmatively.
+While CVC5-berger consistently achieves the lowest geometric mean time on the problems it solves,
+it solves fewer problems overall across all three datasets.
+In our experience, it is fast on problems that work well with its rewrite rules and quantifier instantiations,
+but the translation into quantified integer arithmetic seems to cause the solver to either time out or return \texttt{unknown} after lengthy solve times
+on problems that are not immediately solved.
+For \textbf{(RQ1)}, BMC-Ours saturates nearly every benchmark with a single \qfbv{} query,
+evidencing that our multi-width to mono-width reduction eliminates the enumeration bottleneck.
+For \textbf{(RQ2)}, our automata-based unbounded solvers prove strictly more problems than CVC5-berger across all three datasets,
+demonstrating that they scale to real-world compiler and hardware verification benchmarks.
 
 \section{Related Work}
 \label{sec:mwbv:related}
 
-\sid{Port from papers/paper-multi-width-bv/paper.tex \S 8 (lines 2237--2266).}
+\paragraph{Fixed Width Bitvector Solving.}
+A wide range of techniques have been contemplated for fixed-width bitvector solving,
+using approaches such as bit-blasting, word-level reasoning, and combinations thereof.
+Bitwuzla \cite{niemetz2023bitwuzla} is a state-of-the-art SMT solver for fixed-width bitvectors, that uses bitblasting
+along with word-level rewriting and preprocessing. Bitwuzla is a successor to Boolector\cite{brummayer2009boolector}.
+
+\paragraph{Parametric Bitvector Solving.}
+Recent work has shown renewed interest in parametric bitvector solving,
+due to applications in compiler verification and hardware optimization.
+Algorithms for parametric bitvector solving based on rewriting and reductions to nonlinear integer arithmetic \cite{bit-precise-parametric-bv} have been recently proposed
+as a practically effective solution.
+Sound and complete algorithms for fragments of the PBV language were recently proposed \cite{bhat2025certified},
+based on reductions to automata-based decision procedures for linear integer arithmetic.
+We build on their automata-based approach, extending it to handle the full PBV language via our reduction, and improving its performance on the linear fragment via verified automata construction and $k$-induction.
+
+\paragraph{Automata Encodings of Integer Arithmetic.}
+The original automata encoding of integer arithmetic was proposed by Buchi~\citet{buchi1960decision},
+and prior work has used ideas from this line of work to create parametric bitvector solvers.
+Our work builds on ideas from this approach, but extends it to handle the full PBV language via our reduction.
+
+\paragraph{Bounded Model Checking.}
+Bounded model checking (BMC) arose as a technique to prevent the exponential blowup of BDDs
+by using a SAT solver to search for counterexamples upto a given bound~\cite{biere2009bounded}.
+Our algorithm uses ideas from BMC, where we bound the mono-width parameter after our reduction, and encode the entire problem as a single \qfbv{} query.
 
 \section{Conclusions}
 \label{sec:mwbv:conclusion}
 
-\sid{Port from papers/paper-multi-width-bv/paper.tex \S 9 (lines 2267--),
-and add a hand-off paragraph: from richer widths to richer values,
-motivating \cref{ch:floating-point}.}
+We establish a key theoretical property: an equisatisfiable
+translation from $\text{PBV}_n$ to $\text{PBV}_1$, based on the idea
+of encoding widths themselves as bitvector masks.
+%
+This enables us to build two solvers. The first is a sound \& complete decision procedure for the linear-bitwise fragment of $\text{PBV}_n$
+that enables us to handle operations that change bitvector widths.
+%
+The second is a bounded model checker that encodes the full $\text{PBV}_n$ theory as a \emph{single} \qfbv{} query,
+avoiding the exponential enumeration required by prior approaches.
+%
+Both solvers are implemented in Lean, with the unbounded solver producing fully mechanized proofs via verified automata construction and $k$-induction.
+%
+Our evaluation spans \EverybenchNumProblemsTotal{} problems across three benchmarks,
+and shows that our approach works well in practice.
+%
+First, BMC-Ours saturates nearly every dataset with a single \qfbv{} query,
+solving \EverybenchNumSolvedMbmc{} of \EverybenchNumProblemsTotal{} problems overall, showing
+that the standard compiler PBV benchmarks are essentially closed by our approach.
+%
+Second, our unbounded solvers solve $\EverybenchRatioSolvedMrOverC{}\times$ as many problems
+as CVC5-berger overall.
+%
+% Third, the rIC3 backend is consistently faster than the verified k-induction backend while solving the same problems.
+% This raises the promise of combining the speed of rIC3 with the trust of our verified $k$-induction checker by verifying rIC3's inductive invariant certificates within Lean, yielding a fast and fully verified unbounded solver for parametric bitvector problems.
+% %
+In summary, the two reductions we introduce
+establish a foundation for multi-width parametric bitvector reasoning,
+enabling both complete decision procedures and exponentially more efficient bounded model checking based on principled reductions.
+
+\paragraph{Data Availability.}
+All of our evaluation stages (\cref{sec:mwbv:evaluation}) are packaged into a
+Docker container, which is distributed as part of the artifact accompanying
+the associated paper~\citep{bhat2026multiwidth}.
+
+\paragraph{From richer widths to richer values.}
+Together with \cref{ch:single-width-bv}, this chapter completes the width
+axis of this thesis: bitvector reasoning that is generic not just over a
+single symbolic width, but over arbitrarily many. The values themselves,
+however, have so far remained plain machine integers. The next chapter turns
+from richer \emph{widths} to richer \emph{values}: it reuses the same verified
+bitblasting infrastructure to decide predicates over \emph{floating-point}
+numbers, whose bit-level encodings---sign, exponent, and mantissa---make them
+by far the most intricate values that compilers routinely reason about
+(\cref{ch:floating-point}).
