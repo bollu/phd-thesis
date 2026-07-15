@@ -1,0 +1,197 @@
+\NeedsTeXFormat{LaTeX2e}
+\ProvidesPackage{packages}[2026/07/15 Thesis package loading and theorem styling]
+
+%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%
+%% Encoding and language.
+%% cam-thesis.cls already loads: graphicx, setspace, microtype, hyperref
+%% (with colorlinks=false; recoloured via \hypersetup below), hypcap,
+%% glossaries (via the `glossary` option) and makeidx (via `withindex`).
+%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%
+\usepackage[english]{babel}
+\usepackage[utf8]{inputenc}
+\usepackage[T1]{fontenc}
+\usepackage{csquotes}
+
+%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%
+%% Fonts: Palatino body (mathpazo), classicthesis styling, drop caps.
+%% NB: do NOT load lmodern after mathpazo -- it silently overrides Palatino.
+%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%
+\usepackage[sc,osf]{mathpazo}
+\usepackage{classicthesis}
+% dropcaps:
+% https://tex.stackexchange.com/questions/250474/how-to-use-fancy-dropcaps-with-pdflatex
+\usepackage{Carrickc,Typocaps,lettrine}
+\renewcommand\LettrineFontHook{\Typocapsfamily}
+
+%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%
+%% Colours. dvipsnames is passed via \PassOptionsToPackage in thesis.tex.
+%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%
+\usepackage{xcolor}
+\usepackage{soul}
+
+%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%
+%% Enumerations and tables.
+%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%
+\usepackage{calc}
+\usepackage[shortlabels]{enumitem}
+\usepackage{booktabs}
+\usepackage{multirow}
+\usepackage{colortbl}
+\usepackage{longtable}
+\usepackage[width=.8\textwidth]{caption}
+\captionsetup[table]{skip=1em}
+\usepackage{subcaption}
+\usepackage{wrapfig}
+\newcommand{\ra}[1]{\renewcommand{\arraystretch}{#1}}
+
+%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%
+%% Math.
+%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%
+\usepackage{mathtools}
+\usepackage{savesym}
+\savesymbol{openbox}
+\usepackage{amsthm}
+\usepackage{thmtools}
+\savesymbol{Bbbk}
+\usepackage{amssymb}
+\usepackage{stmaryrd}
+\usepackage{mathpartir}
+\usepackage{algorithm}
+\usepackage[noend]{algpseudocode}
+
+%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%
+%% TikZ and shaded boxes.
+%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%
+\usepackage[most]{tcolorbox}
+\usepackage{tikz}
+\usetikzlibrary{automata, positioning, arrows, shapes, backgrounds}
+
+%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%
+%% Hyperref colours (hyperref itself is loaded by cam-thesis.cls).
+%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%
+\hypersetup{
+  colorlinks=true,   % Remove the boxes
+  linktocpage=true,  % Make page numbers (not section titles) links in ToC
+  linkcolor=NavyBlue,% Colour for internal links
+  citecolor=Green,   % Colour for bibliographical citations
+  urlcolor=BrickRed, % Colour for (external) urls
+}
+\usepackage[noabbrev,capitalise]{cleveref}
+\newcommand{\creflastconjunction}{, and\nobreakspace}
+
+%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%
+%% Theorem environments, shaded following Andrej Bauer's notes on realizability
+%% (https://github.com/andrejbauer/notes-on-realizability), via alexrice's
+%% Cambridge thesis.
+%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%
+\colorlet{ShadeOfPurple}{blue!5!white}
+\colorlet{ShadeOfYellow}{yellow!5!white}
+\colorlet{ShadeOfGreen} {green!5!white}
+\colorlet{ShadeOfBrown} {brown!10!white}
+\colorlet{ShadeOfGray}  {gray!10!white}
+
+\declaretheorem[numberwithin=chapter]{theorem}
+\declaretheorem[sibling=theorem]{lemma}
+\declaretheorem[sibling=theorem]{proposition}
+\declaretheorem[sibling=theorem]{corollary}
+\declaretheorem[sibling=theorem,style=definition]{definition}
+\declaretheorem[sibling=theorem,style=remark]{example}
+\declaretheorem[sibling=theorem,style=remark]{remark}
+\declaretheorem[sibling=theorem,style=remark,numbered=no]{claim}
+
+% Shading via tcolorbox: thmtools' "shaded" option and mdframed have issues
+% (no page breaks / double spacing between adjacent shaded environments).
+% tcolorbox puts content in a minipage, losing paragraph indentation; restore
+% it by capturing \parindent/\parskip at begin-document.
+\newlength{\normalparindent}
+\AtBeginDocument{\setlength{\normalparindent}{\parindent}}
+\newlength{\normalparskip}
+\AtBeginDocument{\setlength{\normalparskip}{\parskip}}
+\tcbset{shadedenv/.style={
+    colback={#1},
+    frame hidden,
+    enhanced,
+    breakable,
+    boxsep=0pt,
+    left=2mm,
+    right=2mm,
+    add to width=1.1mm,
+    enlarge left by=-0.6mm,
+    before upper={\setlength{\parindent}{\normalparindent}\setlength{\parskip}{\normalparskip}}
+  }}
+\newcommand{\setenvcolor}[2]{%
+  \tcolorboxenvironment{#1}{shadedenv={#2}}%
+}
+\setenvcolor{theorem}{ShadeOfPurple}
+\setenvcolor{lemma}{ShadeOfPurple}
+\setenvcolor{proposition}{ShadeOfPurple}
+\setenvcolor{corollary}{ShadeOfPurple}
+\setenvcolor{definition}{ShadeOfYellow}
+\setenvcolor{example}{ShadeOfGreen}
+\setenvcolor{remark}{ShadeOfBrown}
+\setenvcolor{proof}{ShadeOfGray}
+
+%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%
+%% Misc utilities used across chapters.
+%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%
+\usepackage{xspace}
+\usepackage{etoolbox}
+\usepackage{environ}
+\usepackage{ifthen}
+\usepackage{xifthen}
+\usepackage{pifont}
+\usepackage{float}
+\usepackage{marginnote}
+\usepackage[textsize=tiny]{todonotes}
+\usepackage[normalem]{ulem}
+\usepackage[verbose]{newunicodechar}
+
+%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%
+%% minted with custom lexer support (tools/lexers/*.py).
+%% Requires building with -shell-escape and pygments installed;
+%% see .latexmkrc.
+%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%
+\usepackage{minted}
+\usemintedstyle{colorful}
+
+% Newer versions of minted require the 'customlexer' argument for custom
+% lexers, whereas older versions require '-x' on the command line.
+\makeatletter
+\ifcsdef{minted@optlistcl@quote}
+{
+\ifwindows
+  \renewcommand{\minted@optlistcl@quote}[2]{%
+    \ifstrempty{#2}{\detokenize{#1}}{\detokenize{#1="#2"}}}
+\else
+  \renewcommand{\minted@optlistcl@quote}[2]{%
+    \ifstrempty{#2}{\detokenize{#1}}{\detokenize{#1='#2'}}}
+\fi
+
+% similar to \minted@def@optcl@switch
+\newcommand{\minted@def@optcl@novalue}[2]{%
+  \define@booleankey{minted@opt@g}{#1}%
+    {\minted@addto@optlistcl{\minted@optlistcl@g}{#2}{}%
+     \@namedef{minted@opt@g:#1}{true}}
+    {\@namedef{minted@opt@g:#1}{false}}
+  \define@booleankey{minted@opt@g@i}{#1}%
+    {\minted@addto@optlistcl{\minted@optlistcl@g@i}{#2}{}%
+     \@namedef{minted@opt@g@i:#1}{true}}
+    {\@namedef{minted@opt@g@i:#1}{false}}
+  \define@booleankey{minted@opt@lang}{#1}%
+    {\minted@addto@optlistcl@lang{minted@optlistcl@lang\minted@lang}{#2}{}%
+     \@namedef{minted@opt@lang\minted@lang:#1}{true}}
+    {\@namedef{minted@opt@lang\minted@lang:#1}{false}}
+  \define@booleankey{minted@opt@lang@i}{#1}%
+    {\minted@addto@optlistcl@lang{minted@optlistcl@lang\minted@lang @i}{#2}{}%
+     \@namedef{minted@opt@lang\minted@lang @i:#1}{true}}
+    {\@namedef{minted@opt@lang\minted@lang @i:#1}{false}}
+  \define@booleankey{minted@opt@cmd}{#1}%
+      {\minted@addto@optlistcl{\minted@optlistcl@cmd}{#2}{}%
+        \@namedef{minted@opt@cmd:#1}{true}}
+      {\@namedef{minted@opt@cmd:#1}{false}}
+}
+\minted@def@optcl@novalue{customlexer}{-x}
+}
+{
+}
+\makeatother

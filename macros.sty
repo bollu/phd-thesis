@@ -1,0 +1,285 @@
+\NeedsTeXFormat{LaTeX2e}
+\ProvidesPackage{macros}[2026/07/15 Thesis-wide macros hoisted from the papers]
+
+%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%
+%% Draft-note toggle: flip to \draftnotesfalse for the submitted thesis.
+%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%
+\newif\ifdraftnotes
+\draftnotestrue
+
+%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%
+%% Colour scheme: print-friendly and colorblind-safe for up to four colours.
+%% https://colorbrewer2.org/#type=qualitative&scheme=Paired&n=4
+%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%
+\definecolor{pairedNegOneLightGray}{HTML}{cacaca}
+\definecolor{pairedNegTwoDarkGray}{HTML}{827b7b}
+\definecolor{pairedOneLightBlue}{HTML}{a6cee3}
+\definecolor{pairedTwoDarkBlue}{HTML}{1f78b4}
+\definecolor{pairedThreeLightGreen}{HTML}{b2df8a}
+\definecolor{pairedFourDarkGreen}{HTML}{33a02c}
+\definecolor{pairedFiveLightRed}{HTML}{fb9a99}
+\definecolor{pairedSixDarkRed}{HTML}{e31a1c}
+\definecolor{materialYellow}{HTML}{f9a825}
+\definecolor{liescolor}{HTML}{EC407A}
+\definecolor{periwinkle}{HTML}{7986CB}
+\definecolor{peterriver}{HTML}{283593}
+
+%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%
+%% Author todo notes (from the opencompl paper template's tex/setup.tex),
+%% gated on \ifdraftnotes instead of the papers' \paperversion.
+%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%
+\makeatletter
+\font\uwavefont=lasyb10 scaled 652
+\newcommand\colorwave[1][blue]{\bgroup\markoverwith{\lower3\p@\hbox{\uwavefont\textcolor{#1}{\char58}}}\ULon}
+\newcommand\highlight[2]{{\color{#1}{\colorwave[#1]{#2}}}}
+\newcommand\InFloat[2]{\ifnum\@floatpenalty<0\relax#1\else#2\fi}
+\makeatother
+
+\newboolean{inComment}
+\setboolean{inComment}{false}
+
+\ifdraftnotes
+\newcommand\createtodoauthor[2]{
+  \def\tmpdefault{emptystring}
+  \expandafter\newcommand\csname #1\endcsname[2][\tmpdefault]{% comment to avoid spurious whitespace
+    \ifthenelse{\boolean{inComment}}{% comment to avoid spurious whitespace
+      \PackageError{macros}{Comments in comments not supported}{}% comment to avoid spurious whitespace
+    }{}\setboolean{inComment}{true}% comment to avoid spurious whitespace
+    \def\tmp{##1}% comment to avoid spurious whitespace
+    \InFloat{
+        \smash{
+          \marginnote{
+            \todo[inline,linecolor=#2,backgroundcolor=#2,bordercolor=#2]
+              {\textbf{#1 (Figure):} ##2}
+          }
+        }
+    }{\ifthenelse{\equal{\tmp}{\tmpdefault}} % Is there text to highlight?
+      {\todo[linecolor=#2,backgroundcolor=#2,bordercolor=#2]{\textbf{#1:} ##2}\ignorespaces}
+      {\ifthenelse{\equal{##2}{}} % Is there a note?
+        {\highlight{#2}{##1}}
+        {\highlight{#2}{##1}\todo[linecolor=#2,backgroundcolor=#2,bordercolor=#2]
+          {\textbf{#1:} ##2}% comment to avoid spurious whitespace
+        }% comment to avoid spurious whitespace
+      }% comment to avoid spurious whitespace
+    }% comment to avoid spurious whitespace
+    \setboolean{inComment}{false}% comment to avoid spurious whitespace
+  }
+}
+\else
+\newcommand\createtodoauthor[2]{%
+\expandafter\newcommand\csname #1\endcsname[2][]{##1}%
+}%
+\fi
+
+\createtodoauthor{sid}{pairedTwoDarkBlue}
+\createtodoauthor{grosser}{pairedOneLightBlue}
+
+%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%
+%% Table marks.
+%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%
+\newcommand{\tableok}[0]{\cellcolor{pairedThreeLightGreen}\ding{51}}
+\newcommand{\tableno}[0]{\cellcolor{pairedOneLightBlue}--}
+\newcommand{\tablequestion}[0]{\cellcolor{materialYellow}?}
+\newcommand{\tablecross}[0]{\text{\sffamily X}}
+
+%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%
+%% Delimited commands: all tool-name macros end with a required {} delimiter
+%% so that LaTeX adds whitespace correctly.
+%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%
+\makeatletter
+\newcommand\requiredelimiter[2][########]{%
+  \ifdefined#2%
+    \def\@temp{\def#2#1}%
+    \expandafter\@temp\expandafter{#2}%
+  \else
+    \@latex@error{\noexpand#2undefined}\@ehc
+  \fi
+}
+\@onlypreamble\requiredelimiter
+\makeatother
+
+\newcommand\newdelimitedcommand[2]{
+\expandafter\newcommand\csname #1\endcsname{#2}
+\expandafter\requiredelimiter
+\csname #1 \endcsname
+}
+
+%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%
+%% Tool names.
+%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%
+\newcommand{\bvdecide}{\texttt{bv\_decide}}
+\requiredelimiter{\bvdecide}
+\newcommand{\bvnormalize}{\texttt{bv\_normalize}}
+\requiredelimiter{\bvnormalize}
+\newcommand{\bvgeneralize}{\texttt{bv\_generalize}}
+\requiredelimiter{\bvgeneralize}
+\newcommand{\bvspecialize}{\texttt{bv\_specialize}}
+\requiredelimiter{\bvspecialize}
+\newcommand{\cadical}{CaDiCaL}
+\requiredelimiter{\cadical}
+\newcommand{\hydra}{Hydra}
+\newcommand{\leanmlir}{\textsf{lean-mlir}}
+\requiredelimiter{\leanmlir}
+
+%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%
+%% Unicode characters appearing in pasted Lean code.
+%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%
+\newunicodechar{₀}{\ensuremath{_0}}
+\newunicodechar{₁}{\ensuremath{_1}}
+\newunicodechar{₂}{\ensuremath{_2}}
+\newunicodechar{₃}{\ensuremath{_3}}
+\newunicodechar{₄}{\ensuremath{_4}}
+\newunicodechar{₅}{\ensuremath{_5}}
+\newunicodechar{₆}{\ensuremath{_6}}
+\newunicodechar{ᵢ}{\ensuremath{_i}}
+\newunicodechar{ᵤ}{\ensuremath{_u}}
+\newunicodechar{ₐ}{\ensuremath{_a}}
+\newunicodechar{ₛ}{\ensuremath{_s}}
+\newunicodechar{∀}{\ensuremath{\forall}}
+\newunicodechar{∃}{\ensuremath{\exists}}
+\newunicodechar{α}{\ensuremath{\alpha}}
+\newunicodechar{β}{\ensuremath{\beta}}
+\newunicodechar{σ}{\ensuremath{\sigma}}
+\newunicodechar{ι}{\ensuremath{\iota}}
+\newunicodechar{π}{\ensuremath{\pi}}
+\newunicodechar{δ}{\ensuremath{\delta}}
+\newunicodechar{Γ}{\ensuremath{\rho}}
+\newunicodechar{Σ}{\ensuremath{\Sigma}}
+\newunicodechar{ℕ}{\ensuremath{\mathbb{N}}}
+\newunicodechar{⊔}{\ensuremath{\sqcup}}
+\newunicodechar{↔}{\ensuremath{\iff}}
+\newunicodechar{×}{\ensuremath{\times}}
+\newunicodechar{→}{\ensuremath{\rightarrow}}
+\newunicodechar{⊢}{\ensuremath{\vdash}}
+\newunicodechar{≠}{\ensuremath{\neq}}
+\newunicodechar{∨}{\ensuremath{\lor}}
+\newunicodechar{∧}{\ensuremath{\land}}
+\newunicodechar{∘}{\ensuremath{\circ}}
+\newunicodechar{⊕}{\ensuremath{\oplus}}
+\newunicodechar{≤}{\ensuremath{\leq}}
+
+%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%
+%% \circled command to print a colored circle.
+%% \circled{1} pretty-prints "(1)"; useful to refer to labels embedded in
+%% figures.
+%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%
+\tikzset{
+  circledstyle/.style={
+    shape=circle,
+    #1,
+    font=\tt\small,
+    inner sep=0pt,
+    outer sep=0pt,
+    minimum size=1.2em,
+    text=black
+  }
+}
+\DeclareRobustCommand{\circledbase}[3][]{%
+    \tikz[baseline=(char.base)]{\node[circledstyle, fill=#2] (char) {#3\strut};}%
+}
+\DeclareRobustCommand{\circled}[2][]{%
+    \ifthenelse{\isempty{#1}}%
+        {\circledbase{pairedOneLightBlue}{#2}}%
+        {\autoref{#1}: \hyperref[#1]{\circledbase{pairedOneLightBlue}{#2}}}%
+}
+
+%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%
+%% autoref names.
+%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%
+\providecommand*{\listingautorefname}{Listing}
+\renewcommand{\sectionautorefname}{Section}
+\renewcommand{\subsectionautorefname}{Section}
+\renewcommand{\subsubsectionautorefname}{Section}
+
+%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%
+%% Bitvector notation (hoisted from the OOPSLA'25/'26 papers).
+%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%
+\newcommand{\denote}[1]{\ensuremath{\left\llbracket #1 \right\rrbracket}}
+\newcommand{\bvsem}[3]{\denote{#1}^{#2}_{#3}}
+\newcommand{\bvsemgen}[1]{\bvsem{#1}{w}{\rho}}
+\newcommand{\bitand}{\ensuremath{\mathbin{\&}}}
+\newcommand{\bitor}{\ensuremath{\|}}
+\newcommand{\bitnot}{\ensuremath{\sim}}
+\newcommand{\bitxor}{\ensuremath{\oplus}}
+\newcommand{\bitult}{\ensuremath{<_u}}
+\newcommand{\bitule}{\ensuremath{\leq_u}}
+\newcommand{\bitslt}{\ensuremath{<_s}}
+\newcommand{\bitsle}{\ensuremath{\leq_s}}
+\newcommand{\bitugt}{\ensuremath{>_u}}
+\newcommand{\bituge}{\ensuremath{\geq_u}}
+\newcommand{\bitshl}{\ensuremath{\ll}}
+\newcommand{\bitlshr}{\ensuremath{\gg_l}}
+\newcommand{\bitashr}{\ensuremath{\gg_s}}
+\newcommand{\Z}{\ensuremath{\mathbb Z}}
+\newcommand{\N}{\ensuremath{\mathbb N}}
+\newcommand{\Type}{\ensuremath{\mathsf Type}}
+\newcommand{\F}{\ensuremath{\mathcal F}}
+\newcommand{\Zcal}[1]{\ensuremath{\big[ #1 \big]_{\tiny \mathbb Z}}}
+\newcommand{\Zdenote}{\ensuremath{\mathbb Z}}
+\newcommand{\V}{\ensuremath{\mathbb V}}
+\newcommand{\nat}{\ensuremath{\N}}
+\newcommand{\Nat}{\ensuremath{\N}}
+\newcommand{\B}{\ensuremath{\mathbb B}}
+\newcommand{\toInt}{\ensuremath{\mathsf{toInt}}}
+\newcommand{\toNat}{\ensuremath{\mathsf{toNat}}}
+\newcommand{\msb}{\ensuremath{\mathsf{msb}}}
+\newcommand{\true}{\ensuremath{\mathsf{true}}}
+\newcommand{\false}{\ensuremath{\mathsf{false}}}
+\newcommand{\BV}[1]{\ensuremath{\mathsf{BitVec}~{#1}}}
+\newcommand{\Bitstream}{\ensuremath{\mathsf{\B^\N}}}
+\newcommand{\MaskBitstream}{\ensuremath{\mathcal{U}}}
+\newcommand{\mask}{\ensuremath{\mathsf{mask}}}
+\newcommand{\bv}[1]{\ensuremath{\BV{#1}}}
+\newcommand{\genbv}{\ensuremath{\mathit{bv}}}
+\newcommand{\Sol}[2]{\ensuremath{\mathsf{Sol}}_{#1}(#2)}
+\newcommand{\aut}{\ensuremath{\mathcal{A}}}
+\newcommand{\floordiv}[2]{\ensuremath{\lfloor #1 / #2 \rfloor}}
+\newcommand{\modulo}{\ensuremath{\%}}
+\newcommand{\ofNat}{\ensuremath{\mathsf{ofNat}}}
+\newcommand{\Var}{\ensuremath{\mathsf{Var}}}
+\newcommand{\WidthRel}{\textsf{WidthRel}}
+\newcommand{\width}{\textsf{width}}
+\newcommand{\intofbv}[1]{\textsf{int}(#1)}
+\newcommand{\natofbv}[1]{\textsf{nat}(#1)}
+\newcommand{\FV}{\mathrm{FV}}
+\newcommand{\wexpr}{\ensuremath{\mathsf{WExpr}}}
+\newcommand{\bvexpr}{\ensuremath{\mathsf{BvExpr}}}
+\newcommand{\predexpr}{\ensuremath{\mathsf{PredExpr}}}
+\newcommand{\ENV}{\ensuremath{\mathsf{Env}}}
+\newcommand{\Stream}{\ensuremath{\mathsf{Stream}}}
+\newcommand{\defn}{\triangleq}
+\newcommand{\blockmath}[1]{\[\mathsf{#1}\]}
+\newcommand{\inlinemath}[1]{$\mathsf{#1}$}
+\newcommand{\notimplies}{\;\not\!\!\!\implies}
+\newcommand{\lettervec}[3]{\ensuremath{\begin{bmatrix}#1\\[-2pt] #2\\[-2pt] #3\end{bmatrix}}}
+\newcommand{\zext}{\ensuremath{\mathsf{zext}~}}
+\newcommand{\sext}{\ensuremath{\mathsf{sext}~}}
+\newcommand{\append}{\ensuremath{\mathbin{+\mkern-3mu+}}}
+\newcommand{\eqdef}{\coloneqq}
+\newcommand{\qfbv}{\texttt{QF\_BV}}
+\newcommand{\qffp}{\texttt{QF\_FP}}
+\DeclarePairedDelimiter{\denoteinline}{\llbracket}{\rrbracket}
+
+%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%
+%% Text decorations.
+%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%
+\setul{0.3ex}{0.2ex}          % thickness, distance from text
+\newcommand{\lies}[1]{{\color{liescolor}#1}}
+\newcommand{\thoughts}[1]{{\color{periwinkle}#1}}
+\newcommand{\dimtext}[1]{{\color{black!55!white}{#1}}}
+\newcommand{\bluebox}[1]{\smash{\colorbox{blue!20}{#1}}}
+\newcommand{\redbox}[1]{\smash{\colorbox{red!10}{#1}}}
+\newcommand{\newstuff}[1]{{\color{peterriver} #1}}
+
+%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%
+%% Lean / LLVM listings via minted.
+%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%
+\newminted[lean]{lean}{style=bw, bgcolor=blue!5!white, fontsize=\small}
+\newminted[llvm]{llvm}{style=bw, fontsize=\small}
+\newcommand{\leaninline}[1]{\mintinline[style=bw, bgcolor=blue!5!white]{lean}{#1}}
+\newcommand{\leaninlineM}[1]{\text{\mintinline[style=bw, bgcolor=blue!5!white]{lean}{#1}}}
+
+%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%
+%% Shims for text ported from acmart papers.
+%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%
+\newcommand{\Description}[2][]{}
