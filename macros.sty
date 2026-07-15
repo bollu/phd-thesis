@@ -278,27 +278,41 @@
 %%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%
 %% Lean / LLVM listings via minted.
 %%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%
-\newminted[lean]{lean}{style=bw, bgcolor=blue!5!white, fontsize=\small}
-\newminted[leanfootnotesize]{lean}{fontsize=\footnotesize, escapeinside=@@, mathescape}
 \newminted[llvm]{llvm}{style=bw, fontsize=\small}
 \newminted[ccode]{text}{fontsize=\footnotesize}
-\newcommand{\leaninline}[1]{\mintinline[style=bw, bgcolor=blue!5!white]{lean}{#1}}
-\newcommand{\leaninlineM}[1]{\text{\mintinline[style=bw, bgcolor=blue!5!white]{lean}{#1}}}
 
-% Custom-lexer environments (lexers live in tools/lexers/). Newer minted
-% takes the 'customlexer' option; older minted needs '-x' on the lexer path.
+% Lean listings and the custom-lexer environments (lexers live in
+% tools/lexers/, registered in .latexminted_config). The Lean environments use
+% the custom Lean 4 lexer rather than pygments' built-in Lean 3 'lean' lexer.
+%
+% Custom-lexer invocation differs by minted generation, so we select the lexer
+% spec (\lexLean etc.) and the shared option prefix (\clopt) once:
+%   * minted 3.x  -- reference the lexer file by "path:Class", no extra option
+%                    (authorization comes from .latexminted_config).
+%   * minted 2.x  -- newer builds take the 'customlexer' option; older builds
+%                    need '-x' appended to the lexer path instead.
 \makeatletter
-\ifcsdef{minted@optlistcl@quote}
-{
-  \newminted[mlir]{tools/lexers/MLIRLexer.py:MLIRLexerOnlyOps}{customlexer, mathescape}
-  \newminted[xdsl]{tools/lexers/MLIRLexer.py:MLIRLexer}{customlexer, mathescape, style=murphy}
-  \newminted[lean4]{tools/lexers/Lean4Lexer.py:Lean4Lexer}{customlexer, mathescape}
-}
-{
-  \newminted[mlir]{tools/lexers/MLIRLexer.py:MLIRLexerOnlyOps -x}{mathescape}
-  \newminted[xdsl]{tools/lexers/MLIRLexer.py:MLIRLexer -x}{mathescape, style=murphy}
-  \newminted[lean4]{tools/lexers/Lean4Lexer.py:Lean4Lexer -x}{mathescape}
-}
+\@ifpackagelater{minted}{2024/06/01}
+  {\newcommand{\lexLean}{tools/lexers/Lean4Lexer.py:Lean4Lexer}%
+   \newcommand{\lexMlirOps}{tools/lexers/MLIRLexer.py:MLIRLexerOnlyOps}%
+   \newcommand{\lexMlir}{tools/lexers/MLIRLexer.py:MLIRLexer}%
+   \newcommand{\clopt}{}}
+  {\ifcsdef{minted@optlistcl@quote}
+    {\newcommand{\lexLean}{tools/lexers/Lean4Lexer.py:Lean4Lexer}%
+     \newcommand{\lexMlirOps}{tools/lexers/MLIRLexer.py:MLIRLexerOnlyOps}%
+     \newcommand{\lexMlir}{tools/lexers/MLIRLexer.py:MLIRLexer}%
+     \newcommand{\clopt}{customlexer, }}
+    {\newcommand{\lexLean}{tools/lexers/Lean4Lexer.py:Lean4Lexer -x}%
+     \newcommand{\lexMlirOps}{tools/lexers/MLIRLexer.py:MLIRLexerOnlyOps -x}%
+     \newcommand{\lexMlir}{tools/lexers/MLIRLexer.py:MLIRLexer -x}%
+     \newcommand{\clopt}{}}}
+\newminted[lean]{\lexLean}{\clopt style=bw, bgcolor=blue!5!white, fontsize=\small}
+\newminted[lean4]{\lexLean}{\clopt mathescape, style=bw, bgcolor=blue!5!white, fontsize=\small}
+\newminted[leanfootnotesize]{\lexLean}{\clopt fontsize=\footnotesize, escapeinside=@@, mathescape}
+\newcommand{\leaninline}[1]{\mintinline[\clopt style=bw, bgcolor=blue!5!white]{\lexLean}{#1}}
+\newcommand{\leaninlineM}[1]{\text{\mintinline[\clopt style=bw, bgcolor=blue!5!white]{\lexLean}{#1}}}
+\newminted[mlir]{\lexMlirOps}{\clopt mathescape}
+\newminted[xdsl]{\lexMlir}{\clopt mathescape, style=murphy}
 \makeatother
 
 %%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%
