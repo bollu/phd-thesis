@@ -25,15 +25,28 @@
 
 %%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%
 %% Page geometry.
-%% cam-thesis.cls computes sensible A4 margins, but classicthesis (above)
-%% overrides them with its own narrow 336pt (~118mm) \areaset measure, which
-%% leaves an oversized outer margin. Re-assert the class's intended text block:
-%% inner 30mm / outer 20mm (~160mm text), top/bottom 20mm, with a thin outer
-%% column kept for margin notes (\sid/todonotes).
+%% classicthesis (above) clamps the text block to a narrow 336pt (~118mm)
+%% \areaset measure. We widen it to ~135mm -- classicthesis's own recommended
+%% width for 12pt Palatino -- while keeping a WIDE outer margin. The wide outer
+%% margin is essential: classicthesis typesets the 70pt chapter number in the
+%% margin via \marginpar, so a narrow outer margin makes the number overflow
+%% and drift off toward the page edge. inner 28mm / text 135mm / outer 47mm,
+%% with marginparwidth ~= classicthesis's 7em so the chapter number fits.
 %%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%
 \usepackage{geometry}
-\geometry{a4paper, inner=30mm, outer=20mm, top=20mm, bottom=20mm,
-          marginparwidth=12mm, marginparsep=3mm}
+\geometry{a4paper, inner=28mm, outer=47mm, top=30mm, bottom=30mm,
+          marginparwidth=29mm, marginparsep=8mm}
+
+%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%
+%% Chapter-opening epigraphs (\epigraph{quote}{author}).
+%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%
+\usepackage{epigraph}
+\setlength{\epigraphwidth}{0.6\textwidth}
+\setlength{\epigraphrule}{0pt}       % no rule under the quote
+\setlength{\beforeepigraphskip}{1\baselineskip}
+\setlength{\afterepigraphskip}{2\baselineskip}
+\renewcommand{\textflush}{flushright}    % ragged-left quote body
+\renewcommand{\sourceflush}{flushright}
 
 %%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%
 %% Colours. dvipsnames is passed via \PassOptionsToPackage in thesis.tex.
