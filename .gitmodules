@@ -13,3 +13,6 @@
 [submodule "papers/collab-paper-lean-bitvectors"]
 	path = papers/collab-paper-lean-bitvectors
 	url = git@github.com:opencompl/paper-lean-bitvectors.git
+[submodule "papers/report-second-year"]
+	path = papers/report-second-year
+	url = git@github.com:opencompl/sid-second-year-report.git
