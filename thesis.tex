@@ -50,6 +50,22 @@
 \subjectline{Computer Science}
 \keywords{decision procedures, bitvectors, floating point, Lean, SMT, compiler verification}
 
+\usemintedstyle{vs}
+% Newer versions of minted require the 'customlexer' argument for custom lexers
+% whereas older versions require the '-x' to be passed via the command line.
+\makeatletter
+\ifcsdef{minted@optlistcl@quote}
+{
+\newminted[mlir]{tools/lexers/MLIRLexer.py:MLIRLexerOnlyOps}{customlexer, mathescape}
+\newminted[xdsl]{tools/lexers/MLIRLexer.py:MLIRLexer}{customlexer, mathescape, style=murphy}
+\newminted[lean4]{tools/lexers/Lean4Lexer.py:Lean4Lexer}{customlexer, mathescape}
+}
+{
+\newminted[mlir]{tools/lexers/MLIRLexer.py:MLIRLexerOnlyOps -x}{mathescape}
+\newminted[xdsl]{tools/lexers/MLIRLexer.py:MLIRLexer -x}{mathescape, style=murphy}
+\newminted[lean4]{tools/lexers/Lean4Lexer.py:Lean4Lexer -x}{mathescape}
+}
+
 
 
 %%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%
