@@ -279,9 +279,27 @@
 %% Lean / LLVM listings via minted.
 %%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%
 \newminted[lean]{lean}{style=bw, bgcolor=blue!5!white, fontsize=\small}
+\newminted[leanfootnotesize]{lean}{fontsize=\footnotesize, escapeinside=@@, mathescape}
 \newminted[llvm]{llvm}{style=bw, fontsize=\small}
+\newminted[ccode]{text}{fontsize=\footnotesize}
 \newcommand{\leaninline}[1]{\mintinline[style=bw, bgcolor=blue!5!white]{lean}{#1}}
 \newcommand{\leaninlineM}[1]{\text{\mintinline[style=bw, bgcolor=blue!5!white]{lean}{#1}}}
+
+% Custom-lexer environments (lexers live in tools/lexers/). Newer minted
+% takes the 'customlexer' option; older minted needs '-x' on the lexer path.
+\makeatletter
+\ifcsdef{minted@optlistcl@quote}
+{
+  \newminted[mlir]{tools/lexers/MLIRLexer.py:MLIRLexerOnlyOps}{customlexer, mathescape}
+  \newminted[xdsl]{tools/lexers/MLIRLexer.py:MLIRLexer}{customlexer, mathescape, style=murphy}
+  \newminted[lean4]{tools/lexers/Lean4Lexer.py:Lean4Lexer}{customlexer, mathescape}
+}
+{
+  \newminted[mlir]{tools/lexers/MLIRLexer.py:MLIRLexerOnlyOps -x}{mathescape}
+  \newminted[xdsl]{tools/lexers/MLIRLexer.py:MLIRLexer -x}{mathescape, style=murphy}
+  \newminted[lean4]{tools/lexers/Lean4Lexer.py:Lean4Lexer -x}{mathescape}
+}
+\makeatother
 
 %%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%
 %% Shims for text ported from acmart papers.
