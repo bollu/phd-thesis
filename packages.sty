@@ -24,6 +24,18 @@
 \renewcommand\LettrineFontHook{\Typocapsfamily}
 
 %%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%
+%% Page geometry.
+%% cam-thesis.cls computes sensible A4 margins, but classicthesis (above)
+%% overrides them with its own narrow 336pt (~118mm) \areaset measure, which
+%% leaves an oversized outer margin. Re-assert the class's intended text block:
+%% inner 30mm / outer 20mm (~160mm text), top/bottom 20mm, with a thin outer
+%% column kept for margin notes (\sid/todonotes).
+%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%
+\usepackage{geometry}
+\geometry{a4paper, inner=30mm, outer=20mm, top=20mm, bottom=20mm,
+          marginparwidth=12mm, marginparsep=3mm}
+
+%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%
 %% Colours. dvipsnames is passed via \PassOptionsToPackage in thesis.tex.
 %%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%
 \usepackage{xcolor}
