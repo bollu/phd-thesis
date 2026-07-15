@@ -1,0 +1,98 @@
+% minimal
+metavar termvar, x ::=
+  {{ tex \mathit{[[termvar]]} }}
+
+
+% indexing variables, like a_i
+indexvar index, i, j, n, m ::= {{ isa num }} {{ coq nat }} {{ hol num }}
+
+grammar
+
+ast :: 'ast_' ::= {{ com SSAAST }}
+| % v :: :: Var
+| stmts term :: :: Rgn
+| stmt stmts :: :: Seq
+| ssavar :=  op :: :: Assign
+| ret ssavar :: :: Ret
+
+ssavar :: 'ssavar' ::= {{ com ssavar }}
+| % v :: :: Var
+
+% env :: 'env_' ::= {{ com SSAEnv }}
+% | { } :: :: Empty
+% | env [ ssavar / ssaval ] :: Update
+
+rgn :: 'rgn_' ::= {{ com ssaRgn }}
+| stmts term :: :: Rgn
+
+ssatype :: ssatype_' ::= {{ com ssaType }}
+
+stmts :: 'stmts_' ::= {{ com ssaStmts }}
+| stmt stmts :: :: Seq
+
+stmt :: 'stmt_' ::= {{ com ssaStmt }}
+| ssavar := op :: :: Assign
+
+terminator :: 'terminator_' ::= {{ com ssaTerminator }}
+| ret ssavar :: :: Ret
+
+
+ssaval :: 'ssaval' ::= {{ com ssaval }}
+| % v :: :: Var
+
+% t :: 't_' ::=       {{ com term    }}
+%   | x            ::  :: Var {{ com variable }}
+%   | \ x . t      ::  :: Lam {{ com lambda }}
+%   | t t'         ::  :: App  {{ com application }}
+%   | ( t )        :: S:: Paren
+%   | { t / x } t' :: M:: Tsub
+%
+% terminals :: 'terminals_' ::=
+%   | \            ::  :: lambda  {{ tex \lambda }}
+%   | -->          ::  :: red     {{ tex \longrightarrow }}
+%
+% v :: 'v_' ::=
+%   | \ x . t      ::  :: Lam
+%
+% subrules
+%   v <:: t
+
+terminals :: 'terminals_' ::=
+  | -->          ::  :: red     {{ tex \longrightarrow }}
+
+subrules
+  terminator <:: ast
+  ssavar <:: ast
+  stmt <:: ast
+  stmts <:: ast
+  rgn <:: ast
+
+% defns
+%   Jop :: '' ::=
+%
+%  defn
+%  t1 --> t2 :: ::reduce::''  {{ com $[[t1]]$ reduces to $[[t2]]$}} by
+%
+%
+%     --------------------------  :: ax_app
+%     (\x.t12) v2 -->  {v2/x}t12
+%
+%     t1 --> t1'
+%     -------------- :: ctx_app_fun
+%     t1 t --> t1' t
+%
+%     t1 --> t1'
+%     -------------- :: ctx_app_arg
+%     v t1 --> v t1'
+
+
+
+defns
+  SSASmallStep :: '' ::=
+
+ defn
+    e |- ast  --> ssaval :: :: SSASmallStep ::''  {{ com $[[t]]$ reduces to $[[v1]]$ in env $[[e]]$}} by
+
+    --------------------------  :: SmallStepApp
+    e |- % v := op  --> % v
+

@@ -1,0 +1,9 @@
+[project]
+name = "tr-floating-point-lean-plots"
+version = "0.1.0"
+description = "Sync benchmark results from the evaluation host into the paper's plots/ dir."
+requires-python = ">=3.10"
+dependencies = []
+
+[tool.setuptools]
+py-modules = []

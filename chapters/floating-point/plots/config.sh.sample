@@ -1,0 +1,3 @@
+# Copy to config.sh (gitignored) and set for your benchmark host.
+# Trailing slash required: sync.sh appends the runresults subpath.
+hostpath="bollu@paracompact-8:/Users/bollu/25/michelmas/fp/evaluation-fp-lean/"

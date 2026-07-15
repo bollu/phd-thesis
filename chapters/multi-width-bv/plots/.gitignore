@@ -1,0 +1,10 @@
+config.sh
+fetched/*.jsonl
+fetched/*.zip
+*.jsonl
+*.jsonl.temp
+cactus.9000/
+fetched.old
+*.zip
+*.csv
+

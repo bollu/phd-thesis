@@ -1,0 +1,376 @@
+<?xml version="1.0" encoding="UTF-8" standalone="no"?>
+<!-- Created with Inkscape (http://www.inkscape.org/) -->
+
+<svg
+   width="8in"
+   height="2.3in"
+   viewBox="0 0 203.2 58.42"
+   version="1.1"
+   id="svg1"
+   inkscape:version="1.4 (e7c3feb1, 2024-10-09)"
+   sodipodi:docname="k-induction.svg"
+   inkscape:export-filename="k-induction.pdf"
+   inkscape:export-xdpi="96"
+   inkscape:export-ydpi="96"
+   xmlns:inkscape="http://www.inkscape.org/namespaces/inkscape"
+   xmlns:sodipodi="http://sodipodi.sourceforge.net/DTD/sodipodi-0.dtd"
+   xmlns="http://www.w3.org/2000/svg"
+   xmlns:svg="http://www.w3.org/2000/svg">
+  <sodipodi:namedview
+     id="namedview1"
+     pagecolor="#ffffff"
+     bordercolor="#000000"
+     borderopacity="0.25"
+     inkscape:showpageshadow="2"
+     inkscape:pageopacity="0.0"
+     inkscape:pagecheckerboard="0"
+     inkscape:deskcolor="#d1d1d1"
+     inkscape:document-units="mm"
+     inkscape:zoom="1.4393817"
+     inkscape:cx="378.98218"
+     inkscape:cy="231.00197"
+     inkscape:window-width="1920"
+     inkscape:window-height="1080"
+     inkscape:window-x="0"
+     inkscape:window-y="0"
+     inkscape:window-maximized="0"
+     inkscape:current-layer="g30" />
+  <defs
+     id="defs1" />
+  <g
+     inkscape:label="Layer 1"
+     inkscape:groupmode="layer"
+     id="layer1">
+    <g
+       inkscape:groupmode="layer"
+       id="layer2"
+       inkscape:label="Layer 2" />
+    <text
+       xml:space="preserve"
+       style="font-style:normal;font-variant:normal;font-weight:normal;font-stretch:normal;font-size:3.175px;font-family:Inconsolata;-inkscape-font-specification:Inconsolata;text-align:start;writing-mode:lr-tb;direction:ltr;text-anchor:start;fill:#000000;stroke-width:0.264583"
+       x="50.86533"
+       y="68.266632"
+       id="text13"><tspan
+         sodipodi:role="line"
+         id="tspan13"
+         style="stroke-width:0.264583"
+         x="50.86533"
+         y="68.266632"></tspan></text>
+    <g
+       id="g48"
+       transform="translate(8.8120164,-1.0310264)">
+      <g
+         id="g35"
+         transform="translate(-1.0562134e-8,0.52916667)">
+        <rect
+           style="fill:#d1c4e9;fill-opacity:0.388235;stroke-width:0.222252"
+           id="rect29"
+           width="85.107445"
+           height="9.7423201"
+           x="2.021991"
+           y="5.8821549" />
+        <text
+           xml:space="preserve"
+           style="font-size:3.175px;text-align:start;writing-mode:lr-tb;direction:ltr;text-anchor:start;fill:#000000;stroke-width:0.264583"
+           x="3.2434819"
+           y="9.6553431"
+           id="text1"><tspan
+             sodipodi:role="line"
+             id="tspan1"
+             style="font-style:normal;font-variant:normal;font-weight:normal;font-stretch:normal;font-family:Inconsolata;-inkscape-font-specification:Inconsolata;stroke-width:0.264583"
+             x="3.2434819"
+             y="9.6553431">w : ℕ    a b : BitVec w    h : a &amp;&amp;&amp; b = 0#w</tspan><tspan
+             sodipodi:role="line"
+             style="font-style:normal;font-variant:normal;font-weight:normal;font-stretch:normal;font-family:Inconsolata;-inkscape-font-specification:Inconsolata;stroke-width:0.264583"
+             x="3.2434819"
+             y="13.734153"
+             id="tspan2">⊢ a + b = a ||| b</tspan><tspan
+             sodipodi:role="line"
+             style="font-style:normal;font-variant:normal;font-weight:normal;font-stretch:normal;font-family:Inconsolata;-inkscape-font-specification:Inconsolata;stroke-width:0.264583"
+             x="3.2434819"
+             y="17.712809"
+             id="tspan3" /></text>
+      </g>
+      <text
+         xml:space="preserve"
+         style="font-style:normal;font-variant:normal;font-weight:normal;font-stretch:normal;font-size:2.82222px;font-family:Inconsolata;-inkscape-font-specification:Inconsolata;text-align:start;writing-mode:lr-tb;direction:ltr;text-anchor:start;fill:#000000;fill-opacity:1;stroke-width:0.264583"
+         x="1.7353593"
+         y="4.6678209"
+         id="text37"><tspan
+           sodipodi:role="line"
+           id="tspan37"
+           style="font-style:normal;font-variant:normal;font-weight:normal;font-stretch:normal;font-size:2.82222px;font-family:Menlo;-inkscape-font-specification:Menlo;fill:#000000;fill-opacity:1;stroke-width:0.264583"
+           x="1.7353593"
+           y="4.6678209">1. Original Goal State</tspan></text>
+    </g>
+    <g
+       id="g49"
+       transform="translate(8.6282015,-19.211682)">
+      <g
+         id="g33"
+         transform="translate(-0.73796178,-1.3557598)">
+        <rect
+           style="fill:#d1c4e9;fill-opacity:0.388235;stroke-width:0.335145"
+           id="rect29-9"
+           width="85.475075"
+           height="22.058083"
+           x="2.7599528"
+           y="41.069195" />
+        <text
+           xml:space="preserve"
+           style="font-style:normal;font-variant:normal;font-weight:normal;font-stretch:normal;font-size:3.175px;font-family:Inconsolata;-inkscape-font-specification:Inconsolata;text-align:start;writing-mode:lr-tb;direction:ltr;text-anchor:start;fill:#000000;stroke-width:0.264583"
+           x="4.6824403"
+           y="44.759323"
+           id="text7"><tspan
+             sodipodi:role="line"
+             id="tspan7"
+             style="stroke-width:0.264583"
+             x="4.6824403"
+             y="44.759323">w : ℕ    a b : BitVec w</tspan><tspan
+             sodipodi:role="line"
+             style="stroke-width:0.264583"
+             x="4.6824403"
+             y="48.838135"
+             id="tspan8">⊢ (lor</tspan><tspan
+             sodipodi:role="line"
+             style="stroke-width:0.264583"
+             x="4.6824403"
+             y="52.916943"
+             id="tspan9">   (neq ((var 0).and (var 1)) zero)</tspan><tspan
+             sodipodi:role="line"
+             style="stroke-width:0.264583"
+             x="4.6824403"
+             y="56.885693"
+             id="tspan10">   (eq ((var 0).add (var 1)) (or (var 0) (var 1))))</tspan><tspan
+             sodipodi:role="line"
+             style="stroke-width:0.264583"
+             x="4.6824403"
+             y="60.854443"
+             id="tspan11">  .denote w [a, b]</tspan><tspan
+             sodipodi:role="line"
+             style="stroke-width:0.264583"
+             x="4.6824403"
+             y="64.823196"
+             id="tspan12" /></text>
+      </g>
+      <text
+         xml:space="preserve"
+         style="font-style:normal;font-variant:normal;font-weight:normal;font-stretch:normal;font-size:2.82222px;font-family:Inconsolata;-inkscape-font-specification:Inconsolata;text-align:start;writing-mode:lr-tb;direction:ltr;text-anchor:start;fill:#000000;fill-opacity:1;stroke-width:0.264583"
+         x="1.8331999"
+         y="38.584526"
+         id="text37-3"><tspan
+           sodipodi:role="line"
+           id="tspan37-3"
+           style="font-style:normal;font-variant:normal;font-weight:normal;font-stretch:normal;font-size:2.82222px;font-family:Menlo;-inkscape-font-specification:Menlo;fill:#000000;fill-opacity:1;stroke-width:0.264583"
+           x="1.8331999"
+           y="38.584526">3. Reflection into Term Language</tspan></text>
+    </g>
+    <g
+       id="g50"
+       transform="translate(99.433979,-47.687572)">
+      <g
+         id="g31"
+         transform="translate(-2.2725155,-20.332275)">
+        <rect
+           style="fill:#d1c4e9;fill-opacity:0.388235;stroke-width:0.334063"
+           id="rect29-1"
+           width="84.923622"
+           height="22.058083"
+           x="4.2945065"
+           y="88.501854" />
+        <text
+           xml:space="preserve"
+           style="font-style:normal;font-variant:normal;font-weight:normal;font-stretch:normal;font-size:3.175px;font-family:Inconsolata;-inkscape-font-specification:Inconsolata;text-align:start;writing-mode:lr-tb;direction:ltr;text-anchor:start;fill:#000000;stroke-width:0.264583"
+           x="5.4341464"
+           y="92.306541"
+           id="text18"><tspan
+             sodipodi:role="line"
+             id="tspan18"
+             style="stroke-width:0.264583"
+             x="5.4341464"
+             y="92.306541">w : ℕ    a b : BitVec w</tspan><tspan
+             sodipodi:role="line"
+             style="stroke-width:0.264583"
+             x="5.4341464"
+             y="96.385353"
+             id="tspan19">⊢ (lor</tspan><tspan
+             sodipodi:role="line"
+             style="stroke-width:0.264583"
+             x="5.4341464"
+             y="100.46416"
+             id="tspan20">   (neq ((var 0).and (var 1)) zero)</tspan><tspan
+             sodipodi:role="line"
+             style="stroke-width:0.264583"
+             x="5.4341464"
+             y="104.43291"
+             id="tspan21">   (eq ((var 0).add (var 1)) (or (var 0) (var 1))))</tspan><tspan
+             sodipodi:role="line"
+             style="stroke-width:0.264583"
+             x="5.4341464"
+             y="108.40166"
+             id="tspan22">  .eval w [a, b] = BitStream.allOnes</tspan><tspan
+             sodipodi:role="line"
+             style="stroke-width:0.264583"
+             x="5.4341464"
+             y="112.37041"
+             id="tspan23" /></text>
+      </g>
+      <text
+         xml:space="preserve"
+         style="font-style:normal;font-variant:normal;font-weight:normal;font-stretch:normal;font-size:2.82222px;font-family:Inconsolata;-inkscape-font-specification:Inconsolata;text-align:start;writing-mode:lr-tb;direction:ltr;text-anchor:start;fill:#000000;fill-opacity:1;stroke-width:0.264583"
+         x="1.8814312"
+         y="67.045258"
+         id="text37-3-4"><tspan
+           sodipodi:role="line"
+           id="tspan37-3-5"
+           style="font-style:normal;font-variant:normal;font-weight:normal;font-stretch:normal;font-size:2.82222px;font-family:Menlo;-inkscape-font-specification:Menlo;fill:#000000;fill-opacity:1;stroke-width:0.264583"
+           x="1.8814312"
+           y="67.045258">4. Bitstream Denotation</tspan></text>
+    </g>
+    <g
+       id="g51"
+       transform="translate(8.8120164,-49.335444)">
+      <g
+         id="g32"
+         transform="translate(-0.76578117,23.845791)">
+        <rect
+           style="fill:#d1c4e9;fill-opacity:0.388235;stroke-width:0.219426"
+           id="rect29-3"
+           width="86.210342"
+           height="9.3746853"
+           x="2.7877722"
+           y="72.13134" />
+        <text
+           xml:space="preserve"
+           style="font-style:normal;font-variant:normal;font-weight:normal;font-stretch:normal;font-size:3.175px;font-family:Inconsolata;-inkscape-font-specification:Inconsolata;text-align:start;writing-mode:lr-tb;direction:ltr;text-anchor:start;fill:#000000;stroke-width:0.264583"
+           x="5.2622471"
+           y="75.715897"
+           id="text24"><tspan
+             sodipodi:role="line"
+             style="font-size:3.175px;stroke-width:0.264583"
+             x="5.2622471"
+             y="75.715897"
+             id="tspan46">⊢ ∀ (w : ℕ) (a b : BitVec w),</tspan><tspan
+             sodipodi:role="line"
+             style="font-size:3.175px;stroke-width:0.264583"
+             x="5.2622471"
+             y="79.794708"
+             id="tspan47">&lt;fsm&gt;.eval w [a, b] = BitStream.allOnes</tspan><tspan
+             sodipodi:role="line"
+             style="font-size:3.175px;stroke-width:0.264583"
+             x="5.2622471"
+             y="83.763458"
+             id="tspan45" /></text>
+      </g>
+      <text
+         xml:space="preserve"
+         style="font-style:normal;font-variant:normal;font-weight:normal;font-stretch:normal;font-size:2.82222px;font-family:Inconsolata;-inkscape-font-specification:Inconsolata;text-align:start;writing-mode:lr-tb;direction:ltr;text-anchor:start;fill:#000000;fill-opacity:1;stroke-width:0.264583"
+         x="1.8249317"
+         y="95.270668"
+         id="text37-3-4-8"><tspan
+           sodipodi:role="line"
+           id="tspan37-3-5-1"
+           style="font-style:normal;font-variant:normal;font-weight:normal;font-stretch:normal;font-size:2.82222px;font-family:Menlo;-inkscape-font-specification:Menlo;fill:#000000;fill-opacity:1;stroke-width:0.264583"
+           x="1.8249317"
+           y="95.270668">5. FSM Denotation</tspan></text>
+    </g>
+    <g
+       id="g52"
+       transform="translate(90.43814,-65.387369)">
+      <g
+         id="g30"
+         transform="translate(-1.7487352,0.52916667)">
+        <rect
+           style="fill:#d1c4e9;fill-opacity:0.388235;stroke-width:0.21587"
+           id="rect29-65"
+           width="85.107445"
+           height="9.1908674"
+           x="12.766556"
+           y="112.0227" />
+        <g
+           id="g53"
+           transform="translate(2.5622262,-3.1248951)">
+          <text
+             xml:space="preserve"
+             style="font-style:normal;font-variant:normal;font-weight:normal;font-stretch:normal;font-size:3.175px;font-family:Inconsolata;-inkscape-font-specification:Inconsolata;text-align:start;writing-mode:lr-tb;direction:ltr;text-anchor:start;fill:#000000;stroke-width:0.264583"
+             x="11.1373"
+             y="118.41582"
+             id="text27"><tspan
+               sodipodi:role="line"
+               id="tspan27"
+               style="stroke-width:0.264583"
+               x="11.1373"
+               y="118.41582">w : ℕ    a b : BitVec w</tspan><tspan
+               sodipodi:role="line"
+               style="stroke-width:0.264583"
+               x="11.1373"
+               y="122.49463"
+               id="tspan28">⊢ proven by &lt;decide&gt;</tspan><tspan
+               sodipodi:role="line"
+               style="stroke-width:0.264583"
+               x="11.1373"
+               y="126.57344"
+               id="tspan29" /></text>
+        </g>
+      </g>
+      <text
+         xml:space="preserve"
+         style="font-style:normal;font-variant:normal;font-weight:normal;font-stretch:normal;font-size:2.82222px;font-family:Inconsolata;-inkscape-font-specification:Inconsolata;text-align:start;writing-mode:lr-tb;direction:ltr;text-anchor:start;fill:#000000;fill-opacity:1;stroke-width:0.264583"
+         x="10.834543"
+         y="111.32948"
+         id="text37-3-4-8-5"><tspan
+           sodipodi:role="line"
+           id="tspan37-3-5-1-6"
+           style="font-style:normal;font-variant:normal;font-weight:normal;font-stretch:normal;font-size:2.82222px;font-family:Menlo;-inkscape-font-specification:Menlo;fill:#000000;fill-opacity:1;stroke-width:0.264583"
+           x="10.834543"
+           y="111.32948">6. Deciding FSM Denotation by k-induction</tspan></text>
+    </g>
+    <g
+       id="g47"
+       transform="translate(8.9958338)">
+      <g
+         id="g34"
+         transform="translate(89.909122,-17.589003)">
+        <rect
+           style="fill:#d1c4e9;fill-opacity:0.388235;stroke-width:0.232499"
+           id="rect29-6"
+           width="85.107445"
+           height="10.661407"
+           x="2.5510087"
+           y="22.729189" />
+        <text
+           xml:space="preserve"
+           style="font-style:normal;font-variant:normal;font-weight:normal;font-stretch:normal;font-size:3.175px;font-family:Inconsolata;-inkscape-font-specification:Inconsolata;text-align:start;writing-mode:lr-tb;direction:ltr;text-anchor:start;fill:#000000;stroke-width:0.264583"
+           x="4.3715177"
+           y="27.16481"
+           id="text4"><tspan
+             sodipodi:role="line"
+             id="tspan4"
+             style="stroke-width:0.264583"
+             x="4.3715177"
+             y="27.16481">w : ℕ    a b : BitVec w</tspan><tspan
+             sodipodi:role="line"
+             style="stroke-width:0.264583"
+             x="4.3715177"
+             y="31.24362"
+             id="tspan5">⊢ a &amp;&amp;&amp; b ≠ 0#w ∨ a + b = a ||| b</tspan><tspan
+             sodipodi:role="line"
+             style="stroke-width:0.264583"
+             x="4.3715177"
+             y="35.418648"
+             id="tspan6" /></text>
+      </g>
+      <text
+         xml:space="preserve"
+         style="font-style:normal;font-variant:normal;font-weight:normal;font-stretch:normal;font-size:2.82222px;font-family:Inconsolata;-inkscape-font-specification:Inconsolata;text-align:start;writing-mode:lr-tb;direction:ltr;text-anchor:start;fill:#000000;fill-opacity:1;stroke-width:0.264583"
+         x="92.250671"
+         y="3.6367946"
+         id="text37-3-9"><tspan
+           sodipodi:role="line"
+           id="tspan37-3-1"
+           style="font-style:normal;font-variant:normal;font-weight:normal;font-stretch:normal;font-size:2.82222px;font-family:Menlo;-inkscape-font-specification:Menlo;fill:#000000;fill-opacity:1;stroke-width:0.264583"
+           x="92.250671"
+           y="3.6367946">2. Negation Normal Form</tspan></text>
+    </g>
+  </g>
+</svg>
