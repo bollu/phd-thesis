@@ -22,6 +22,7 @@ SOURCES = [
     "papers/paper-decide-univ-quant-bv/references.bib",
     "papers/collab-paper-lean-bitvectors/references.bib",
     "papers/paper-lean-mlir/references.bib",
+    "papers/report-second-year/references.bib",
 ]
 
 ENTRY_START = re.compile(r"@(\w+)\s*[{(]\s*([^,\s]+)\s*,", re.ASCII)
