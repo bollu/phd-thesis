@@ -1,0 +1,15 @@
+[submodule "papers/paper-lean-mlir"]
+	path = papers/paper-lean-mlir
+	url = git@github.com:opencompl/paper-featherweight-mlir.git
+[submodule "papers/paper-decide-univ-quant-bv"]
+	path = papers/paper-decide-univ-quant-bv
+	url = git@github.com:opencompl/paper-decide-univ-quant-bv.git
+[submodule "papers/paper-multi-width-bv"]
+	path = papers/paper-multi-width-bv
+	url = git@github.com:opencompl/paper-multi-width-bv.git
+[submodule "papers/paper-floating-point-in-lean"]
+	path = papers/paper-floating-point-in-lean
+	url = git@github.com:opencompl/tr-floating-point-lean.git
+[submodule "papers/collab-paper-lean-bitvectors"]
+	path = papers/collab-paper-lean-bitvectors
+	url = git@github.com:opencompl/paper-lean-bitvectors.git
