@@ -130,6 +130,12 @@ day to day.}{The Mock Turtle, \emph{Alice's Adventures in Wonderland}}
 
 \paragraph*{Attribution.} This chapter is based on \emph{Mechanizing Floating
 Point Bitblasting}~\citep{bhat2027floatingpoint}, currently in submission.
+\emph{My contributions:} the original unverified bitblasting solver was written
+by Tunan Shi. I implemented the bitblasting circuits for multiplication,
+division, and rounding, and completed the final correctness proofs for the
+addition circuit. The core data structures---\texttt{PackedFloat},
+\texttt{UnpackedFloat}, and \texttt{EUnpackedFloat}---were designed in
+collaboration with Abdal, after studying the design of SymFPU.
 
 \lettrine{F}{loating-point} verification is central to trustworthy numerical
 computing. Existing approaches fall into two camps: proof assistants that

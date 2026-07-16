@@ -1,0 +1,11 @@
+%% Submission build of the thesis.
+%%
+%% This wrapper predefines \thesissubmission, which macros.sty reads to set
+%% \draftnotesfalse, disabling the draft-only \sid/\grosser annotations. The
+%% annotations remain in the source; they are only hidden here. Everything else
+%% (chapters, contribution statements, etc.) is identical to thesis.tex.
+%%
+%% Build:  latexmk thesis-submission.tex   ->   thesis-submission.pdf
+%% Mirrors papers/paper-multi-width-bv/submission.tex.
+\def\thesissubmission{}
+\input{thesis}

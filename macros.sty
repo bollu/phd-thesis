@@ -2,10 +2,12 @@
 \ProvidesPackage{macros}[2026/07/15 Thesis-wide macros hoisted from the papers]
 
 %%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%
-%% Draft-note toggle: flip to \draftnotesfalse for the submitted thesis.
+%% Draft-note toggle. Draft build (thesis.tex) shows \sid/\grosser annotations;
+%% the submission build (thesis-submission.tex) predefines \thesissubmission,
+%% which disables them. See thesis-submission.tex.
 %%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%
 \newif\ifdraftnotes
-\draftnotestrue
+\ifdefined\thesissubmission\draftnotesfalse\else\draftnotestrue\fi
 
 %%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%
 %% Colour scheme: print-friendly and colorblind-safe for up to four colours.

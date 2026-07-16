@@ -78,10 +78,18 @@ both.
 \section{Width-Independent Bitvector Predicates}
 \label{sec:pbv:single-width}
 
-\paragraph*{Attribution.} This chapter is based on \emph{Certified Decision
+\paragraph*{Attribution.} This section is based on \emph{Certified Decision
 Procedures for Width-Independent Bitvector Predicates}~\citep{bhat2025certified},
 published at OOPSLA 2025, joint work with Léo Stefanesco, Chris Hughes, and
 Tobias Grosser.
+\emph{My contributions:} the initial algorithm---handling a single width and
+equality predicates only---was developed by Chris Hughes. I noticed its
+connection to Presburger arithmetic, reinterpreted the classical decision
+procedure as an inductive ($k$-induction) safety proof, implemented the verified
+procedure in Lean together with its tactic-preprocessing and reflection
+frontends, and generalized it to decide all predicates of the theory; I also
+implemented the mixed-Boolean-arithmetic solver. Léo Stefanesco contributed an
+alternative solver based on automatic structures.
 
 Bitvectors are foundational for automated reasoning. A few
 interactive theorem provers, such as Lean, have strong support for deciding
@@ -1367,9 +1375,14 @@ test cases.
 \section{Multi-Width Parametric Bitvectors}
 \label{sec:pbv:multi-width}
 
-\paragraph*{Attribution.} This chapter is based on \emph{Sound and Complete
+\paragraph*{Attribution.} This section is based on \emph{Sound and Complete
 Solving for Multi-Width Parametric Bitvectors via Principled
 Reductions}~\citep{bhat2026multiwidth}, conditionally accepted at OOPSLA 2026.
+\emph{My contributions:} I generalized the procedure from one symbolic width to
+many, and recognized that encoding symbolic widths as bitmasks yields an
+equisatisfiable reduction from $\text{PBV}_n$ to $\text{PBV}_1$. I developed the
+theoretical extension, mechanized the soundness proof, and implemented the
+reflection and preprocessing frontends.
 
 Fixed-width bitvector solvers (\qfbv{}) are fast and ubiquitous,
 and \cref{sec:pbv:single-width} showed how to decide predicates over a single

@@ -22,6 +22,13 @@ the same place.}{The Red Queen, \emph{Through the Looking-Glass}}
 \paragraph*{Attribution.} This chapter is based on \emph{Verifying Peephole
 Rewriting in SSA Compiler IRs}~\citep{leanmlir}, published at ITP 2024, joint
 work with Alex Keizer, Chris Hughes, Andrés Goens, and Tobias Grosser.
+\emph{My contributions:} I designed the overall framework and implemented its
+dialects; I completed the peephole-rewriting correctness proof---whose initial
+version was given by Chris Hughes---and generalized it to the full framework,
+covering regions and generic operations, and proved the global rewrites (dead-code
+and common-subexpression elimination). Andrés Goens helped mechanize the semantics
+of fully homomorphic encryption, and Alex Keizer helped generalize the pure
+semantics to impure side effects.
 
 \lettrine{S}{tatic} single assignment (SSA)~\citep{rastello2022ssa}
 intermediate representations are at the core of modern compilers, thanks to
@@ -498,9 +505,7 @@ We also introduce a new notion of monadic evaluation of \texttt{Lets}, which ret
 
 With the above at hand, the overall rewriter construction and proof strategy remains unchanged,
 with the additional constraint of performing rewriting only on those operations marked as \texttt{EffectKind.pure},
-and the surrounding monadic ceremony required to show that a pure rewrite indeed does not change the state of pure variables in various lemmas.\footnote{
-A limitation of our current mechanization is that we assume that all regions are potentially side-effecting. This is a simplification that shall be addressed in a newer version of the proof.
-}
+and the surrounding monadic ceremony required to show that a pure rewrite indeed does not change the state of pure variables in various lemmas.
 
 \section{Case Studies}
 \label{sec:mlir:casestudies}
