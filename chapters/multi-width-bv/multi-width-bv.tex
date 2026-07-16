@@ -351,56 +351,60 @@ In our implementation, this is approximated by a syntactic equality check.
 \subsection{Semantics}
 \label{mwbv:sec:semantics}
 
-% \begin{figure}[htb]
-% \centering
-% \small
-% \setlength{\tabcolsep}{3pt}
-% \renewcommand{\arraystretch}{1.2}
-% \begin{tabular}{@{}p{12.5cm}@{}}
-% \toprule
-% \textbf{Semantics} \\
-% \midrule
-% \textit{Width Expressions}: $\denote{w}_{\Sigma_w} \in \N$ \\[2pt]
-% \rowcolor{black!10!white}
-% $\denote{\mathsf{wconst}(c)}_{\Sigma_w} \defn c$ \\
-% $\denote{\Var(w)}_{\Sigma_w} \defn \Sigma_w(w)$ \\
-% \rowcolor{black!10!white}
-% $\denote{\mathsf{wmax}(k, l)}_{\Sigma_w} \defn \max(\denote{k}_{\Sigma_w}, \denote{l}_{\Sigma_w})$ \\
-% $\denote{\mathsf{wmin}(k, l)}_{\Sigma_w} \defn \min(\denote{k}_{\Sigma_w}, \denote{l}_{\Sigma_w})$ \\
-% \rowcolor{black!10!white}
-% $\denote{\mathsf{wadd}(k, c)}_{\Sigma_w} \defn \denote{k}_{\Sigma_w} + c$ \\[4pt]
-% \midrule
-% \textit{Bitvector Expressions}: $\denote{e}_{\Sigma_w, \Sigma} \in \BV{\denote{w}_{\Sigma_w}}$ \\[2pt]
-% \rowcolor{black!10!white}
-% $\denote{\Var(x, w)}_{\Sigma_w, \Sigma} \defn \Sigma(x)$ \\
-% $\denote{\mathsf{Const}(c, w)}_{\Sigma_w, \Sigma} \defn c \bmod 2^{\denote{w}_{\Sigma_w}}$ \\
-% \rowcolor{black!10!white}
-% $\denote{\mathsf{add}(a, b, w)}_{\Sigma_w, \Sigma} \defn (\denote{a} + \denote{b}) \bmod 2^{\denote{w}_{\Sigma_w}}$ \\
-% $\denote{\mathsf{nand}(a, b, w)}_{\Sigma_w, \Sigma} \defn \lnot(\denote{a} \bitand \denote{b}) \bmod 2^{\denote{w}_{\Sigma_w}}$ \\
-% \rowcolor{black!10!white}
-% $\denote{\zext(a, v, w)}_{\Sigma_w, \Sigma} \defn$ zero-extend $\denote{a}$ from width $\denote{v}_{\Sigma_w}$ to width $\denote{w}_{\Sigma_w}$ \\
-% $\denote{\sext(a, v, w)}_{\Sigma_w, \Sigma} \defn$ sign-extend $\denote{a}$ from width $\denote{v}_{\Sigma_w}$ to width $\denote{w}_{\Sigma_w}$ \\[4pt]
-% \midrule
-% \textit{Predicate Expressions}: $\denote{p}_{\Sigma_w, \Sigma} \in \{\true, \false\}$ \\[2pt]
-% \rowcolor{black!10!white}
-% $\denote{\mathsf{eq}(a, b, w)} \defn [\denote{a} = \denote{b}]$ \\
-% $\denote{\mathsf{ult}(a, b, w)} \defn [\natofbv{\denote{a}} < \natofbv{\denote{b}}]$ \\
-% \rowcolor{black!10!white}
-% $\denote{\mathsf{slt}(a, b, w)} \defn [\intofbv{\denote{a}} < \intofbv{\denote{b}}]$ \\
-% $\denote{\mathsf{and}(p, q)} \defn \denote{p} \land \denote{q}$ \\
-% \rowcolor{black!10!white}
-% $\denote{\mathsf{or}(p, q)} \defn \denote{p} \lor \denote{q}$ \\
-% $\denote{\mathsf{weq}(u, v)} \defn [\denote{u}_{\Sigma_w} = \denote{v}_{\Sigma_w}]$ \\
-% \rowcolor{black!10!white}
-% $\denote{\mathsf{wlt}(u, v)} \defn [\denote{u}_{\Sigma_w} < \denote{v}_{\Sigma_w}]$ \\
-% \bottomrule
-% \end{tabular}
-% \caption{Model-theoretic semantics for the multi-width parametric bitvector theory.
-% Iverson brackets $[\cdot]$ denote truth values.}
-% \label{mwbv:fig:semantics}
-% \end{figure}
+\begin{figure}[htb]
+\centering
+\small
+\setlength{\tabcolsep}{3pt}
+\renewcommand{\arraystretch}{1.2}
+\begin{tabular}{@{}p{12.5cm}@{}}
+\toprule
+\textbf{Semantics} (relative to a model~$\rho$) \\
+\midrule
+\textit{Width expressions}: $\rho(w) \in \N$ \\[2pt]
+\rowcolor{black!10!white}
+$\rho(\mathsf{wconst}(c)) \defn c$ \\
+$\rho(\Var(w)) \defn \rho(w)$ \\
+\rowcolor{black!10!white}
+$\rho(\mathsf{wmax}(k, l)) \defn \max(\rho(k), \rho(l))$ \\
+$\rho(\mathsf{wmin}(k, l)) \defn \min(\rho(k), \rho(l))$ \\
+\rowcolor{black!10!white}
+$\rho(\mathsf{wadd}(k, c)) \defn \rho(k) + c$ \\[4pt]
+\midrule
+\textit{Bitvector expressions}: $\rho(e) \in \BV{\rho(w)}$ for $e : \BV{w}$ \\[2pt]
+\rowcolor{black!10!white}
+$\rho(\Var(x, w)) \defn \rho(x)$ \\
+$\rho(\mathsf{Const}(c, w)) \defn c \bmod 2^{\rho(w)}$ \\
+\rowcolor{black!10!white}
+$\rho(\mathsf{add}(a, b, w)) \defn (\rho(a) + \rho(b)) \bmod 2^{\rho(w)}$ \\
+$\rho(\mathsf{nand}(a, b, w)) \defn \lnot(\rho(a) \bitand \rho(b)) \bmod 2^{\rho(w)}$ \\
+\rowcolor{black!10!white}
+$\rho(\zext(a, v, w)) \defn$ zero-extend $\rho(a)$ from width $\rho(v)$ to width $\rho(w)$ \\
+$\rho(\sext(a, v, w)) \defn$ sign-extend $\rho(a)$ from width $\rho(v)$ to width $\rho(w)$ \\[4pt]
+\midrule
+\textit{Predicates}: the satisfaction relation $\rho \vDash p$ \\[2pt]
+\rowcolor{black!10!white}
+$\rho \vDash \mathsf{eq}(a, b, w) \iff \rho(a) = \rho(b)$ \\
+$\rho \vDash \mathsf{ult}(a, b, w) \iff \natofbv{\rho(a)} < \natofbv{\rho(b)}$ \\
+\rowcolor{black!10!white}
+$\rho \vDash \mathsf{slt}(a, b, w) \iff \intofbv{\rho(a)} < \intofbv{\rho(b)}$ \\
+$\rho \vDash \mathsf{and}(p, q) \iff \rho \vDash p \ \text{and}\ \rho \vDash q$ \\
+\rowcolor{black!10!white}
+$\rho \vDash \mathsf{or}(p, q) \iff \rho \vDash p \ \text{or}\ \rho \vDash q$ \\
+$\rho \vDash \mathsf{weq}(u, v) \iff \rho(u) = \rho(v)$ \\
+\rowcolor{black!10!white}
+$\rho \vDash \mathsf{wlt}(u, v) \iff \rho(u) < \rho(v)$ \\
+\bottomrule
+\end{tabular}
+\caption{Semantics of the multi-width parametric bitvector theory, relative to a
+model~$\rho$ that maps each width variable to a natural number and each bitvector
+variable to a bitvector of the corresponding width. Bitvector and width
+expressions are interpreted by the function~$\rho(\cdot)$; predicates by the
+satisfaction relation~$\rho \vDash \cdot$.}
+\label{mwbv:fig:semantics}
+\end{figure}
 
-We now give standard semantics for our theory.
+We now give standard semantics for our theory, collected in
+\cref{mwbv:fig:semantics}.
 % A key difference between the semantics we adopt versus model-theoretic semantics is that
 We only assign semantics to well-typed terms,
 which lets us avoid having to define
@@ -422,9 +426,8 @@ Finally, we define when a model satisfies a formula, which we denote with $\rho
 $\rho(a) = \rho(b)$.
 %
 We write $\vDash p$ when all models satisfy~$p$.
-%
-See the accompanying Lean development for more
-details.
+The full definition is given in \cref{mwbv:fig:semantics}, and its mechanized
+counterpart in the accompanying Lean development.
 
 \section{Equisatisfiable Reduction: Multi-Width to Mono-Width}
 \label{sec:mwbv:reduction}
