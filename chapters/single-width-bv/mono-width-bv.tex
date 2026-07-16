@@ -125,7 +125,8 @@ and then describe the reduction to automata, followed by the model checking algo
   \end{minipage}%
   \begin{minipage}[t]{.5\textwidth}
     \begin{align*}
-      \mathsf{F} \eqdef~& \mathsf{E}_1 \otimes \mathsf{E}_2 \quad (\otimes \in \{<_u, \leq_u, \leq_s, <_s, =, \neq \}) \\
+      \mathsf{F} \eqdef~& \mathsf{E}_1 \otimes \mathsf{E}_2 \\
+      &\quad (\otimes \in \{<_u, \leq_u, \leq_s, <_s, =, \neq \}) \\
       \mid~&{\width~(r : \WidthRel)~(k \in \N)} \\
       \mid~&\mathsf{F}_1 \land \mathsf{F}_2 \;\; \mid~\mathsf{F}_1 \lor \mathsf{F}_2 \\
       \mid~&\mathsf{F}_1 \Rightarrow \mathsf{F}_2 \\
@@ -133,7 +134,7 @@ and then describe the reduction to automata, followed by the model checking algo
     \end{align*}
     \begin{align*}
       \WidthRel \eqdef {<} \mid {\leq} \mid {>} \mid {\geq} \mid {=} \mid
-      {\neq}\qquad\quad\;
+      {\neq}
     \end{align*}
   \end{minipage}
   \caption{Syntax of bitvector expressions and formulas}
@@ -179,8 +180,8 @@ The semantics of an expression $\mathsf{E}$ is written $\bvsemgen{\mathsf{E}}$
 and is defined in the standard way:
 %
 \begin{align*}
-  \bvsemgen{\mathsf{\ofNat~v}} \;&\eqdef\; \left< v_{w-1}, \dots, v_0 \right>
-  \text{if~$n$ can be written in binary $v_N...v_0$ with $N \geq w-1$}\\
+  \bvsemgen{\mathsf{\ofNat~v}} \;&\eqdef\; \left< v_{w-1}, \dots, v_0 \right> \\
+  &\quad \text{if~$n$ can be written in binary $v_N...v_0$ with $N \geq w-1$}\\
   \bvsemgen{\mathsf{\Var~x}} \;&\eqdef\; \rho(x)\\
   \bvsemgen{\mathsf{E}_1 \boxplus \mathsf{E}_2} \;&\eqdef\;
     \bvsemgen{\mathsf{E}_1} \boxplus \bvsemgen{\mathsf{E}_2}
@@ -669,21 +670,22 @@ automata as \emph{transducers}, whose outputs are infinite bitstreams.
   \begin{cases}
   0 & i = 0 \\
   \rho(x)(i) & \text{otherwise}
-  \end{cases}
-\quad \denote{\ofNat(i)}_\rho(i) \equiv
+  \end{cases} \\
+&\denote{\ofNat(i)}_\rho(i) \equiv
   \begin{cases}
   0 & i = 0 \\
   \lfloor v / 2^i \rfloor \mod 2  & \text{otherwise}
   \end{cases} \\
-&\denote{s || t}_\rho(i) \equiv \denote{s}_\rho(i) || \denote{t}_\rho(i)
-\quad \denote{\lnot s}_\rho(i) \equiv
+&\denote{s || t}_\rho(i) \equiv \denote{s}_\rho(i) || \denote{t}_\rho(i) \\
+&\denote{\lnot s}_\rho(i) \equiv
   \begin{cases}
     0 & i = 0 \\
     1 - \denote{s}_\rho(i) & \text{otherwise}
   \end{cases}  \\
-&\denote{P}_\rho(i) = 1 \iff \text{Predicate $P$ holds at bitwidth $i$ for environment $\rho$} \\
-&\denote{s = t}_\rho(i) \equiv \forall j \leq i, \denote{s}_\rho(j) = \denote{t}_\rho(j)
-\quad \denote{P \land Q}_\rho(i) \equiv \denote{P}_\rho(i) \land \denote{Q}_\rho(i) \\
+&\denote{P}_\rho(i) = 1 \iff \\
+&\quad \text{Predicate $P$ holds at bitwidth $i$ for environment $\rho$} \\
+&\denote{s = t}_\rho(i) \equiv \forall j \leq i, \denote{s}_\rho(j) = \denote{t}_\rho(j) \\
+&\denote{P \land Q}_\rho(i) \equiv \denote{P}_\rho(i) \land \denote{Q}_\rho(i) \\
 \end{align*}
   \caption{Bitstream semantics of the bitvector theory.}
 \label{fig:swbv:stx-sem-bv-theory}
