@@ -1,13 +1,33 @@
-\chapter{Unpublished Results and Future Work}
+\chapter{Conclusions and Future Directions}
 \label{ch:future-work}
 \epigraph{That depends a good deal on where you want to get to.}{The Cheshire
 Cat, \emph{Alice's Adventures in Wonderland}}
 
-\lettrine{T}{he} preceding chapters presented published (or submitted) work.
-This chapter collects unpublished results, solver-design sketches, and
-research directions that extend the thesis, adapted from the research
-proposals in my second-year report. We begin with the directions we consider
-most fertile---each backed by a concrete unpublished result or a concrete
+\lettrine{T}{his} thesis set out to show that decision procedures for
+finite-domain theories can be mechanized---implemented, proved correct, and run
+at speed inside a proof assistant---without giving up the scalability that makes
+them useful. It made the case along a single arc. \Cref{ch:lean-mlir} built a
+framework for verified peephole rewriting over SSA-based IRs; by making the
+structural part of a rewrite's proof essentially free, it isolates the
+finite-domain proof obligations that each rewrite leaves behind. The remaining
+chapters discharged those obligations with mechanized decision procedures of
+growing generality. \Cref{ch:parametric-bv} decided width-independent bitvector
+predicates first for a single symbolic width---viewing classical algorithms
+through the lens of model checking---and then, by encoding symbolic widths as
+bitmasks, for many independent widths at once. \Cref{ch:floating-point} carried
+the same verified-bitblasting idea from bitvectors to floating-point arithmetic,
+yielding the first verified floating-point bitblaster.
+
+Each artefact is mechanized in Lean, evaluated against the unverified state of
+the art, and runs within a small factor of it while offering end-to-end
+correctness guarantees. Together they are evidence that foundational proof and
+push-button automation need not be at odds: the finite-domain reasoning that
+underpins compilers, hardware, and cryptography can be carried out inside a
+proof assistant, at scale, with the answers trusted down to the kernel.
+
+The techniques of this thesis also open several concrete directions, adapted
+from the research proposals in my second-year report. We begin with those we
+consider most fertile---each backed by a concrete unpublished result or
 algorithmic plan---and close with briefer sketches and a broader outlook.
 
 \section{Nonlinear Bitvector Arithmetic via the 2-adic Integers}
