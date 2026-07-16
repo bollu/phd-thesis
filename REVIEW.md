@@ -1,134 +1,106 @@
-# Examiner's Report (revision 4) — *Mechanized Finite Domain Decision Procedures*
+# Examiner's Report (revision 5) — *Mechanized Finite Domain Decision Procedures*
 
 **Reviewed artifact:** `thesis-submission.pdf` (the clean submission build, draft annotations
-disabled; 170 pp), freshly rebuilt at the current commit. This supersedes revision 3. Stance:
-demanding Cambridge examiner; complaint-focused. Citations are `file:line` into the source.
+disabled; 170 pp, **now seven chapters**), at the current commit following the mega-chapter split.
+This supersedes revision 4. Stance: demanding Cambridge examiner; complaint-focused. Citations are
+`file:line` into the source.
 
 ---
 
-## 0. Fixed since revision 3 (acknowledged)
+## 0. Fixed since revision 4 (acknowledged)
 
-Revision 3's substantive items are all resolved and well executed:
+All four rev-4 items are resolved:
 
-- **The Introduction now does doctoral-level framing (C1a).** A new
-  `\section{Automated Speed and Interactive Trust}` (`introduction.tex:48`) positions the work
-  against the landscape — the SMT-vs-ITP trust dichotomy, the verified-compilation lineage
-  (CompCert, Vellvm, Alive/Alive2), and the certifying/proof-producing spectrum (SMTCoq, CoqQFBV,
-  F\*/HACL\*, and the Harrison/Flocq/VCFloat "verify theorems, not the solver" tradition). The
-  origin-story pivot (`:20`) and the thesis-level research questions, woven into prose as "a single
-  question asked in four parts" each `\cref`-mapped to its chapter (`:26-36`), are present.
-- **The Conclusion now owns the cost (C1b).** A new `\section{The Price of Verification}`
-  (`future-work.tex:29`) states the constant-factor price plainly (including that the verified
-  $k$-induction backend is paired with the *unverified* rIC3 because rIC3 is faster on the hardest
-  instances, `:31-41`) and reflects at the thesis level on what resisted mechanization — nonlinear
-  arithmetic — naming nonlinear proof automation as the missing enabling technology (`:43-59`).
-- **The "first verified" claim is scoped at its point of use (C2).** `floating-point.tex:151-154`
-  now caveats the claim inline (excluding round-to-integral, remainder, and integer conversions),
-  echoed at `:170`.
-- **The artifact asymmetry is closed (C3).** The lean-mlir chapter now carries a Data-availability
-  note (`lean-mlir.tex:812-816`, Zenodo record) matching the single-width chapter.
+- **M1 — terminology standardized.** The "count of symbolic widths" axis is now uniformly
+  *mono-width* ($\text{PBV}_1$) / *multi-width* ($\text{PBV}_n$) across the abstract, introduction,
+  and both new chapters; the distinct *width-independent* property term is preserved. Remaining
+  "single symbolic width" occurrences are legitimate definitional glosses, not stragglers.
+- **M2 — source hygiene.** All six live `\sid`/`\grosser` draft notes are gone; two adjacent typos
+  fixed.
+- **M3 — the mega-chapter is split (Option A).** The 3077-line chapter is now two standalone
+  chapters — **Ch 4 Mono-Width Parametric Bitvectors** (`mono-width-bv.tex`, §4.1–4.10) and
+  **Ch 5 Multi-Width Parametric Bitvectors** (`multi-width-bv.tex`, §5.1–5.8) — each with its own
+  intro, Related Work, and Conclusions, following the historical development (mono first, multi as
+  the later generalization that reduces back to it). Both land at a conventional 8–10 section shape.
+- **M4 — intro phrase de-duplication.** The "state of the art" refrain is thinned.
 
-I checked the expanded Introduction against the per-chapter Related Work sections: the landscape
-is a faithful compression, with no contradictions. The submission build log is clean — zero
-undefined, multiply-defined, or unresolved references.
-
-This is now a strong dissertation.
+I read both new chapters in full and checked the seams. The split is well executed and, with one
+minor exception below, introduced no new defects.
 
 ---
 
 ## 1. Verdict & summary
 
-**Recommendation: accept, subject to minor/typographical corrections.** The science is sound and
-largely published; the positioning, limitations, references, and attribution objections of the
-earlier reviews are all closed. What remains is editorial — one terminology inconsistency, some
-source-side draft-note hygiene, and an optional structural rebalancing — none of which blocks
-submission. There is no longer any item requiring new research or re-experimentation.
+**Recommendation: accept, subject to minor/typographical corrections.** The restructure is clean:
+re-levelling produced correct `X.Y` numbering with no stranded headings; every cross-chapter
+reference goes through `\cref` (which auto-adjusts) with **no dangling prose references** ("previous
+section" phrases were verified intra-chapter); the divided Related Work is disjoint and correctly
+cross-links back to Ch 4 for shared background; the Ch 5 recap of the mono-width machinery is a
+self-contained re-derivation (fresh worked example, cites the paper) rather than a reprint; and both
+attribution notes survive with correct "This chapter is based on" wording. Nothing blocks submission.
 
 ---
 
 ## 2. Remaining items (all minor)
 
-### M1 — One concept, three names on the first two pages *(cheap, real)*
-The abstract calls the multi-width reduction target a **"mono-width"** formula
-(`abstract.tex:26-28`), while the Introduction calls the same thing **"single-symbolic-width"**
-(`introduction.tex:148-149`) and **"one symbolic width"** (`introduction.tex:31,45`). A reader
-meets all three names before the technical content begins. **Fix:** standardize on
-"single symbolic width" throughout (the abstract's "mono-width" is the outlier).
+### N1 — One echoed sentence across the Ch 5 opening *(the one concrete edit)*
+The Ch 5 lettrine and the body's technical opening both state the same fact within ~20 lines,
+straddling the attribution block: the lettrine (`multi-width-bv.tex:12-13`) "The previous chapter
+decided bitvector predicates in the mono-width fragment $\text{PBV}_1$" and the body
+(`multi-width-bv.tex:31-33`) "\cref{ch:mono-width} showed how to decide predicates in the mono-width
+setting ($\text{PBV}_1$)." The two openings are otherwise complementary (narrative, then the
+enumeration-bottleneck motivation). **Fix:** trim or reword one of the two clauses so the
+"$\text{PBV}_1$ / Ch 4" pointer is not made twice.
 
-### M2 — Live draft notes remain in the source *(source hygiene)*
-Six `\sid`/`\grosser` draft macros survive in the source. They are correctly hidden in the
-submission build (verified: zero leakage in `thesis-submission.pdf`), so they are not defects in
-the reviewed PDF — but they are loose ends to clear before the final source is handed to the
-binder or released:
-- `parametric-bv.tex:2655` — `\grosser{Can we double-check the GB number…}`, attached to a live
-  RAM figure (`\MwSystemSpecsMemoryGb`) that appears in the *published* evaluation. **Resolve this
-  one first** (confirm the number, then delete the note).
-- `parametric-bv.tex:2788`, `:2823`, `:2865` — analysis/TODO questions on the multi-width
-  evaluation (Alive memouts; unsolved-example inlining; translation-vs-solving time breakdown).
-- `floating-point.tex:760` — `\sid{TODO: write this better}`.
-- `floating-point.tex:900` — `\sid{TODO: link code}`, a missing hyperlink for the square-root proof.
+### N2 — Directory name residue *(cosmetic)*
+The mono-width chapter file lives in `chapters/single-width-bv/` while the chapter is titled
+"Mono-Width Parametric Bitvectors." Paths are not reader-visible, so this is pure source hygiene;
+rename the directory only if you want perfect consistency (it means updating the `\input` in
+`thesis.tex` and the `single-width-bv/plots/...` and `single-width-bv/images/...` asset paths).
 
-**Fix:** answer in prose or delete each; none needs to survive to submission.
+### N3 — Caption/body formula arity *(pre-existing, not split-induced)*
+In §5.1 the body states the motivating identity with explicit source widths
+(`\sext(\zext(a, u, v), v, w) = \zext(a, u, w)`, `multi-width-bv.tex:88`) while the figure caption
+uses an abbreviated arity (`multi-width-bv.tex:172-173`). Both are defensible (the caption is
+shorthand), but an exacting examiner may ask about the mismatch. Harmonize if convenient.
 
-### M3 — The parametric-bitvector chapter is a mega-chapter *(editorial)*
-`parametric-bv.tex` is 3077 lines — roughly twice the next longest chapter (floating-point, 1633)
-— because it fuses the single-width and multi-width work. It now has an interior roadmap
-(added in rev 2), so navigation is no longer a blocker; whether to split it into two chapters is
-a judgment call for the candidate and supervisor. Flagged, not required.
-
-### M4 — Minor prose nits *(optional)*
-- Signature phrases recur closely in the front matter: "trusted down to the kernel" and
-  "(unverified) state of the art" each appear several times within the Introduction and again in
-  the Conclusion; two adjacent "on one side / on the other side" antitheses sit in the landscape
-  section (`introduction.tex:50-93`). Light de-duplication would tighten otherwise high-quality prose.
-- The certifying-approaches contrast set up in the Introduction (SMTCoq/CoqQFBV,
-  `introduction.tex:82-100`) is never revisited in a chapter; the parametric-bitvector Related Work
-  would be its natural home. Optional.
+### N4 — Early forward pointer *(note, not a defect)*
+The Ch 5 conclusion sketches the nonlinear case "via a reduction to the first-order theory of the
+$2$-adic integers, in \cref{sec:fw:2adic}" (`multi-width-bv.tex`), a forward jump into the
+Conclusions chapter. It resolves (0 undefined references) and is appropriate as a pointer; flagged
+only because it is an early forward reference.
 
 ---
 
-## 3. Reproducibility and evaluation — closed
+## 3. The split, assessed
 
-I record this explicitly because earlier revisions pressed it. The evaluation is honestly caveated
-in-text (the multi-width benchmarks' agentic-translation provenance and naive-enumerative check to
-bound 8; the floating-point stratified cross-family sample), and the published contributions are
-distributed as artifacts, with the single-width work independently reproduced through published
-artifact evaluation. On that basis I treat reproducibility as **resolved** and do not carry it as
-an action item. A maximally adversarial examiner could still note that the headline runtimes are
-single-run and that the floating-point set is sub-sampled; both are mitigated (disclosed;
-artifact-evaluated where published), and I do not pursue them further.
-
----
-
-## 4. Presentation and references
-
-- **References:** clean — no placeholders, no bogus publishers, no undefined citations. Good.
-- **Attribution:** each chapter's contribution note is exemplary; the Background chapter's reliance
-  on the co-authored `leanbv` work is disclosed up front (`background.tex:14-19`) and framed as
-  background, not contribution, which is the correct handling.
-- **Draft-note hygiene:** see M2.
-- **Terminology:** see M1.
-- **Cross-references/notation:** consistent on `\cref`; all resolve.
+- **Standalone readability:** each chapter opens with intro prose between the chapter head and the
+  first section, and closes on its own terms. Ch 4's conclusion names the *specific* limitation
+  (no size-changing operations) that Ch 5 resolves and previews the linear-blowup result without
+  spoiling it — a genuinely good seam. Ch 5's conclusion claims exactly what the chapter delivers
+  and hands off cleanly to Ch 6.
+- **No dangling prose references:** all "previous section" phrases in Ch 5 were verified to be
+  intra-chapter; no mono-half labels (`sec:swbv:*`) are referenced from Ch 5; Ch 4 has no forward
+  prose leak into Ch 5.
+- **Divided Related Work:** disjoint. Ch 4 covers the mono machinery (bitwidth-independent circuits,
+  automata Presburger solvers, model checking, automata libraries, MBA); Ch 5 covers the
+  multi-specific work (fixed-width backends, parametric BV solving, BMC) and explicitly points back
+  to Ch 4 for the shared background.
+- **Attribution:** both chapters retain their "My contributions" notes.
 
 ---
 
-## 5. Required vs recommended changes
+## 4. Required vs recommended
 
-**Required before final submission (typographical only):**
-1. Standardize the "mono-width" / "single-symbolic-width" / "one symbolic width" terminology (M1).
+**Required before final submission:** none (typographical only).
 
 **Recommended (polish, none blocking):**
-1. Resolve or delete the six source-side draft notes (M2) — starting with the `parametric-bv.tex:2655`
-   note that questions a published RAM figure.
-2. Optionally split the parametric-bitvector mega-chapter (M3).
-3. Light de-duplication of the Introduction's signature phrases, and an optional callback to the
-   certifying-approaches contrast in the parametric-bitvector Related Work (M4).
+1. Trim the echoed "$\text{PBV}_1$ / Ch 4" statement across the Ch 5 opening (N1).
+2. Optionally rename the `single-width-bv/` directory for consistency with the "Mono-Width" title (N2).
+3. Optionally harmonize the §5.1 caption/body formula arity (N3).
 
 ---
 
-*Bottom line: revision 4 is submittable. Every substantive objection from revisions 1–3 —
-references, overclaiming, scattered limitations, thin intro/conclusion, artifact asymmetry — is
-now closed, and the intro/conclusion additions are genuine quality improvements. What is left is a
-single terminology fix and a tidy-up of draft notes in the source; the reproducibility question is
-resolved by the honest caveats and the artifact evaluation of the published work. This is a strong
-dissertation; correct the terminology, clear the draft notes, and submit.*
+*Bottom line: revision 5 confirms the chapter split is well executed and the thesis reads as a clean
+seven-chapter monograph. Every substantive objection from revisions 1–4 is closed; what remains is a
+single one-line prose trim and two optional cosmetic tidies. This is a submittable dissertation.*
