@@ -1061,16 +1061,12 @@ and allows for mild mixtures of these properties.
 
 \begin{figure}[htb]
 \begin{align*}
-&\mathsf{A} \equiv
-  \mathsf{Const} ~|~ \mathsf{Var}
-\quad \mathsf{B}
-  \equiv \mathsf{A} ~|~
-  \mathsf{B} ~\mathsf{\boxplus}~ \mathsf{B} ~|~
-  \bitnot \mathsf{B}, \left(\boxplus \in \{\bitor, \bitand\}\right)
-\quad \mathsf{T}
-  \equiv \mathsf{B} ~|~
-  \mathsf{T} ~\mathsf{\otimes}~ \mathsf{T}, \left(\otimes \in \{+, - \}\right)
-\quad \mathsf{P} \equiv (\mathsf{T} = 0).
+\mathsf{A} &\equiv \mathsf{Const} ~|~ \mathsf{Var} \\
+\mathsf{B} &\equiv \mathsf{A} ~|~ \mathsf{B} ~\mathsf{\boxplus}~ \mathsf{B} ~|~
+  \bitnot \mathsf{B}, \quad \left(\boxplus \in \{\bitor, \bitand\}\right) \\
+\mathsf{T} &\equiv \mathsf{B} ~|~ \mathsf{T} ~\mathsf{\otimes}~ \mathsf{T},
+  \quad \left(\otimes \in \{+, - \}\right) \\
+\mathsf{P} &\equiv (\mathsf{T} = 0).
 \end{align*}
 \caption{Syntax of the theory decided by the MBA solver. }
 \label{fig:swbv:mba-syntax}
