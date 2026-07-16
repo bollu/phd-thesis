@@ -26,6 +26,38 @@ push-button automation need not be at odds: the finite-domain reasoning that
 underpins compilers, hardware, and cryptography can be carried out inside a
 proof assistant, at scale, with the answers trusted down to the kernel.
 
+\section{The Price of Verification}
+
+It is worth stating the price of this trust plainly, because it is not zero.
+None of the mechanized procedures matches the raw speed of the unverified state
+of the art; each runs within a small constant factor of it. The floating-point
+bitblaster is slower than Bitwuzla by a modest geometric-mean factor; the
+width-independent solver pairs its verified $k$-induction backend with an
+\emph{unverified} model checker (rIC3) precisely because, on the hardest
+unbounded instances, the unverified tool is faster. The claim of this thesis is
+therefore not that verification is free, but that its cost is a small,
+predictable constant rather than the order-of-magnitude penalty that
+foundational methods are usually assumed to carry---and that, for automation
+whose every answer is trusted down to the kernel, this is a price worth paying.
+
+What resisted us was almost never the high-level algorithm and almost always
+the arithmetic beneath it. The classical procedures we set out to mechanize---%
+bitblasting circuits, automata constructions, $k$-induction---are, in their
+essential ideas, well understood; porting them into Lean to inherit both their
+power and a kernel-checked correctness proof proved a productive discipline, and
+in places it forced small original results of its own (the reverse-BFS argument
+for first-UIP computation in conflict analysis; the width-as-bitmask reduction
+of \cref{ch:parametric-bv}). The obstacle, everywhere, was \emph{nonlinear}
+reasoning: obligations mixing multiplication of variables, integer division,
+modular arithmetic, and powers of two with symbolic exponents, for which no
+automation exists and which therefore come to dominate the proof effort with
+bookkeeping that is conceptually trivial yet mechanically exhausting. If a
+single lesson generalizes from these chapters, it is that effective proof
+automation for nonlinear arithmetic---ideally uniform across \texttt{Nat},
+\texttt{Int}, \texttt{Rat}, and \texttt{BitVec}---is the missing enabling
+technology for verified finite-domain reasoning at scale. It is also the thread
+that ties this retrospective to the directions that follow.
+
 The techniques of this thesis also open several concrete directions, adapted
 from the research proposals in my second-year report. We begin with those we
 consider most fertile---each backed by a concrete unpublished result or
