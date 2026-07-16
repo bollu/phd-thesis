@@ -142,6 +142,7 @@ Instantiating $o = 64$ and checking unsatisfiability proves the identity for
 
 \begin{figure}[htb]
 \footnotesize
+\resizebox{\textwidth}{!}{%
 \begin{tabular}{llll}
 \toprule
 \textbf{\#} & \textbf{Subexpression} & \textbf{Rule} & \textbf{Translation} \\
@@ -168,6 +169,7 @@ Instantiating $o = 64$ and checking unsatisfiability proves the identity for
 10 & $(8) = (9)$ (negated) & equality & $(8) \neq (9)$ \\
 \bottomrule
 \end{tabular}
+}
 \caption{Worked example: translating
 $\forall (u\;v\;w : \N)\;(a : \BV{u}),\;
 u < v \to v \leq w \to \sext(\zext(a, u, v), v, w) = \zext(a, u, w)$
@@ -261,6 +263,7 @@ our algorithm restricts to operations within our fragment.
 \begin{figure}[htb]
 \begin{minipage}{0.55\textwidth}
 {\footnotesize
+\resizebox{\textwidth}{!}{%
 \begin{tabular}{llll}
 %\toprule
 % \multicolumn{4}{@{}l}{\textit{Width Expressions}} \\[2pt]
@@ -288,6 +291,7 @@ $p$ & $::=$ & $\mathsf{eq}(a, b, w)$ & bitvector equality \\
     & $\mid$ & $\mathsf{wlt}(u, v)$ & width less-than \\
 %\bottomrule
 \end{tabular}
+}
 }
 \end{minipage}%
 %\hfill
@@ -970,6 +974,7 @@ which allows one to encode zero and sign extension into the linear-bitwise fragm
 \setlength{\tabcolsep}{3pt}
 \renewcommand{\arraystretch}{1.1}
 \centering
+\resizebox{\textwidth}{!}{%
 \begin{tabular}{@{}p{3.8cm}p{9.5cm}@{}}
 \toprule
 \textbf{Syntax} & \textbf{Semantics} $\denote{\cdot}[n]$ \\
@@ -1015,6 +1020,7 @@ $\newstuff{\textsf{weq}(v, w)}$, $\newstuff{\textsf{wlt}(v, w)}$
 \multicolumn{2}{@{}l}{\phantom{\textit{Auxiliary}:} $\subBorrow(x, y)[i] \defn \addCarry(x, \lnot y, 1)[i]$ (borrow from subtraction $x - y$).} \\
 \bottomrule
 \end{tabular}
+}
 \caption{Encoding of bitvector operations as regular languages.
 Widths are masks, values are binary, predicates are bitstreams.
 Extensions are \newstuff{highlighted}.}
@@ -1407,6 +1413,7 @@ For \textbf{(RQ1)}, BMC-Ours saturates nearly every benchmark with a single \qfb
 For \textbf{(RQ2)}, our unbounded solvers consistently outperform CVC5-berger, proving strictly more problems for all bitwidths.
     }
 \label{mwbv:tab:eval-summary}
+\resizebox{\textwidth}{!}{%
 \begin{tabular}{ll rrrrrr}
 \toprule
 Dataset & Solver & Total & Solved & Timeout & Memout & Unknown & Geomean \\
@@ -1433,6 +1440,7 @@ Dataset & Solver & Total & Solved & Timeout & Memout & Unknown & Geomean \\
   & CVC5-berger         & \RoverCactusNumProblemsTotal{} & \RoverCactusNumSolvedC{}             & \RoverCactusNumTimeoutC{}             & \textbf{\RoverCactusNumMemoutC{}}    & \RoverCactusNumUnknownC{} & \textbf{\RoverCactusGeomeanMsC{}} \\
 \bottomrule
 \end{tabular}
+}
 \end{table}
 
 \subsection{Bounded Solving Eliminates Enumeration \textbf{(RQ1)}}
