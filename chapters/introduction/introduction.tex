@@ -28,18 +28,27 @@ symbolic widths, and finally to floating-point arithmetic.
 
 \section{Motivation: Verified Rewriting Demands Verified Automation}
 
-Our starting point is compilation. Modern compiler frameworks such as
-MLIR~\citep{lattner2020mlir} encourage many domain-specific intermediate
-representations (IRs), each with its own peephole rewrites. Verifying such
-rewrites in an ITP is attractive---the proofs are checked once and for
-all---but every rewrite discharges to a proof obligation over finite-domain
-values. Doing these proofs by hand does not scale: a single LLVM InstCombine
-rewrite may require pages of bit-level reasoning. The framework we present in
-\cref{ch:lean-mlir} makes the \emph{structural} part of such proofs (SSA,
-dominance, regions) essentially free, which exposes the remaining
-\emph{semantic} obligations---bitvector and floating-point goals---as the true
-bottleneck. The rest of the thesis builds the verified automation that
-discharges them.
+Our starting point is compilation. A modern optimizing compiler is not one
+monolithic transformation but an accretion of \emph{thousands} of small, local
+rewrites: LLVM's InstCombine peephole optimizer alone makes up roughly a tenth
+of all IR-transforming code in the project. Each rewrite is individually
+simple, yet they coalesce into the whole, and the compiler is correct only if
+\emph{every} one of them is. Frameworks such as MLIR~\citep{lattner2020mlir}
+multiply this further, encouraging many domain-specific IRs, each with its own
+family of peephole rewrites.
+
+Verifying rewrites at this scale in an ITP---checking each proof once and for
+all---makes two demands at once, and they are the two halves of a single
+workflow. First, we need a way to \emph{state and compose} rewrites over an
+arbitrary IR without re-proving the structural plumbing---SSA form, dominance,
+nested regions---for each one. Second, every rewrite still discharges to a
+proof obligation over finite-domain values, and doing these by hand does not
+scale: a single InstCombine rewrite may require pages of bit-level reasoning.
+The framework we present in \cref{ch:lean-mlir} answers the first demand,
+making the \emph{structural} part of such proofs essentially free; in doing so
+it isolates the remaining \emph{semantic} obligations---bitvector and
+floating-point goals---as the true bottleneck. The rest of the thesis builds
+the verified automation that discharges them.
 
 \section{Contributions}
 
@@ -102,12 +111,17 @@ this is stated in the relevant chapter's attribution note.
 
 \section{Thesis Outline}
 
-\Cref{ch:background} recalls the background shared by the technical chapters:
-SMT solving over bitvectors, bitblasting and SAT certificates, the Lean proof
-assistant, and the verified \bvdecide{} bitblaster that our decision
-procedures extend. \Cref{ch:lean-mlir} presents the verified peephole
-rewriting framework. \Cref{ch:parametric-bv} presents the width-independent and
-multi-width bitvector decision procedures.
-\Cref{ch:floating-point} presents verified floating-point bitblasting.
-\Cref{ch:future-work} collects unpublished results and directions for future
-work.
+The thesis follows a single arc, from the framework that generates
+finite-domain proof obligations to the decision procedures that discharge them.
+\Cref{ch:background} recalls the shared machinery: SMT solving over bitvectors,
+bitblasting and SAT certificates, the Lean proof assistant, and the verified
+\bvdecide{} bitblaster that the later procedures extend. \Cref{ch:lean-mlir}
+builds the peephole-rewriting framework; by making the structural part of each
+rewrite's proof free, it exposes the semantic obligations---goals over
+bitvectors of arbitrary width---as the bottleneck that the remainder of the
+thesis attacks. \Cref{ch:parametric-bv} takes up those goals and dispatches
+them with increasing generality: first for a single symbolic width, then for
+many independent symbolic widths at once. \Cref{ch:floating-point} carries the
+same verified-bitblasting idea from bitvectors to floating-point arithmetic,
+yielding the first verified floating-point bitblaster. \Cref{ch:future-work}
+then collects unpublished results and directions that extend this arc.
