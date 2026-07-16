@@ -31,8 +31,9 @@ The former `single-width-bv` and `multi-width-bv` chapters are now one chapter,
 ## Cross-chapter consistency
 
 - **Cross-reference style is mixed**: `\cref` (~81 uses) vs `\autoref` (~56 uses) across
-  chapters. Pick one convention (cleveref `\cref`/`\Cref` is recommended) and sweep all
-  chapters so cross-references read uniformly.
+  chapters. **Recommended: standardize on `\cref`/`\Cref`** (cleveref is already loaded
+  `[noabbrev,capitalise]`, is the majority, and handles ranges/lists like `\cref{a,b}`
+  which `\autoref` cannot). Sweep `\autoref`→`\cref` (and sentence-initial→`\Cref`).
 - **Thin chapters**: `chapters/introduction/introduction.tex` (~111 lines) and
   `chapters/future-work/future-work.tex` (~100 lines) are lighter than the paper chapters
   and need expansion/polish to read as thesis-level framing rather than stubs.
@@ -42,26 +43,25 @@ The former `single-width-bv` and `multi-width-bv` chapters are now one chapter,
 
 ## Minted / listings
 
-- **`mlir` and `xdsl` environments are defined but unused** (0 `\begin{mlir}`/`\begin{xdsl}`
-  in `chapters/`). Either wire them into the lean-mlir chapter where MLIR/xDSL snippets
-  belong, or drop them (and the `MLIRLexer.py` registration in `.latexminted_config`).
-- **`leanfootnotesize` has no explicit `style`** (unlike `lean`/`lean4` which set `style=bw`).
-  Since `\usemintedstyle{vs}` was removed, it now falls back to the pygments `default`
-  style. Consider adding `style=bw` for visual consistency with the other Lean blocks.
-- The custom-lexer syntax is now version-guarded in `macros.sty` via
+- **DONE**: dropped the unused `mlir`/`xdsl` environments (and their helper macros, the
+  `MLIRLexer.py` file, and its `.latexminted_config` registration); added `style=bw` to
+  `leanfootnotesize`.
+- The custom-lexer syntax is version-guarded in `macros.sty` via
   `\@ifpackagelater{minted}{2024/06/01}` (minted 3.x uses the bare `path:Class`; older
   minted uses `customlexer`/`-x`). Only the minted-3.x path is exercised locally; verify
   the 2.x fallbacks if the CI/Overleaf toolchain uses an older minted.
 
-## Bibliography hygiene (from `thesis.blg` warnings)
+## Bibliography hygiene
 
-- `bhat_2025_16269885` — entry type not defined by `plainnat.bst`; fix the entry type.
-- Empty required fields: `aho1985compilers` (journal), `brummayer2006local` (booktitle),
-  `smtlibfpa` (institution), `fphandbook` (publisher).
-- Number without volume: `bhat2026multiwidth`, `hydra`.
-- There are near-duplicate Büchi entries (`Buchi-presburger`, `buchi1990weak`,
-  `buchi1966symposium`); the multi-width chapter now cites `Buchi-presburger`. Consolidate
-  if the others are unused.
+- **DONE (structural)**: fixed entry types (`bhat_2025_16269885` `@software`→`@misc`,
+  `aho1985compilers` `@article`→`@book`). All `thesis.blg` warnings now clear.
+- **NEEDS REAL DATA (marked `XXXXX` in `thesis.bib`)** — search the bib for `XXXXX`:
+  - `brummayer2006local` `booktitle`, `smtlibfpa` `institution`, `fphandbook` `publisher`,
+    `bhat2026multiwidth` `volume`, `hydra` `volume`. These were empty/missing required
+    fields; placeholders inserted so they are easy to find and fill with correct values.
+- Near-duplicate Büchi entries (`Buchi-presburger`, `buchi1990weak`, `buchi1966symposium`);
+  the parametric-bv chapter cites `Buchi-presburger` and `buchi1990weak`. Consolidate if
+  `buchi1966symposium` (or others) turn out to be unused.
 
 ## Verification checklist for future changes
 
