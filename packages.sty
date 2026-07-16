@@ -12,6 +12,12 @@
 \usepackage[T1]{fontenc}
 \usepackage{csquotes}
 
+%% Let TeX stretch interword spacing on otherwise-overfull lines rather than
+%% overrun the margin. This clears the paragraph-level overfull boxes; the
+%% remaining single-line offenders (long \texttt identifiers, URLs) are handled
+%% by targeted breaks.
+\setlength{\emergencystretch}{3em}
+
 %%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%
 %% Fonts: Palatino body (mathpazo), classicthesis styling, drop caps.
 %% NB: do NOT load lmodern after mathpazo -- it silently overrides Palatino.
