@@ -149,8 +149,10 @@ bitblasting infrastructure of \cref{ch:background}---but the floating-point
 reductions themselves are subtle, complex, and had never been verified.
 
 This chapter bridges that gap by presenting the first \emph{verified}
-floating-point bitblaster: a library and associated tactic in the Lean proof
-assistant that
+floating-point bitblaster---verified for every \qffp{} operation except
+round-to-integral, remainder, and the integer conversions, whose circuits we
+implement and test but do not yet prove---a library and associated tactic in
+the Lean proof assistant that
 (a)~mechanizes the SMT-LIB theory of floating point (\qffp{}),
 (b)~extends Lean's bitvector solver \bvdecide{} with floating-point
 bitblasting capabilities,
@@ -165,7 +167,7 @@ benchmarks our solver runs within a small geometric-mean slowdown of
 Bitwuzla, while offering end-to-end correctness guarantees. On new benchmarks
 targeting small floating-point formats, we are substantially faster than the
 sound exhaustive-enumeration baseline, establishing the first sound, verified
-solver for these formats.
+solver for these formats (modulo the same three unproven operations).
 
 \section{Algorithmic Overview: How to Bitblast a Floating Point Multiply}
 \label{sec:fp:overview}
