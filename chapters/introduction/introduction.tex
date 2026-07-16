@@ -17,7 +17,25 @@ Lean~\citep{demoura2021lean} offer foundational guarantees, checked by a small
 trusted kernel, but have historically provided little of the push-button
 automation that makes finite-domain reasoning practical at scale.
 
-This thesis contributes to closing that gap. Its central claim is that
+This thesis contributes to closing that gap. It began as an effort in verified
+compilation, but the binding constraint proved to lie elsewhere: a verified
+compiler must discharge \emph{thousands} of proof obligations over bitvectors
+and floating-point values, and it is these arithmetic obligations---not the
+structural transformations that surround them---that resist mechanization at
+scale. That discovery redirected the work reported here toward the decision
+procedures that discharge such obligations, and toward a single question asked
+in four parts: whether peephole rewriting over realistic SSA-based IRs can be
+verified \emph{generically}, so that the structural proof burden is paid once
+and for all (\cref{ch:lean-mlir}); whether width-independent bitvector
+predicates admit \emph{verified, proof-producing} decision procedures, and
+whether these scale from one symbolic width to many (\cref{ch:parametric-bv});
+whether floating-point bitblasting---the unverified heart of SMT
+floating-point solving---can itself be mechanized and proved correct
+(\cref{ch:floating-point}); and, cutting across all three, whether verified
+automation can match the unverified state of the art in practice, and not
+merely in principle.
+
+The central claim is that
 \emph{decision procedures for finite-domain theories can be mechanized---%
 implemented, proved correct, and run inside a proof assistant at a small,
 constant-factor cost over the unverified state of the art, rather than the
@@ -26,6 +44,60 @@ claim with a sequence of mechanized artefacts in Lean, each published and
 evaluated against the state of the art, and each extending the reach of
 verified automation: from fixed widths, to one symbolic width, to many
 symbolic widths, and finally to floating-point arithmetic.
+
+\section{Automated Speed and Interactive Trust}
+
+The tension at the heart of this thesis is one of \emph{trust}. On one side
+stand automated SMT solvers---Bitwuzla~\citep{niemetz2023bitwuzla},
+cvc5~\citep{barbosa2022cvc5}, Z3~\citep{de2008z3}---which decide finite-domain
+theories with formidable speed and on which compiler writers and hardware
+verifiers rely daily. Yet these solvers are large, aggressively optimized
+programs whose correctness rests on manual reasoning and testing, and they are
+not infallible: a single random-testing campaign aimed at floating-point
+solvers uncovered soundness or completeness bugs in \emph{every} SMT-LIB
+floating-point solver to which it was applied~\citep{brain2019building}. On the
+other side stand interactive theorem provers such as
+Lean~\citep{demoura2021lean}, Rocq, and Isabelle, whose every theorem is
+checked by a small trusted kernel, but which have historically offered only
+weak, best-effort automation for these theories. Isabelle's
+\emph{Sledgehammer}~\citep{blanchette2011automatic} delegates goals to external
+provers, yet its bitvector reach is limited precisely because the underlying
+solvers expose no fine-grained, checkable proof. The practitioner is thus made
+to choose between speed without a warranty and a warranty without speed.
+
+This thesis descends from, and departs from, the verified-compilation
+tradition. CompCert~\citep{leroy2016compcert} showed that an optimizing C
+compiler can be proved correct end to end, and Vellvm~\citep{zhao2012formalizing}
+carried the same ambition to LLVM's IR. At the granularity of individual
+rewrites, the Alive project~\citep{lopes2015provably} and its successor
+Alive2~\citep{lopes2021alive2} brought SMT-based translation validation into the
+day-to-day of LLVM development. But these tools inherit the trust profile of the
+solvers beneath them: Alive2 is itself an unverified program, and---lacking
+parametric bitvectors---it validates a width-generic rewrite by
+\emph{enumerating} concrete widths up to a fixed bound, which is both expensive
+and unsound above that bound. The lesson we draw is that verifying the compiler
+does not suffice if the automation that discharges its arithmetic obligations
+is itself unverified.
+
+Several lines of work already try to bridge automated speed and kernel-checked
+trust, and it helps to place this thesis among them. \emph{Certifying}
+approaches run an external solver and check the certificate it emits inside the
+kernel: SMTCoq~\citep{ekici2017smtcoq} reconstructs proofs from SMT solvers in
+Rocq, and CoqQFBV~\citep{shi2021coqqfbv} checks a bitblaster's SAT certificate;
+systems such as F\textsuperscript{*}/HACL\textsuperscript{*}~\citep{swamy2023proof}
+couple strong SMT automation to verified code. A parallel tradition mechanizes
+floating-point arithmetic itself---Harrison's HOL~Light
+development~\citep{harrison1999machine}, Flocq~\citep{boldo2011flocq}, and
+VCFloat~\citep{appel2022vcfloat}---but proves floating-point \emph{theorems}
+rather than verifying a floating-point \emph{solver}. The stance taken here is
+complementary to both: rather than trust an external solver and check its
+output, we \emph{re-derive the solver inside the proof assistant}. We port the
+algorithms of the state of the art---Bitwuzla's bitblasting and SymFPU's
+floating-point circuits~\citep{symfpu}---into Lean and prove them correct, so
+that each answer is trusted down to the kernel, justified by proof-by-reflection
+and, for the SAT core, an LRAT certificate, rather than by the authority of the
+tool that produced it. In the vocabulary of a working compiler engineer, the
+aim is verified versions of the tools the LLVM community already relies on.
 
 \section{Motivation: Verified Rewriting Demands Verified Automation}
 
@@ -39,8 +111,9 @@ multiply this further, encouraging many domain-specific IRs, each with its own
 family of peephole rewrites.
 
 Verifying rewrites at this scale in an ITP---checking each proof once and for
-all---makes two demands at once, and they are the two halves of a single
-workflow. First, we need a way to \emph{state and compose} rewrites over an
+all, rather than revalidating it on every compilation as SMT-based tools
+do~\citep{lopes2021alive2}---makes two demands at once, and they are the two
+halves of a single workflow. First, we need a way to \emph{state and compose} rewrites over an
 arbitrary IR without re-proving the structural plumbing---SSA form, dominance,
 nested regions---for each one. Second, every rewrite still discharges to a
 proof obligation over finite-domain values, and doing these by hand does not
