@@ -42,7 +42,10 @@ by the MLIR compiler framework~\citep{lattner2020mlir}. Interactive theorem
 provers provide strong guarantees for end-to-end compiler verification, as in
 CompCert~\citep{leroy2016compcert}, but modern compilers and their IRs evolve
 at a rate that makes proof engineering alongside them prohibitively expensive.
-In this chapter we combine the convenience of automation with the versatility
+This is where the thesis begins: before we can automate the finite-domain
+obligations that rewrites leave behind, we need a framework in which the
+rewrites themselves can be stated, composed, and proved correct. In this
+chapter we combine the convenience of automation with the versatility
 of ITPs for verifying peephole rewrites across domain-specific IRs. We
 formalize a core calculus for SSA-based IRs that is generic over the IR and
 covers \emph{regions}---the nested scoping used by many domain-specific IRs in

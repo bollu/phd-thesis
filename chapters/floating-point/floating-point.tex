@@ -1621,3 +1621,14 @@ in exchange for end-to-end correctness guarantees,
 while on small floating-point formats our solver is \SmallFpTimeElapsedRatioOKernel{} faster than the sound,
 exhaustive-enumeration baseline, and \SmallFpTimeoutSpeedupLB{} faster on the hardest instances that enumeration times out on.
 Thus, we close the gap between verified reasoning and practical floating-point SMT solving.
+
+\paragraph{Closing the arc.}
+Floating point completes the thesis's sweep across finite domains. Beginning
+from the proof obligations that verified peephole rewriting leaves behind
+(\cref{ch:lean-mlir}), we built mechanized decision procedures of growing
+generality---one symbolic width, then many (\cref{ch:parametric-bv}), and
+finally the bit-level intricacy of floating-point arithmetic---each
+implemented, proved correct, and run inside Lean at a speed competitive with
+the unverified state of the art. This is the sense in which decision procedures
+for finite-domain theories can be mechanized without surrendering the
+scalability that makes them useful.
