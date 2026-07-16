@@ -18,6 +18,10 @@
 %% by targeted breaks.
 \setlength{\emergencystretch}{3em}
 
+%% Allow long URLs (\url, and hyperref-wrapped links) to break at any character
+%% rather than overrun the margin; loaded after the class's hyperref.
+\usepackage{xurl}
+
 %%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%
 %% Fonts: Palatino body (mathpazo), classicthesis styling, drop caps.
 %% NB: do NOT load lmodern after mathpazo -- it silently overrides Palatino.
