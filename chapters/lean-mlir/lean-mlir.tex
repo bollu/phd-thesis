@@ -768,7 +768,7 @@ Furthermore, their rewriter restricts source and target patterns to be of the sa
 Their patterns permit side effects, which we disallow since we are interested in higher-level, pure rewrites.
 Our patterns provide more flexibility since the source and target patterns are arbitrary programs, and are matched on sub-DAGs instead of a linear sequence.
 
-\section{Conclusions}
+\section{Conclusions, Limitations, and Future Work}
 \label{sec:mlir:conclusion}
 
 Peephole rewrites represent a large and important class of compiler optimizations.
@@ -781,10 +781,30 @@ We also advocate proof automation and an intrinsically well-typed mechanized cor
 We incarnate these principles in \messa{X}, a framework built on Lean and \texttt{mathlib} to reason about domain-specific IRs in SSA with regions.
 We show how \messa{X} is simple to use, amenable to automation, and effective for verifying IRs over complex domains.
 
-The case studies of \cref{sec:mlir:casestudies} also expose the central
-bottleneck of this workflow: once \texttt{simp\_peephole} has stripped away the
-SSA scaffolding, each rewrite leaves behind a proof obligation over bitvectors
-of arbitrary width, and only $54$ of the $93$ translated Alive rewrites could
-be discharged by the automation available at the time. Closing this automation
-gap---deciding such bitvector goals at scale, rather than proving them by
-hand---is the subject of \cref{ch:parametric-bv}.
+Several limitations bound what we prove, and each points to concrete future
+work. First, we model side effects coarsely: rewriting is proved sound only for
+\texttt{EffectKind.pure} operations, and the one genuinely side-effectful
+behaviour we encounter---the immediate undefined behaviour that division and
+remainder may raise---is collapsed together with poison into
+\texttt{Option.none} rather than tracked as a first-class effect. This is sound
+for the rewrites we translate, because we check that either side triggers
+\texttt{ub} exactly when the other does; but separating \texttt{ub} from poison
+as a distinct side effect, and reasoning about rewrites that refine it, remains
+future work. Second, because our semantics denote into total Lean functions,
+the user-supplied semantics of a region must be provably terminating; richer
+denotations---computable coinductive and noncomputable domain-theoretic
+semantics---are a natural next step for modelling non-terminating and
+higher-order regions.
+
+The case studies of \cref{sec:mlir:casestudies} expose the third, and central,
+limitation, which is not one of the framework but of the automation beneath it.
+Once \texttt{simp\_peephole} has stripped away the SSA scaffolding, each rewrite
+leaves behind a proof obligation over bitvectors of arbitrary width, and only
+$54$ of the $93$ translated Alive rewrites could be discharged by the automation
+available at the time. The framework discharges the structural part of every one
+of these rewrites; the $39$ that remain fail not because \messa{X} cannot state
+or compose them, but because the residual bitvector goals outrun the general-%
+purpose tactics then available. Closing this automation gap---deciding such
+bitvector goals at scale, rather than proving them by hand---is precisely the
+subject of \cref{ch:parametric-bv}, and the reason the rest of the thesis is
+devoted to verified decision procedures.

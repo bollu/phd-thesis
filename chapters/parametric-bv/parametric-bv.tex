@@ -2879,7 +2879,6 @@ multi-width automaton state space, each measured both as a structural term size
 small constant factor larger than the input, confirming the linear-size
 reduction; the automaton state space grows on the many-width datasets, tracking
 the harder unbounded instances.}
-\sid{TODO: regenerable table in a single run with the full camera ready script.}
 \label{mwbv:tab:eval-diagnostics}
 \input{chapters/multi-width-bv/plots/output/stats/stats-table.tex}
 \end{table}
@@ -3009,7 +3008,7 @@ Bounded model checking (BMC) arose as a technique to prevent the exponential blo
 by using a SAT solver to search for counterexamples upto a given bound~\cite{biere2009bounded}.
 Our algorithm uses ideas from BMC, where we bound the mono-width parameter after our reduction, and encode the entire problem as a single \qfbv{} query.
 
-\section{Conclusions}
+\section{Conclusions, Limitations, and Future Work}
 \label{sec:pbv:conclusion}
 
 This chapter closes the \emph{width} axis of the thesis: bitvector reasoning
@@ -3043,6 +3042,26 @@ bitvector reasoning, grounding width-independent automation in mechanized proofs
 and establishing Lean as a platform for trustworthy, scalable bitvector
 reasoning across cryptography, hardware, and verified compilers.
 
+Two limitations bound these results, and both point beyond this chapter. The
+first is one of theory: our solvers are sound and complete for the
+\emph{linear-bitwise} fragment of the parametric theory, but nonlinear
+operations---multiplication of two symbolic-width unknowns, and the like---fall
+outside it. This is not a gap we can close by more engineering; deciding the
+nonlinear fragment requires a genuinely different tool, which we sketch, via a
+reduction to the first-order theory of the $2$-adic integers, in
+\cref{sec:fw:2adic}. The second concerns evaluation. We deliberately avoid
+preprocessing such as associativity--commutativity normalization, so as to
+measure the solving technique itself rather than a normal form that might make
+problems trivial; a production tactic would want such preprocessing, and its
+absence makes our numbers conservative. Our multi-width benchmarks are, in part,
+translated from LLVM InstCombine into parametric SMT-LIB by an agentic harness
+after we hand-generalize a representative seed set, with every generated formula
+checked against a naive enumerative solver to bound $8$ before it enters the
+dataset; this guards against mistranslation, though it does not replace a full
+correctness argument for the generalization. The single-width results, by
+contrast, are packaged as an artifact that has been independently reproduced
+through published artifact evaluation.
+
 \paragraph{From richer widths to richer values.}
 This chapter completes the width axis of the thesis, but the values themselves
 have so far remained plain machine integers. The next chapter turns from richer
@@ -3054,6 +3073,5 @@ intricate values that compilers routinely reason about (\cref{ch:floating-point}
 \paragraph{Data availability.}
 The data supporting \cref{sec:pbv:single-width} are openly available on Zenodo
 at \url{https://doi.org/10.5281/zenodo.16269885}~\cite{bhat_2025_16269885}. The
-evaluation of \cref{sec:pbv:multi-width} is packaged into a Docker container,
-distributed as part of the artifact accompanying the associated
-paper~\citep{bhat2026multiwidth}.
+evaluation of \cref{sec:pbv:multi-width} is packaged into a Docker container as
+the artifact for the multi-width results~\citep{bhat2026multiwidth}.

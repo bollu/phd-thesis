@@ -1610,6 +1610,8 @@ Closing both gaps is limited by proof effort rather than by floating-point insig
 the obligations that arise are overwhelmingly nonlinear, mixing multiplication of variables, integer division and modular arithmetic, powers of two with variable exponents, and bitvector operations,
 and because existing automation closes none of them, the proof scripts become dominated by arithmetic bookkeeping that is conceptually trivial but mechanically exhausting.
 We therefore see effective proof automation for nonlinear reasoning, ideally operating uniformly across \texttt{Nat}, \texttt{Int}, \texttt{Rat}, and \texttt{BitVec}, as the key enabling technology for verified floating-point arithmetic at scale.
+This same nonlinear bottleneck recurs across the thesis, and we take it up as a decision problem in its own right---via the first-order theory of the $2$-adic integers---in \cref{sec:fw:2adic}.
+Two further directions extend this chapter: reaching theory parity with Bitwuzla by adding incremental solving, ackermannization, and the theory of arrays (\cref{sec:fw:ackermannization}), and moving from worst-case to average-case floating-point error bounds through $\delta$-satisfiability over the reals (\cref{sec:fw:deltasat}).
 
 
 Overall, we mechanize the chain from SMT-LIB semantics down to circuits and symbolic rewriting,
