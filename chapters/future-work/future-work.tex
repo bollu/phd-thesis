@@ -5,8 +5,9 @@ Cat, \emph{Alice's Adventures in Wonderland}}
 
 \lettrine{T}{his} thesis set out to show that decision procedures for
 finite-domain theories can be mechanized---implemented, proved correct, and run
-at speed inside a proof assistant---without giving up the scalability that makes
-them useful. It made the case along a single arc. \Cref{ch:lean-mlir} built a
+inside a proof assistant at a small, constant-factor cost over the unverified
+state of the art, rather than the order-of-magnitude slowdown usually assumed of
+foundational methods. It made the case along a single arc. \Cref{ch:lean-mlir} built a
 framework for verified peephole rewriting over SSA-based IRs; by making the
 structural part of a rewrite's proof essentially free, it isolates the
 finite-domain proof obligations that each rewrite leaves behind. The remaining
