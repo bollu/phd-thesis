@@ -64,8 +64,9 @@ procedures on that fragment.
 We evaluate on benchmarks from classical compiler problems, including
 Hacker's Delight and the LLVM peephole optimizer, and on equivalence-checking
 problems from program obfuscation. Our tools solve 100\% of Hacker's Delight,
-two of our tools solve 100\% of the deobfuscation dataset, and up to 27\% of
-peephole rewrites extracted from LLVM's test suite.
+two of our tools solve 100\% of the deobfuscation dataset, and up to
+\InstCombineNormCircuitVerifiedNumSolved{} of \InstCombineTotalProblems{}
+(about 31\%) peephole rewrites extracted from LLVM's test suite.
 
 \section{Notation \& Background}
 \label{sec:swbv:background}
@@ -1267,7 +1268,7 @@ is in the same order of magnitude as the bitblaster
 (where the bitblaster solves for fixed $w = 64$, which we provide as a comparison, but \emph{does not} solve the infinite width problem),
 where the bitblaster takes \MBABvDecideTotalTime{} total time.
 The MBA solver is the fastest, with a geomean time of \MBAMBAGeoMean{},
-which is an order of magnitude faster incomparison to both k-induction (\MBAKInductionVerifiedGeoMean{}) and the NFA-based
+which is an order of magnitude faster in comparison to both k-induction (\MBAKInductionVerifiedGeoMean{}) and the NFA-based
 solver (\MBAPresburgerGeoMean).
 
 The solvers introduced in this chapter, and especially the automata-based one
@@ -1375,7 +1376,7 @@ In contrast to this work, the translation from KAT, which is a variant of
 regular expressions, to automata is more direct, and, as the statements being
 decided were very small, the automata library is not designed for performance:
 for example, the transitions are represented as closures which grow with the
-numnber of operations.
+number of operations.
 %
 The ACL2 proof assistant internally builds finite state machines from its
 Symbolic Vector Expression (SVEX)~\cite{hunt2017industrial}, which is associated to each signal in a Verilog module.
@@ -1410,7 +1411,9 @@ For the mono-width setting ($\text{PBV}_1$), we fill the gap in ITP proof
 automation for width-independent bitvector reasoning through verified decision
 procedures: a $k$-induction-based model checker, an automata-theoretic solver,
 and an MBA-Blast extension handling mixed arithmetic-bitwise predicates. These
-tools solve 100\% of Hacker's Delight benchmarks and 27\% of LLVM peephole
+tools solve 100\% of Hacker's Delight benchmarks and up to
+\InstCombineNormCircuitVerifiedNumSolved{} of \InstCombineTotalProblems{}
+(about 31\%) of LLVM peephole
 rewrites, with the MBA solver achieving \MBAMBAGeoMean{} geomean runtime on
 \MBATotalProblems{} problems. All are mechanized in Lean, producing fully
 kernel-checked proofs via verified automata construction and $k$-induction.

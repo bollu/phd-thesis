@@ -558,7 +558,7 @@ This is safe as long as the right hand side is allowed to produce \texttt{ub} on
 In our context, only the division and remainder operations produce \texttt{ub}.
 In all the Alive rewrites we translate that contain division and remainder operations, we manually verify that the right hand side of a rewrite triggers \texttt{ub} if and only if the left hand side does
 (by checking that any division/reminder on the right has a corresponding operation with syntactically equal arguments on the left).
-To be fully correct one can either treat division and remainder as side-effectful operations in our framework or develop further theorey with respect to treating \texttt{ub} as a side effect. We leave separating \texttt{ub} as a side effect distinct from poison, and reasoning about peephole rewrites which refine such side effects as interesting future work.
+To be fully correct one can either treat division and remainder as side-effectful operations in our framework or develop further theory with respect to treating \texttt{ub} as a side effect. We leave separating \texttt{ub} as a side effect distinct from poison, and reasoning about peephole rewrites which refine such side effects as interesting future work.
 
 For side-effect-free programs, our semantics match the LLVM semantics.
 We perform exhaustive enumeration tests between our semantics and that of LLVM.

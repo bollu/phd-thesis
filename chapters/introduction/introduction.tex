@@ -38,9 +38,14 @@ not merely in principle.
 
 The central claim is that
 \emph{decision procedures for finite-domain theories can be mechanized---%
-implemented, proved correct, and run inside a proof assistant at a small,
-constant-factor cost over the unverified state of the art, rather than the
-order-of-magnitude slowdown usually assumed of foundational methods}. We support this
+implemented, proved correct, and run inside a proof assistant at a
+constant-factor cost over the unverified state of the art---a bounded,
+size-independent multiplier, rather than the asymptotic blow-up (exhaustive
+enumeration over widths or values) that foundational methods are often assumed
+to require}. This constant is roughly an order of magnitude for the bitvector
+core and larger for floating point---a geometric-mean factor of about
+$33\times$---but in each case it is a predictable, size-independent price paid
+for answers trusted down to the kernel. We support this
 claim with a sequence of mechanized artefacts in Lean, each published and
 evaluated against the fastest unverified tools, and each extending the reach of
 verified automation: from fixed widths, to mono-width, to multi-width, and

@@ -163,8 +163,9 @@ floating-point formats (e.g., E4M3 and E5M2) used in machine-learning
 quantization.
 
 Our evaluation shows that verified bitblasting is practical: on the SMT-COMP
-benchmarks our solver runs within a small geometric-mean slowdown of
-Bitwuzla, while offering end-to-end correctness guarantees. On new benchmarks
+benchmarks our solver runs at a geometric-mean slowdown of
+\SmtLibGeomeanTimeElapsedRatioOB{} relative to Bitwuzla, while offering
+end-to-end correctness guarantees. On new benchmarks
 targeting small floating-point formats, we are substantially faster than the
 sound exhaustive-enumeration baseline, establishing the first sound, verified
 solver for these formats (modulo the same three unproven operations).
@@ -1312,7 +1313,7 @@ specifications, catching errors that are easy to overlook in manual review.
 To evaluate our solver, we ask
 whether it is competitive with the state of the art,
 and how well we do on small floating-point formats,
-whose unknown soundess in current solvers we want to fix due to application to ML workloads. We crystallize these into the following research questions:
+whose unknown soundness in current solvers we want to fix due to application to ML workloads. We crystallize these into the following research questions:
 
 \noindent\textbf{RQ1} How does our solver compare against the state-of-the-art FP solver, Bitwuzla,
 and what is the overhead of our mechanized implementation against the unverified implementation?
@@ -1493,7 +1494,7 @@ Empirically, Bitwuzla performs flawlessly on these benchmarks.
 However, it lacks is the guarantee, since its small-format support is documented as experimental and ``use at your own risk''
 and it produces no certificate that could be checked independently.
 Our claim on small formats is therefore that we are the fastest solver \emph{with a soundness guarantee}.
-We answer \textbf{RQ2} affirmitively, as our solver is faster than exhaustive enumeration by a geomean factor of \SmallFpTimeElapsedRatioON{} and by \SmallFpTimeoutSpeedupLB{} on the hardest instances,
+We answer \textbf{RQ2} affirmatively, as our solver is faster than exhaustive enumeration by a geomean factor of \SmallFpTimeElapsedRatioON{} and by \SmallFpTimeoutSpeedupLB{} on the hardest instances,
 while remaining sound on small formats where Bitwuzla is not guaranteed to be sound.
 
 \begin{figure}[htbp]

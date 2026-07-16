@@ -31,15 +31,17 @@ proof assistant, at scale, with the answers trusted down to the kernel.
 
 It is worth stating the price of this trust plainly, because it is not zero.
 None of the mechanized procedures matches the raw speed of the unverified state
-of the art; each runs within a small constant factor of it. The floating-point
-bitblaster is slower than Bitwuzla by a modest geometric-mean factor; the
-width-independent solver pairs its verified $k$-induction backend with an
+of the art; each runs within a bounded, size-independent constant factor of
+it---roughly an order of magnitude for the bitvector core, and a geometric-mean
+factor of about $33\times$ for floating point. The verified $k$-induction
+backend of the width-independent solver is, moreover, paired with an
 \emph{unverified} model checker (rIC3) precisely because, on the hardest
 unbounded instances, the unverified tool is faster. The claim of this thesis is
-therefore not that verification is free, but that its cost is a small,
-predictable constant rather than the order-of-magnitude penalty that
-foundational methods are usually assumed to carry---and that, for automation
-whose every answer is trusted down to the kernel, this is a price worth paying.
+therefore not that verification is free, nor even that its cost is always small,
+but that the cost is a \emph{bounded, predictable constant}---independent of
+problem size---rather than the asymptotic blow-up that foundational methods are
+usually assumed to carry; and that, for automation whose every answer is trusted
+down to the kernel, this is a price worth paying.
 
 What resisted us was almost never the high-level algorithm and almost always
 the arithmetic beneath it. The classical procedures we set out to mechanize---%

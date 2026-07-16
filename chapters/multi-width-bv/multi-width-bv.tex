@@ -60,8 +60,8 @@ All our solvers are implemented in Lean, with mechanized proofs of soundness
 and completeness for the unbounded solver. Empirically, the equisatisfiable
 reduction from $\text{PBV}_n$ to $\text{PBV}_1$ turns exponential enumeration
 into a single \qfbv{} query that nearly saturates standard PBV benchmarks,
-while our unbounded solvers prove several times as many all-width problems as
-the state-of-the-art CVC5-based solver.
+while our unbounded solvers prove $\EverybenchRatioSolvedMrOverC{}\times$ as many
+all-width problems as the state-of-the-art CVC5-based solver.
 
 \section{The Algorithmic Idea: Masks and Binary Values}
 \label{sec:mwbv:idea}
@@ -642,7 +642,7 @@ this truncation does not lose information (as \toNat~is injective), and thus $\r
 \begin{remark}[Choice of the global width $o$]\label{mwbv:rem:width-choice}
 The two maps in the proof of \cref{mwbv:thm:equisat} are a one-sided inverse.
 Starting from a multi-width model~$\rho$, building $\rhob$ and then truncating recovers $\rho$ exactly.
-So, this translation is lossess.
+So, this translation is lossless.
 
 On the other hand, the global width~$o$ is not fully determined by~$p$, as any $o$
 that is sufficient to not cause overflow ($o \ge W + 1$) yields a valid compatible model.
