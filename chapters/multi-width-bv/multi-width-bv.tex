@@ -82,9 +82,10 @@ Consider the following formula, which states that sign extending a
 zero extended value is equivalent to zero extending it directly, when
 the widths are compatible:
 \[
-\forall (u~v~w : \N)~(a : \BV{u}),~
-u < v \to v \leq w \to
-\sext(\zext(a, u, v), v, w) = \zext(a, u, w)
+\begin{aligned}
+  &\forall (u~v~w : \N)~(a : \BV{u}),~ u < v \to v \leq w \to\\
+  &\qquad \sext(\zext(a, u, v), v, w) = \zext(a, u, w)
+\end{aligned}
 \]
 We will translate this into a single \qfbv{} query which, for a given bound~$o$
 on the widths, proves the identity for all widths up to~$o$.
@@ -889,9 +890,10 @@ but we still need automata for the operations unique to the multi-width setting.
 We illustrate the construction with zero extension.
 Using the running example of
 \[
-\forall (u~v~w : \N)~(a : \BV{u}),~
-u < v \to v \leq w \to
-\sext(\zext(a, u, v), v, w) = \zext(a, u, w)
+\begin{aligned}
+  &\forall (u~v~w : \N)~(a : \BV{u}),~ u < v \to v \leq w \to\\
+  &\qquad \sext(\zext(a, u, v), v, w) = \zext(a, u, w)
+\end{aligned}
 \]
 
 We encode the width variables $u, v, w$ as mask bitstreams $m_u, m_v, m_w$.
