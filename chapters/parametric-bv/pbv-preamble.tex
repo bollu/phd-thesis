@@ -1,0 +1,56 @@
+%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%
+%% Shared preamble for the mono-width (OOPSLA25) and multi-width (OOPSLA26)
+%% parametric-bitvector chapters. Input once by thesis.tex before both.
+%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%
+%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%
+%% Generated statistics for the evaluation.
+%% Machine/config commands are prefixed Mw (\MwSystemSpecs*, \MwConfig*);
+%% per-experiment cactus/stats commands keep their original names.
+%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%
+\input{chapters/multi-width-bv/plots/output/alive-cactus/triple.tex}
+\input{chapters/multi-width-bv/plots/output/alive-cactus/cactus.tex}
+\input{chapters/multi-width-bv/plots/output/rover-cactus/cactus.tex}
+\input{chapters/multi-width-bv/plots/output/sext-zext-instcombine/cactus.tex}
+\input{chapters/multi-width-bv/plots/output/everybench/cactus.tex}
+\input{chapters/multi-width-bv/plots/output/everybench/config.tex}
+
+%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%
+%% Chapter-local macros (hoisted from the OOPSLA'26 multi-width paper).
+%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%
+\newcommand{\IsEq}{\ensuremath{\mathsf{IsEq}}}
+\newcommand{\rhob}{\bar{\rho}}
+\newcommand{\ourtactic}{\texttt{bv\_multi\_width}}
+%% TikZ style for the automata figures; kept as a named chapter-local style so
+%% that the paper's global tikzset does not leak into other chapters.
+\tikzset{
+  mwbvautomaton/.style={
+    ->, % arrows by default
+    >=stealth',
+    node distance=3cm,
+    every state/.style={thick, fill=gray!10},
+    every edge/.style={draw, thick},
+  },
+}
+
+% --- Chapter-local macros, ported from the OOPSLA'25 paper preamble/body. ---
+% (All other macros used below, e.g. \denote, \bvsemgen, \Zcal, \leaninline,
+% \bvnormalize, \lettervec, \Sol, \aut, ..., are provided globally by macros.sty.)
+\newcommand{\bitstream}{\ensuremath{\mathsf{Bitstream}}}
+\newcommand{\Reach}{\ensuremath{\mathsf{Reach}}}
+\newcommand{\ReachViaTruePath}{\ensuremath{\mathsf{ReachViaTruePath}}}
+\newcommand{\InitPrecond}{\ensuremath{\mathsf{InitPrecond}}}
+\newcommand{\Ind}{\ensuremath{\mathsf{Ind}}}
+\newcommand{\Safe}{\ensuremath{\mathsf{Safe}}}
+\newcommand{\xtosquig}[1]{\xrightarrow{\footnotesize #1}\!\!^*}
+% Colors for the MBA concatenation example. The paper reused the names
+% `purple`/`yellow`; we use fresh names to avoid clobbering xcolor's built-ins.
+\providecolor{swbvLightPurple}{HTML}{D1C4E9}
+\providecolor{swbvLightYellow}{HTML}{FFE0B2}
+\newcommand{\bvfst}[1]{\colorbox{swbvLightPurple}{#1}}
+\newcommand{\bvsnd}[1]{\colorbox{swbvLightYellow}{#1}}
+\newcommand{\bvpair}[2]{\bvfst{#1}:\bvsnd{#2}}
+\newcommand{\MBATotalLines}{800}
+\newcommand{\MBATotalProblems}{2500}
+% Generated benchmark numbers used by the Evaluation section.
+\input{chapters/single-width-bv/plots/dataset2-cactus-plot-data.tex}
+\input{chapters/single-width-bv/plots/automata-automata-circuit-cactus-plot-data.tex}

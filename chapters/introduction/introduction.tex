@@ -29,7 +29,7 @@ verified \emph{generically}, so that the structural proof burden is paid once
 and for all (\cref{ch:lean-mlir}); whether width-independent bitvector
 predicates admit \emph{verified, proof-producing} decision procedures, and
 whether these scale from the mono-width to the multi-width setting
-(\cref{ch:parametric-bv});
+(\cref{ch:mono-width,ch:multi-width});
 whether floating-point bitblasting---the unverified heart of SMT
 floating-point solving---can itself be mechanized and proved correct
 (\cref{ch:floating-point}); and, cutting across all three, whether verified
@@ -136,7 +136,7 @@ the verified automation that discharges them.
   Published at ITP~2024~\citep{leanmlir}.
 
   \item \textbf{Certified decision procedures for width-independent bitvector
-  predicates} (\cref{sec:pbv:single-width}). We mechanize key model-checking
+  predicates} (\cref{ch:mono-width}). We mechanize key model-checking
   algorithms---$k$-induction, automata reachability, emptiness, and
   minimization---and use them to build scalable, certified tactics for
   bitvector predicates that hold at \emph{all} widths, plus a specialized
@@ -144,7 +144,7 @@ the verified automation that discharges them.
   OOPSLA~2025~\citep{bhat2025certified}.
 
   \item \textbf{Sound and complete solving for multi-width parametric
-  bitvectors} (\cref{sec:pbv:multi-width}). We prove that multi-width formulas
+  bitvectors} (\cref{ch:multi-width}). We prove that multi-width formulas
   over $n$ symbolic widths reduce, with linear blowup, to an equisatisfiable
   mono-width formula by encoding widths as bitmasks; this collapses
   exponential enumeration into one fixed-width solver call and yields a new
@@ -167,10 +167,10 @@ The chapters of this thesis are based on the following publications:
   ITP 2024; basis of \cref{ch:lean-mlir}.
   \item \emph{Certified Decision Procedures for Width-Independent Bitvector
   Predicates}~\citep{bhat2025certified}, OOPSLA 2025; basis of
-  \cref{sec:pbv:single-width}.
+  \cref{ch:mono-width}.
   \item \emph{Sound and Complete Solving for Multi-Width Parametric Bitvectors
   via Principled Reductions}~\citep{bhat2026multiwidth}, conditionally
-  accepted at OOPSLA 2026; basis of \cref{sec:pbv:multi-width}.
+  accepted at OOPSLA 2026; basis of \cref{ch:multi-width}.
   \item \emph{Mechanizing Floating Point Bitblasting}~\citep{bhat2027floatingpoint},
   in submission; basis of \cref{ch:floating-point}.
 \end{itemize}
@@ -194,9 +194,9 @@ bitblasting and SAT certificates, the Lean proof assistant, and the verified
 builds the peephole-rewriting framework; by making the structural part of each
 rewrite's proof free, it exposes the semantic obligations---goals over
 bitvectors of arbitrary width---as the bottleneck that the remainder of the
-thesis attacks. \Cref{ch:parametric-bv} takes up those goals and dispatches
-them with increasing generality: first the mono-width case, then the
-multi-width case. \Cref{ch:floating-point} carries the
+thesis attacks. \Cref{ch:mono-width} takes up those goals for a single symbolic
+width, and \cref{ch:multi-width} generalizes to many symbolic widths at once.
+\Cref{ch:floating-point} carries the
 same verified-bitblasting idea from bitvectors to floating-point arithmetic,
 yielding the first verified floating-point bitblaster. \Cref{ch:future-work}
 concludes and charts unpublished results and directions that extend this arc.

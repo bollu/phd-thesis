@@ -12,10 +12,11 @@ framework for verified peephole rewriting over SSA-based IRs; by making the
 structural part of a rewrite's proof essentially free, it isolates the
 finite-domain proof obligations that each rewrite leaves behind. The remaining
 chapters discharged those obligations with mechanized decision procedures of
-growing generality. \Cref{ch:parametric-bv} decided width-independent bitvector
-predicates first for the mono-width case---viewing classical algorithms
-through the lens of model checking---and then, by encoding symbolic widths as
-bitmasks, for the multi-width case. \Cref{ch:floating-point} carried
+growing generality. \Cref{ch:mono-width} decided width-independent bitvector
+predicates for the mono-width case---viewing classical algorithms
+through the lens of model checking---and \cref{ch:multi-width} then generalized,
+by encoding symbolic widths as bitmasks, to the multi-width case.
+\Cref{ch:floating-point} carried
 the same verified-bitblasting idea from bitvectors to floating-point arithmetic,
 yielding the first verified floating-point bitblaster.
 
@@ -47,7 +48,7 @@ essential ideas, well understood; porting them into Lean to inherit both their
 power and a kernel-checked correctness proof proved a productive discipline, and
 in places it forced small original results of its own (the reverse-BFS argument
 for first-UIP computation in conflict analysis; the width-as-bitmask reduction
-of \cref{ch:parametric-bv}). The obstacle, everywhere, was \emph{nonlinear}
+of \cref{ch:multi-width}). The obstacle, everywhere, was \emph{nonlinear}
 reasoning: obligations mixing multiplication of variables, integer division,
 modular arithmetic, and powers of two with symbolic exponents, for which no
 automation exists and which therefore come to dominate the proof effort with
@@ -66,7 +67,7 @@ algorithmic plan---and close with briefer sketches and a broader outlook.
 \section{Nonlinear Bitvector Arithmetic via the 2-adic Integers}
 \label{sec:fw:2adic}
 
-The solvers of \cref{ch:parametric-bv} decide the
+The solvers of \cref{ch:mono-width,ch:multi-width} decide the
 \emph{linear-bitwise} fragment of the parametric bitvector theory. We have an
 unpublished result showing that \emph{nonlinear} arithmetic in the parametric
 bitvector theory is decidable, by a reduction to the first-order theory of

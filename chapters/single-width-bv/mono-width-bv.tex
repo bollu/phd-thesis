@@ -1,0 +1,1429 @@
+%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%
+%% Mono-Width Parametric Bitvectors (PBV_1) --- based on the OOPSLA'25 paper.
+%% Shared macros and generated plot data live in
+%% chapters/parametric-bv/pbv-preamble.tex, which thesis.tex inputs once before
+%% this chapter and the multi-width chapter.
+%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%
+\chapter{Mono-Width Parametric Bitvectors}
+\label{ch:mono-width}
+\epigraph{\ldots{}the different branches of Arithmetic---Ambition, Distraction,
+Uglification, and Derision.}{The Mock Turtle, \emph{Alice's Adventures in
+Wonderland}}
+
+\lettrine{B}{itvectors} underpin automated reasoning about compilers, hardware,
+and cryptography, yet their \emph{widths} are as much a part of the problem as
+their values. Fixed-width solvers must know every width in advance, while a
+great many real-world goals---compiler rewrites, normalization lemmas, hardware
+identities---must hold for \emph{all} widths at once. This chapter takes the
+first step toward deciding such \emph{parametric} bitvector goals: it decides
+predicates over a \emph{single} symbolic width---the \emph{mono-width} fragment,
+$\text{PBV}_1$---by casting them as model-checking problems and mechanizing the
+requisite automata and $k$-induction machinery. \Cref{ch:multi-width} then
+lifts this procedure from one symbolic width to many independent ones at once.
+
+\paragraph*{Attribution.} This chapter is based on \emph{Certified Decision
+Procedures for Width-Independent Bitvector Predicates}~\citep{bhat2025certified},
+published at OOPSLA 2025, joint work with Léo Stefanesco, Chris Hughes, and
+Tobias Grosser.
+\emph{My contributions:} the initial algorithm---handling the mono-width case and
+equality predicates only---was developed by Chris Hughes. I noticed its
+connection to Presburger arithmetic, reinterpreted the classical decision
+procedure as an inductive ($k$-induction) safety proof, implemented the verified
+procedure in Lean together with its tactic-preprocessing and reflection
+frontends, and generalized it to decide all predicates of the theory; I also
+implemented the mixed-Boolean-arithmetic solver. Léo Stefanesco contributed an
+alternative solver based on automatic structures.
+
+Bitvectors are foundational for automated reasoning. A few
+interactive theorem provers, such as Lean, have strong support for deciding
+\emph{fixed-width} bitvector predicates by means of bitblasting
+(\cref{sec:bg:bvdecide}). However, even these ITPs provide little automation
+for \emph{width-independent} bitvector predicates: goals that must hold for
+\emph{all} bitwidths, such as the rewrite rules a compiler applies to
+integers of every size, or the normalization lemmas that fixed-width
+bitblasters themselves rely on~\citep{niemetz2024scalable}. Fixed-width
+solvers also face scaling issues as widths grow, struggling beyond width 512
+in domains such as hardware design and
+cryptography~\citep{lopes2018future,mukherjee2024hydra}.
+
+To fill this gap, this chapter contributes novel, mechanized decision
+procedures for width-independent bitvector predicates in Lean. Classical
+algorithms for fragments of the width-independent theory can be viewed
+through the lens of \emph{model checking}: the formula corresponds to an
+automaton, and its correctness is a safety property. But this lens was
+previously unusable in mechanized proofs, since there were no executable,
+fast, formally verified model-checking algorithms usable \emph{from within}
+an ITP. We therefore mechanize key algorithms from the model checking
+literature---$k$-induction, automata reachability, automata emptiness
+checking, and automata minimization---and use them to build scalable,
+certified decision procedures. For the controlled mixtures of arithmetic and
+bitwise operations that occur in the deobfuscation literature, we further
+mechanize the fast MBA-Blast algorithm, which outperforms the general
+procedures on that fragment.
+
+We evaluate on benchmarks from classical compiler problems, including
+Hacker's Delight and the LLVM peephole optimizer, and on equivalence-checking
+problems from program obfuscation. Our tools solve 100\% of Hacker's Delight,
+two of our tools solve 100\% of the deobfuscation dataset, and up to 27\% of
+peephole rewrites extracted from LLVM's test suite.
+
+\section{Notation \& Background}
+\label{sec:swbv:background}
+
+\paragraph{Notation} $\N$ are the natural numbers. We assume an infinite set of variables $\V$.
+$\B$ is the finite field of Booleans.
+%
+We define bitstreams as infinite sequences of booleans ($\bitstream \eqdef \N
+\to \B$).
+
+\paragraph{Bitvectors}
+A bitvector~$x$ of width~$w \in \N$ is a sequence of $w$ booleans, and the
+corresponding sequence of bits is written $\langle x_{w-1}, \ldots, x_0
+\rangle$. For example, $x = \langle 1, 0, 1 \rangle$ is a bitvector of length 3.
+%
+We write $\BV{w}$ for the set of bitvectors of width~$w$.
+%
+Every bitvector~$x$ can be interpreted as a natural number, by interpreting the
+sequence of bits as a binary number $\natofbv{x} \eqdef \sum_{i=0}^{w-1} x_i *
+2^i$ (In this case, $\natofbv{x} = 1 \cdot 2^2 + 0 \cdot 2^1 + 1 \cdot 2^0 =
+5$). We can also interpret a bitvector as a two's complement integer,
+$\intofbv{x} \equiv \sum_{i=0}^{w-2} x_i * 2^i - x_{w-1} * 2^{w-1}$ (In this
+case, $\intofbv{x} = 1 \cdot 2^1 + 0 \cdot 2^0 - 1 \cdot 2^2 = -3$). Bitvectors
+are both a boolean algebra (a sequence of bits) and a ring (seen as integers
+modulo~$2^w$), and the two algebraic structures mix in subtle ways when reasoning
+about bitvectors (e.g., $-x = \lnot x + 1$).
+
+\paragraph{Signed and unsigned comparison}
+Because bitvectors can either be seen as representing signed or unsigned
+integers, they are equipped with two relevant orders depending on how they are
+interpreted, and which our decision procedures need to handle:
+\begin{align*}
+  \textit{Unsigned comparison:}&\qquad x <_u y \;\iff\; \natofbv x < \natofbv y \\
+  \textit{Signed comparison:}&\qquad x <_s y \;\iff\; \intofbv x < \intofbv y
+\end{align*}
+
+\section{Reducing Width-Independent Bitvector Formulas to Model Checking}
+\label{sec:swbv:reduction}
+
+We formally define the fragment of bitvector theory we decide,
+and then describe the reduction to automata, followed by the model checking algorithm and its mechanization.
+
+\subsection{Syntax and Semantics of formulas}
+\label{sec:swbv:formulas}
+
+\begin{figure}[tb]
+  % \centering
+  \begin{minipage}[t]{.5\textwidth}
+    \begin{align*}
+      \mathsf{E} \eqdef~&\ofNat~(v : \N) \\
+      \mid~&\Var~(x : \V) \\
+      \mid~&\mathsf{E}_1 \boxplus \mathsf{E}_2 \quad (\boxplus \in \{+, -, \bitor, \bitand, \bitxor\}) \\
+      \mid~& {- \mathsf{E}} \;\; \mid {\bitnot \mathsf{E}} \\
+      \mid~& {\mathsf{E} \ll k}
+    \end{align*}
+  \end{minipage}%
+  \begin{minipage}[t]{.5\textwidth}
+    \begin{align*}
+      \mathsf{F} \eqdef~& \mathsf{E}_1 \otimes \mathsf{E}_2 \quad (\otimes \in \{<_u, \leq_u, \leq_s, <_s, =, \neq \}) \\
+      \mid~&{\width~(r : \WidthRel)~(k \in \N)} \\
+      \mid~&\mathsf{F}_1 \land \mathsf{F}_2 \;\; \mid~\mathsf{F}_1 \lor \mathsf{F}_2 \\
+      \mid~&\mathsf{F}_1 \Rightarrow \mathsf{F}_2 \\
+      \mid~&{\neg \mathsf{F}}
+    \end{align*}
+    \begin{align*}
+      \WidthRel \eqdef {<} \mid {\leq} \mid {>} \mid {\geq} \mid {=} \mid
+      {\neq}\qquad\quad\;
+    \end{align*}
+  \end{minipage}
+  \caption{Syntax of bitvector expressions and formulas}
+  \label{fig:swbv:syntax-formula}
+\end{figure}
+
+\paragraph{Syntax}
+The syntax of bitvectors and formulas is given in
+Figure~\ref{fig:swbv:syntax-formula}.
+%
+All the bitvectors have the same symbolic bitwidth which we denote by~$w$ in
+this chapter.
+%
+The base expressions are constants ($\ofNat~v$) and variables ($\Var~i$).
+The constant expression $(\ofNat~v)$ denotes a \emph{width-independent}
+constant: For example, $(\mathsf{ofNat}~3)$ denotes the empty bitvector $\langle
+\rangle$ at width 0,  $\langle1\rangle$ at width 1, $\langle 11 \rangle$ at
+width 2, $\langle 011 \rangle$ at width 3, and so on. These atoms can be
+combined using the usual bitwise operations (bitwise or~$\bitor$, and~$\bitand$,
+xor~$\bitxor$, negation~$\bitnot$ as well as left shift $\ll$ by a constant) and
+arithmetic addition, subtraction and negation.
+
+The formulas are built from relations for equality of bitvectors, as well as
+signed and unsigned inequalities, which can be combined using the usual Boolean
+operators.
+%
+Moreover, we support predicates which are assertions about the widths of the bitvectors.
+For instance, $\width~{(\leq)}~4$ states that the width $w$
+is less than or equal to~4. This can, for example, be useful to prove results
+that only hold for non-trivial bitwidth~($w > 0$).
+%
+Since the atomic predicates (equality, signed and unsigned comparison) are
+closed under negation, predicates can be normalized into negation normal form.
+%
+We write $\FV(\mathsf F)$ the set of free variables of the formula~$\mathsf F$.
+
+
+\paragraph{Semantics}
+The semantics of expressions and formulas are parameterized by a bitwidth~$w$
+and \emph{environment}~$\rho$ mapping the free variables of~$E$ to bitvectors of width~$w$.
+%
+The semantics of an expression $\mathsf{E}$ is written $\bvsemgen{\mathsf{E}}$
+and is defined in the standard way:
+%
+\begin{align*}
+  \bvsemgen{\mathsf{\ofNat~v}} \;&\eqdef\; \left< v_{w-1}, \dots, v_0 \right>
+  \text{if~$n$ can be written in binary $v_N...v_0$ with $N \geq w-1$}\\
+  \bvsemgen{\mathsf{\Var~x}} \;&\eqdef\; \rho(x)\\
+  \bvsemgen{\mathsf{E}_1 \boxplus \mathsf{E}_2} \;&\eqdef\;
+    \bvsemgen{\mathsf{E}_1} \boxplus \bvsemgen{\mathsf{E}_2}
+\end{align*}
+
+\noindent
+Similarly, formulas are interpreted as predicates over the bitwidth and the
+environment in the obvious way.
+%
+We can now formally state the decision problem: given a formula~$\mathsf F$,
+determine whether
+\[
+  \forall w \in \N,\; \forall \rho \in \FV(\mathsf F) \to \BV w,\;\; \bvsemgen{\mathsf F} \text{ holds}.
+\]
+
+\subsection{Reduction to Automata}
+\label{sec:swbv:reduction-to-automata}
+
+The first order theory of bitvectors described in the previous section can be
+decided by reducing it to the emptiness problem of a regular language; this was
+first discovered by \citet{Büchi1960} for Presburger arithmetic over (unbounded)
+natural numbers.
+%
+Given a formula $\mathsf{P}$ with $n$-free variables~$\vec{x} \equiv (x_1, \dots, x_n)$,
+its solutions of
+width~$w$ are the subset $\Sol{w}{\mathsf{P}} = \{ \vec\genbv \in (\bv{w})^n \mid
+\denoteinline{\mathsf{P}}^w_{\vec\genbv} \}$, and its set of solutions is the set
+%
+\[
+  \Sol{}{\mathsf{P}} \;=\; \bigcup_{w \in \N}\; \Sol{w}{\mathsf{P}}
+  \;\;\subseteq\;\;
+  \bigcup_{w \in \N}\; (\bv{w})^n
+\]
+%
+The decision problem amounts to deciding whether $\Sol{}{\mathsf{P}}$ is equal
+to the whole set of possible solutions $\bigcup_{w \in \N}\; (\bv{w})^n$.
+
+%
+This set of solutions is not a \emph{language} itself, as it not composed of
+words over a finite alphabet, but is isomorphic to one: a bitvector $\genbv$ of
+width~$w$ can be encoded as a word of length~$w$ over the alphabet $\{0,1\}$
+using a big endian convention, and a tuple $\vec\genbv$ of $n$~bitvectors of
+width~$w$ can be encoded as a word over the alphabet $\{0, 1\}^n$, where the $k$th letter
+corresponds to the $k$th bit of each bitvector in~$\vec{\genbv}$.
+%
+In summary, the solutions (over all widths) of a formula $\mathsf{P}$ can simply
+be seen as a language over the alphabet~$\{0,1\}^n$.
+%
+This representation also has the advantage of being much simpler than the one
+above, as the width of the bitvectors is now implicit.
+
+It now remains to see that the language $\Sol{}{\mathsf{P}}$ is regular, and is
+therefore recognizable by a finite automaton.
+%
+As the logical connectives in Figure~\ref{fig:swbv:syntax-formula} correspond to union
+and intersection of the solutions, they preserve the regularity of the language
+of solutions, and it suffices to recognize the atomic predicates.
+%
+This can be further split into two problems, that of recognizing terms and relations.
+
+\paragraph{Terms}
+We recognize terms $\mathsf{T}$, by providing a finite
+automaton~$\aut_{\mathsf{T}}$ over the alphabet~$\{0,1\}^{n+1}$ where $n$ is
+the number of free variables in~$\mathsf{T}$. The first $n$ bits of the
+letters correspond to the values of the free variables, and the last bit
+corresponds to the value of~$\mathsf{T}$. In other words, $\aut_{\mathsf{T}}$
+is a transducer. For example, Figure~\ref{fig:swbv:addition-nfa} implements the XOR
+operation and addition:
+%
+For XOR, there is single state, and the transitions $[x_1, x_2, y]$
+express $y = x_1 \bitxor x_2$ for the 4 possible values of the
+inputs~$x_1$ and~$x_2$.
+%
+For addition, the states of the NFA correspond to the carry, and each
+transition labeled with $[x_1, x_2, y]$ determines the output bit~$y$ and the
+new carry state based on the two input bits $x_1$ and~$x_2$ and the current
+carry state.
+%
+We provide an automaton for each of the constructors of
+expressions~$E$ in Figure~\ref{fig:swbv:syntax-formula}.
+
+Of course, this technique is limited by the expressivity of NFAs.
+%
+For example, multiplication cannot be represented by a finite automaton
+because the $i$th output bit cannot be determined from the $i$th input bit and
+a finite state.
+%
+Another, perhaps more surprising, non-example are \emph{right} bitshifts by a
+constant~$k$: here the issue is that the $i$th bit of the output depends on the
+$i+k$th bit of the input, so the automaton needs a delay of~$k$ bits before
+starting to output bits.
+%
+We believe this is not a fundamental limitation of NFAs and, if we considered
+a more complex encoding of bitvectors into strings with a special letter for
+delay, we could handle right shifts.
+
+\paragraph{Relations}
+We recognize each basic relation $\otimes \in \{<_u, \leq_u, \leq_s, <_s,
+=, \neq \}$, by providing an automaton~$\aut_\otimes$ over the
+  alphabet~$\{0,1\}^2$ which recognizes the relation~$\otimes$, in the sense
+  that $\genbv_1 \otimes \genbv_2$ iff the automaton $\aut_\otimes$ recognizes the encoding
+  of the pair~$(\genbv_1, \genbv_2)$.
+%
+For instance, the automaton for unsigned comparison $\leq_u$ has three states,
+corresponding to the following cases:
+\begin{enumerate}
+\item the state $=$ corresponds to the case where, so far, the bits of the two
+  bitvectors are equal;
+\item the state $<$ corresponds to the case where, based on the bits that have
+  been read, the first operand is smaller;
+\item the state $>$ is dual to~$<$.
+\end{enumerate}
+%
+The initial state is~$=$, and the accepting states are $=$ and $<$ since we
+wish to recognize~$\leq_u$.
+%
+The automaton for signed comparison~$\leq_s$ is similar, but has two additional
+states $<_\textsf{end}$ and $>_\textsf{end}$ without outgoing transitions, so
+that they can only be reached by the last letter, and allows to treat the
+sign bit differently from all the others. The accepting states are $=$ and
+$<_\textsf{end}$.
+
+\begin{figure}
+  \usetikzlibrary {arrows.meta,automata,positioning}
+  \begin{tikzpicture}[->,>={Stealth[round]},shorten >=1pt,
+                      auto,node distance=4cm,on grid,semithick,
+                      inner sep=2pt,bend angle=45]
+    \node[initial,state, accepting] (X) {};
+    \path [every node/.style={font=\footnotesize}]
+          (X) edge [loop above] node {\lettervec000 \lettervec011 \lettervec101 \lettervec110} (X);
+
+    \node[initial,state, accepting, right=of X] (Z) {$0$};
+    \node[state, accepting] (S) [right=of Z] {$1$};
+    \path [every node/.style={font=\footnotesize}]
+          (Z) edge [bend left] node {\lettervec110} (S)
+          (S) edge [bend left] node[above] {\lettervec001} (Z)
+          (S) edge [loop above] node {\lettervec010 \lettervec100 \lettervec111} (S)
+          (Z) edge [loop above] node {\lettervec000 \lettervec011 \lettervec101} (Z);
+          \end{tikzpicture}
+  \caption{Automata implementing XOR (left) and addition of bitvectors (right)}
+  \label{fig:swbv:addition-nfa}
+\end{figure}
+
+%
+Using standard techniques from automata theory, these automata can be combined
+into an automaton recognizing any formula.
+%
+This technique is an instance of a more general framework called \emph{automatic
+structures}~\citep{automatic-structures}.
+
+\section{Automata-Based Decision Procedure}
+\label{sec:swbv:automata}
+
+The first model checking method presented here uses standard automata theory to
+directly decide if the automaton $\aut_{\mathsf{P}}$ is \emph{universal}, that
+is, whether it recognizes all the words over its alphabet.
+%
+At a high level, we first develop an efficient automata library in Lean, and
+use it to define
+\begin{itemize}
+  \item a function \leaninline{nfaOfFormula} that takes a
+    formula~$\mathsf{P}$ as input and produces an automaton which recognizes its
+    solutions,
+  \item a function \leaninline{isUniversal} which returns a Boolean
+    indicating whether an automaton is universal.
+\end{itemize}
+%
+By composing them, we obtain a function
+\begin{lean}
+  def formulaIsUniversal (F : Formula) : Bool :=
+    (nfaOfFormula F).isUniversal
+\end{lean}
+which satisfies the following correctness theorem:
+
+\begin{lean}
+  theorem decision_procedure_is_correct (F : Formula) :
+      formulaIsUniversal F = true → ∀ (w : Nat) (env : Nat → BitVec w), F.sat env
+\end{lean}
+
+This allows us to do \emph{proofs by reflection}: to prove a Lean
+formula~$\phi$, a tactic computes a syntactic formula~$\mathsf{F}$ and an
+environment $\rho$ such that $\phi \iff \denote{\mathsf{F}}_\rho$.
+%
+It then suffices to check that the Lean Boolean
+term~\leaninline{formulaIsUniversal F} is equal to true.
+%
+To be more efficient, we ask Lean to compile
+\leaninline{formulaIsUniversal} to native code, and to invoke this native
+code during type checking.
+
+\subsection{A Certified and Efficient NFA Library}
+
+As part of this decision procedure, we implement a formally verified NFA library
+in Lean which needs to be efficient in order to decide large problems.
+
+\paragraph{Data representation}
+
+One important feature for efficiency is that the states of the automaton do not
+have an identity, they are instead natural numbers between 0 and
+\leaninline{stateMax}. Thus, a \emph{computational} NFA over the alphabet
+\leaninline{A} is defined as follows in Lean:
+
+\begin{lean}
+  structure RawCNFA (A : Type) where
+    stateMax : Nat
+    initials : Std.HashSet Nat
+    finals   : Std.HashSet Nat
+    trans    : Std.HashMap (Nat × A) (Std.HashSet Nat)
+\end{lean}
+
+To be able to reason about such automata, we define a well-formedness predicate
+\leaninline{m.WF} which states that all the integers in the
+\leaninline{RawCNFA} are less than~\leaninline{m.stateMax}.
+%
+A \leaninline{CNFA} is then a (dependent) pair of a \leaninline{RawCNFA} and a
+proof that it is well-formed.
+%
+We found it easier to work with a simply typed raw data-structure with an
+external well-formedness predicate than with an intrinsically typed version that
+would use dependent pairs \leaninline{{s : Nat // s < stateMax}} as states
+instead of simple integers, as adding a new state to an automaton would
+increment \leaninline{stateMax} and thus invalidate this type.
+%
+All high-level operations are exposed in terms of
+\leaninline{CNFA}.
+
+\paragraph{Operations over automata}
+
+There are a handful of widely useful operations over NFAs, namely the product
+construction (to define disjunction and conjunction of formulas) and the
+powerset construction (to determinize, and thus to negate).
+%
+In the usual textbook description of these operations, the states of the
+resulting automaton are (respectively) pairs of states of the input automatons,
+and subsets of the input operation. This works well when the goal is to reason
+about these constructions, but it is computationally inefficient, as
+unreachable states are constructed.
+
+A more efficient method is to use a \emph{worklist} algorithm, where states to
+be processed are put on a queue and processed until it becomes empty, as
+described for example by \citet{esparza2023automata}.
+%
+However, termination of worklist algorithms is non-trivial to establish
+formally, as one needs to show that the (finite) set of states of the resulting
+automaton that have not yet been explored is decreasing.
+%
+To amortize this effort, we define a generic worklist algorithm for NFAs which
+dramatically reduces the required proof effort for the individual operations.
+
+\paragraph{Generic construction algorithm}
+The idea is that, although our automata states do not have identities,
+\emph{during the construction}, we need to keep track of the mapping between
+states in the new automaton and state(s) in the input automata.
+%
+Consider, for instance, the product construction: suppose we want to compute the
+product automaton of \leaninline{m1 : CNFA A} and \leaninline{m2 : CNFA A}.
+%
+During the construction of the product, given a state~$s_{\mathit{new}}$ of the
+product automaton, we need to know what the successor states of
+$s_{\mathit{new}}$ should be, since we are building the automaton incrementally
+starting from its initial states and following transitions.
+%
+For this, we need to know that it corresponds to some pair $(s_1, s_2)$ of the
+input automata \leaninline{m1} and \leaninline{m2} in order to be able to
+determine its successor states and potentially add new states to the worklist:
+states that correspond to pairs $(s'_1, s'_2)$ reachable from $s_1$ and
+$s_2$ using the same letter.
+%
+Generalizing, we posit a type of states~\leaninline{S} together with operations:
+%
+\begin{lean}
+  step  : S → Array (A x S)
+  inits : Array S
+  final : S → Bool
+\end{lean}
+
+We think of the elements of~\leaninline{S} as the states of the automaton under
+construction: for example pairs of states (integers) for the product or finite
+sets of states of the input automaton for the powerset construction.
+%
+The worklist algorithm keeps track of the \emph{worklist}, the set of elements
+of \leaninline{S} that need to be processed and a \emph{mapping} from
+\leaninline{S} to integers corresponding to the states of the new automaton.
+%
+The initial state of the queue is given by \leaninline{inits}, and the outgoing
+transitions of a state~$s$ are given by~\leaninline{step s}, and the new states
+are suitably added to the worklist. Finally, the \leaninline{final} function
+determines which states are final.
+%
+Termination of this algorithm is proved once and for all by establishing that
+the set of states in \leaninline{S} that are not in the mapping or are in the
+worklist is strictly decreasing.
+%
+With this generic algorithm at hand, defining these constructions essentially
+boils down to writing down their textbook definitions.
+
+\paragraph{Specification by Bisimulation}
+
+We choose to never directly reason about the language accepted by a
+\leaninline{CNFA}, instead we use Mathlib's \citep{mathlib} \leaninline{NFA} type, which
+corresponds to the textbook definition of an automaton as a tuple $\left<Q, A,
+I, F, \delta\right>$ of a set~$Q$ of states, the subsets $I$ and~$F$ of initial
+and final states, and a transition relation~$\delta$.
+%
+We then completely specify a \leaninline{CNFA} using an abstract NFA to
+which it is \emph{bisimilar}~\cite{kozen-automata-and-computability}.
+%
+This is an extension of the notion of bisimulation and of bisimulation from
+labeled transition systems (LTS) to NFAs: two NFAs $\aut_1$ and~$\aut_2$ over
+the same alphabet are \emph{bisimilar} if there exists a relation~$R$ between
+their sets of states such that:
+\begin{enumerate}
+  \item forgetting initial and final states, $R$ is a simulation between the
+    LTSs $(Q_1, \delta_1)$ and $(Q_2, \delta_2)$, that is, if $R(q_1, q_2)$ and
+    $q_1' \in \delta_1(q_1, a)$, then there exists $q_2' \in \delta_2(q_2, a)$
+    such that $R(q_1', q_2')$;
+  \item for any initial state~$q_1 \in I_1$ of $\aut_1$, there exists an initial
+    state $q_2$ of $\aut_2$ such that~$R(q_1, q_2)$, and vice-versa;
+  \item given $R(q_1, q_2)$, $q_1$ is final in~$\aut_1$ iff $q_2$ is final in~$\aut_2$.
+\end{enumerate}
+
+The choice of NFA as specification does not matter, since two bisimilar
+automata necessarily recognize the same language:
+%
+The advantage of this strategy is that, once the bisimulation has been
+established, we can reason about the properties of mathematical NFAs, a
+substantially easier task.
+
+One example of this style of specification is the generic worklist algorithm:
+with only very weak assumptions on~\leaninline{S} and its associated
+operations (to ensure termination), we establish that the
+\leaninline{CNFA} it produces is in bisimulation with the NFA
+%
+\[
+  \aut_W \;\eqdef\;
+  \left<\text{\leaninline{S}}, \text{\leaninline{A}},
+  \text{\leaninline{inits}}, \{q \mid  \text{\leaninline{final}}~q =
+  \text{\leaninline{true}}
+  \} , \text{\leaninline{step}} \right>
+\]
+%
+It then suffices to provide a bisimulation between the NFA above and, say, the
+product automaton, which is straightforward.
+%
+For instance, when constructing the product automaton, we assume that we
+have~\leaninline{m1} and \leaninline{m2} which are (respectively) bisimilar to
+two abstract NFAs $\aut_1$ and $\aut_2$, with relations~$R_1$ and $R_2$ between
+their states.
+%
+When running the worklist algorithm, we have chosen $S = \N \times \N$
+(corresponding to states of the two input automata). It is then straightforward to
+prove that the relation $R$ defined by
+\[
+  R((s_1, s_2), (q_1, q_2)) \;\iff\; R_1(s_1, q_1) \;\land\; R_2(s_2, q_2)
+\]
+is a bisimulation between $\aut_W$ and $\aut_1 \times \aut_2$, by proving that
+the parameters \leaninline{inits}, \leaninline{step} and \leaninline{final}
+passed to the worklist algorithm correspond to the standard product construction.
+
+Using bisimilarity, we define the language (formalized as a set of lists of
+letters) recognized by a CNFA as follows:
+\begin{lean}
+  def CNFA.recognizes (m : CNFA A) (L : Language A) :=
+    ∃ (M : NFA A), m.Sim M ∧ M.accepts = L
+\end{lean}
+and prove that this relation is functional (in the sense that, if an automaton
+recognizes $L_1$ and $L_2$, then $L_1 = L_2$).
+
+\paragraph{Minimization} To minimize an automaton~$\aut$, we use Brzozowski's algorithm
+as it is simple to implement and verify, it consists of reversing (reversing all
+the transitions, and swapping initial and final states) and
+determinizing the NFA twice, yielding the minimal deterministic automaton
+recognizing the same language as~$\aut$.
+
+One difficulty is that simulation and reversal are not compatible, in the sense
+that it is not true that, if $\aut_1$ is bisimilar to $\aut_2$, then $\aut_1^R$
+is bisimilar to $\aut_2^R$. Indeed, the notion of (forward) simulation is
+fundamentally oriented, and does not say anything about backwards simulation.
+%
+There is a trick though: Since we only care about the language recognized
+by~$\aut_2$, we can replace~$\aut_2$ with another automaton which is easier to
+work with, as long as it is bisimilar to~$\aut_1$, namely $\aut_1$ itself! The
+proof that the language of~$\aut^R$ is the reverse of the language of~$\aut$
+becomes easy, and thus the proof that Brzozowski's algorithm is correct.
+
+
+\subsection{Mechanization of the Reduction to Automata}
+
+With this NFA library in hand, it is relatively straightforward to implement the
+encoding of bitvector formulas into automata:
+
+\paragraph{Correspondence between solutions and language}
+
+We formalize the isomorphism between the set of solutions of the
+formula, which is a set of vectors of $n$ bitvectors of arbitrary bitwidths,
+and the language over the alphabet \leaninline{BitVec n}, by writing an encoding
+and decoding function, and proving they are inverses of each other.
+%
+The former is defined as a dependent pair of a number~$w$ and a vector of~$n$
+bitvectors of width~$w$:
+%
+\begin{lean}
+ structure BitVecs (n : Nat) where
+  w : Nat
+  bvs : Vector (BitVec w) n
+\end{lean}
+%
+We then give a specification to each construction on NFAs over the alphabet~$\BV
+n$ in terms of the set of \leaninline{BitVecs n} that it accepts.
+
+\paragraph{Composition of relations and operations}
+
+To simplify the encoding, we use an over-approximation of the set~$\FV(\mathsf
+F)$ of free variables: we only keep track of $n = \max \FV(\mathsf F)$.
+%
+Each formula~$\textsf{F}$ is then interpreted as an NFA over the alphabet $\BV
+n$. As such, when defining the automaton for, say, $\mathsf F_1 \land \mathsf
+F_2$, the product construction cannot be used directly, as the two
+automata~$\aut_1$ and~$\aut_2$ have (in general) different alphabets, when the
+two formulas have different free variables.
+%
+
+The solution is to \emph{lift} both automata to a common alphabet: given an
+automaton $\aut$ over the alphabet~$A^n$, and a function $f : \{0, \dots, n-1\}
+\to \{0, \dots, m-1\}$, the lifting of~$\aut$ along~$f$ is an automaton over the
+alphabet $A^m$ with the same states, and whose transitions are defined as $q
+\xrightarrow{\vec{a}} q'$ whenever $q \xrightarrow{f^*(\vec{a})} q'$ in~$\aut$.
+%
+The $i$th component of the vector $f^*(\vec{a})$ is defined to be equal
+to~$a_{f(i)}$.
+
+For expression, the situation is similar, if more complex: an expression
+with~$n$ free variables is interpreted as an automaton over the
+alphabet~$\BV{(n+1)}$, where the last component corresponds to one bit of the
+\emph{result} of the expression.
+%
+Therefore, to interpret $\mathsf E_1 + \mathsf E_2$, we need to build an
+automaton over~$\BV{(k+3)}$, with $k = \max(n_1, n_2)$.
+%
+The bit~$k$ corresponds to the result of~$\mathsf E_1$, the bit~$k+1$ to that of
+$\mathsf E_2$ and the last bit, at position $k+2$, is the result of the addition
+of the bits~$k$ and~$k+1$.
+%
+We then remove the bits~$k$ and~$k+1$ using \emph{projection}, an operation dual
+to \emph{lifting}.
+
+With these tools at hand, it is straightforward to interpret any formula as an
+NFA. We choose to apply a minimization procedure at each step of the process
+in order to keep their size manageable.
+
+\paragraph{Automata for the base cases}
+
+The standard constructions on NFAs handle the Boolean structure of formulas.
+%
+To handle the operations on terms and the base logical predicates over
+bitvectors, we construct explicit NFAs which recognize them, this (somewhat
+tedious) work is done using the following procedure:
+\begin{enumerate}
+  \item write a program constructing \leaninline{m : CNFA}, it is usually
+    straightforward;
+  \item describe the same automaton as an abstract \leaninline{NFA}~$\aut$ with
+    a concrete set $Q$ of states;
+  \item prove there is a simulation between \leaninline{m} and $\aut$, by
+    defining a bijection from~$Q$ to $\{0, ..., N-1\}$ where $N$ is the
+    (concrete) size of~\leaninline{m};
+  \item prove $\aut$ recognizes the right language, by providing, for each~$q
+    \in Q$ the language it recognizes and checking that each transition respects
+    this assignment.
+\end{enumerate}
+%
+Since these constructions are bounded with a concrete size (except for the width
+predicates), \emph{ad hoc} proof automation is usable and the proof effort is
+moderate.
+
+\section{Model Checking by \texorpdfstring{$k$}{k}-Induction}
+\label{sec:swbv:kinduction}
+
+The $k$-induction based decision procedure uses a similar construction to the
+previously described automata encodings, but instead, chooses to view the
+automata as \emph{transducers}, whose outputs are infinite bitstreams.
+
+\begin{figure}[t]
+\begin{align*}
+&\denote{-}: \mathsf{Term} \times \mathsf{Env} \to (\N \to \B) \quad \mathsf{Env} \equiv \V \to (\N \to \B) \\
+&\denote{\Var(x)}_\rho(i) \equiv
+  \begin{cases}
+  0 & i = 0 \\
+  \rho(x)(i) & \text{otherwise}
+  \end{cases}
+\quad \denote{\ofNat(i)}_\rho(i) \equiv
+  \begin{cases}
+  0 & i = 0 \\
+  \lfloor v / 2^i \rfloor \mod 2  & \text{otherwise}
+  \end{cases} \\
+&\denote{s || t}_\rho(i) \equiv \denote{s}_\rho(i) || \denote{t}_\rho(i)
+\quad \denote{\lnot s}_\rho(i) \equiv
+  \begin{cases}
+    0 & i = 0 \\
+    1 - \denote{s}_\rho(i) & \text{otherwise}
+  \end{cases}  \\
+&\denote{P}_\rho(i) = 1 \iff \text{Predicate $P$ holds at bitwidth $i$ for environment $\rho$} \\
+&\denote{s = t}_\rho(i) \equiv \forall j \leq i, \denote{s}_\rho(j) = \denote{t}_\rho(j)
+\quad \denote{P \land Q}_\rho(i) \equiv \denote{P}_\rho(i) \land \denote{Q}_\rho(i) \\
+\end{align*}
+  \caption{Bitstream semantics of the bitvector theory.}
+\label{fig:swbv:stx-sem-bv-theory}
+\end{figure}
+
+\subsection{Reduction to Transducers}
+
+The problem of deciding a bitvector formula with a universally quantified
+bitwidth is reduced to checking that the same formula interpreted in the domain
+of infinite bitstreams always outputs~$1$.
+%
+The interpretation of the terms~$\mathsf E$ and
+the formulas~$\mathsf F$ (defined in Figure~\ref{fig:swbv:syntax-formula}) in terms
+of bitstreams is presented in Figure~\ref{fig:swbv:stx-sem-bv-theory}.
+%
+The interpretation of terms is the straightforward extension of bitwise and
+arithmetic operations to bitstreams. Formulas are interpreted as bitstreams
+whose $k$th bit indicates whether the predicates holds for bits at
+positions~$\leq k$.
+%
+As such, the interpretation of a formula is always a non-increasing sequence.
+
+Thus, deciding whether a formula~$\mathsf F$ universally holds boils down to
+deciding whether its bitstream interpretation satisfies $\forall w~\rho,
+\denote{\mathsf F}_\rho(w) = 1$.
+%
+That is to say, whether the formula $\mathsf F$ holds for all bitwidths and
+environments. The difference from the automata-based approach is that rather
+than labeling states as accepting or rejecting, it instead builds
+\emph{transducers}, which produce an output bit for each state.
+
+The transducers are abstractly a tuple $(S, s_0 : S, \iota : \N, \pi : S \times
+\bv{\iota} \to \B, \delta : S \times \bv{\iota} \to S)$, where $\iota$ is the
+arity of the transducer (e.g., constants have arity 0, negation has arity 1,
+addition has arity 2), $\pi$ is the output function, $\delta$ is the state
+transition function. However, since the set $S$ of states is \emph{finite}, we
+can always replace it with $\bv{\sigma}$, where $\sigma$ is large enough to
+encode all states of the transducer.
+%
+The encoding of transducers is now a tuple $(\sigma : \N, s_0 :
+\bv{\sigma}, \iota : \N, \pi : \bv{\sigma+\iota} \to \bv{1}, \delta :
+\bv{\sigma+\iota} \to \bv{\sigma})$.
+%
+Next, since the \emph{function spaces} of $\pi$ and $\delta$ are themselves
+finite, we can encode $\pi$ and $\delta$ as boolean circuits, which will be
+exploited by the $k$-induction algorithm to build a SAT formula.
+%
+The final definition is the following:
+%
+\begin{lean}
+structure FSM (ι  : Type) where
+  σ  : Type  -- state space size
+  s0 : ι → Bool -- initial state
+  π  : CircuitFamily (σ ⊕ ι) Unit -- output function: BitVec[σ+ι] → BitVec[1]
+  δ  : CircuitFamily (σ ⊕ ι) σ -- transition function: BitVec[σ+ι] → BitVec[σ]
+\end{lean}
+
+
+Given the finite state transducer that represents a formula $F$,
+we use model checking on the finite state transducer $\F_F$ to establish that the
+output function $\pi$ on all states reachable from $s_0$ for all sequences of inputs always produces $\true$.
+This in turn establishes that $\denote{F}_\rho(w) = \true$ for all widths,
+which proves that $\forall w, F(w)$ is true.
+This hinges on the fact that $\forall w, F(w)$ is a safety property for the FSM
+$\F_F$, and thus, any counter-example is a finite trace, which can be found by
+symbolically exploring the state space of $\F_F$. The efficiency of this
+algorithm depends on the encoding of $\F_F$ and the algorithm used to establish
+the safety invariant that the output function $\pi$ always emits $\true$.
+
+\subsection{Establishing Safety via \texorpdfstring{$k$}{k}-Induction}
+
+\begin{figure*}[htb]
+  \begin{tabular}{p{\textwidth -15pt}}
+    \textcolor{gray}{Reachable by path $p$:} \\
+    {$
+      (s : S) \xtosquig{p} (u : S) \equiv
+    \begin{cases}
+      s = u & \text{if } p = \langle \rangle \\
+      \delta(s, p_0) = t \land t \xtosquig{q} u & \text{if } p = \langle p_0;  q\rangle
+    \end{cases}$} \\
+    \rowcolor{gray!10}
+    \textcolor{gray}{Reachable by path $p$, all intermediate states output \true:} \\
+    \rowcolor{gray!10}
+    {$
+      (s : S) \xtosquig{p}_{\true} (u : S) \equiv
+      \begin{cases}
+        s = u &  \text{if } p = \langle \rangle \\
+        \pi(s, p_0) = \true \land \delta(s, p_0) = t \land t \xtosquig{q}_\true u & \text{if } p = \langle p_0;  q\rangle
+      \end{cases}$} \\
+    \textcolor{gray}{States reachable in \( k \) steps from \( s_0 \) are safe:} \\
+    $\InitPrecond_{k} \equiv \forall (t: S)~(i : \B)~(p : \BV{k}), s_0 \xtosquig{p} t \implies \pi(t, i) = \true$ \\
+    \rowcolor{gray!10}
+    \textcolor{gray}{Safe reachability in \( k \) steps can be extended to \( k+1 \) steps:} \\
+    \rowcolor{gray!10}
+    $\Ind_{k} \equiv \bigvee_{j=1}^k \forall (s~t : S)~(i : \B)~(p : \BV{k}), s \xtosquig{p}_{\true} t \implies \pi(t, i) = \true$ \\
+    \textcolor{gray}{Safety = Preconditions + Inductive Invariant:} \\
+    $\Safe_{k} \equiv \InitPrecond_k \land \Ind_k$
+  \end{tabular}
+\caption{
+  We establish the safety property \( \Safe_k \) to show that an FSM always outputs \true{}. \( \InitPrecond_k \) establishes that all states reachable in \( k \) steps from \( s_0 \) are safe, and \( \Ind_k \) allows extending the safety frontier from \( k \) to \( k+1 \).
+  Together, these prove the FSM is safe. The procedure either finds a counter-example via \( \InitPrecond_k \) for large \( k \), or establishes \( \Ind_k \), as the set of states satisfying \( \Ind_k \) is strictly increasing.
+  See that the final safety property, $\Safe_k$, consists of universally quantified predicates,
+  and can thus be proven by showing UNSAT of the negated (existentially quantified) problem.
+}
+\label{fig:swbv:decision-procedure-pesudocode}
+\end{figure*}
+
+We define the safety property $\Safe_k$ as the conjunction of two properties (\cref{fig:swbv:decision-procedure-pesudocode}):
+We notate the property of a state $s$ being reachable from $s_0$ by a sequence of inputs $p : \BV{k}$ (for some natural number $k$) as $s_0 \xtosquig{p} s$,
+and the fact that $s$ transitions to $t$ with input bit $i$ producing output bit $b$ as $s \xrightarrow{i}_b t$.
+$\InitPrecond_k$ establishes that all states reachable in $k$ steps from $s_0$ are safe
+and $\Ind_k$ allows us to extend the safety frontier from $k$ steps to $k+1$ steps.
+Algorithmically, we either find a counter-example via $\InitPrecond_k$ for a
+large enough $k$, or we establish $\InitPrecond_k \land \Ind_k$, which establishes that the FSM is safe for all states.
+
+\paragraph{Soundness}
+Assume that we establish $\InitPrecond_k \land \Ind_k$.
+So, all states reachable in $k$ steps from $s_0$ are safe.
+Also, any state reachable in $k$ steps from $s_0$ can be extended to $k+1$ steps (by the induction hypothesis).
+Repeatedly applying this, we see that all states reachable from $s_0$ are safe, since the set of states is finite.
+This establishes that the FSM is safe, assuming the algorithm terminates.
+
+\paragraph{Completeness}
+The set of states satisfying $\Ind_k$ is strictly increasing, since the set of states satisfying $\Ind_{k+1}$ is at least as large as the set of states satisfying $\Ind_{k}$,
+as $\Ind_{k} \implies \Ind_{k+1}$.
+However, naive $k$-induction performs induction on the length of paths in the state transition graph of the finite state machine, which is unbounded.
+To ensure completeness, we add \emph{simple path constraints},
+which express that we check $k$-induction only on simple paths.
+This is standard, and prevents the algorithm from getting stuck due to the presence of an unreachable
+cycle of good states, that have an out transition into a bad state.
+
+Note that having correctness and termination proves that $k$-induction is \emph{complete} for the bitvector fragment we handle, which guarantees to the user that our automation is robust.
+
+\subsection{Mechanization in Lean}
+
+We mechanize the $k$-decision procedure in Lean,
+which uses Lean's inbuilt support for SAT solving to establish the safety property
+by producing a SAT formula that is then proven to be unsatisfiable.
+Our proof of correctness of the algorithm is to show that $\InitPrecond_k \land \Ind_k$
+implies that the FSM produces $\true$ for all inputs by the $k$-induction argument.
+The safety of the FSM implies that the corresponding formula is true for all bitwidths.
+The proof structure is straightforward, establishes that the circuit we build checks two properties:
+(1) Safety of states reachable in $\leq k$ steps from the initial state
+(2) Safety on a simple path upto length $k$ implies safety on the $k+1$th step.
+These two properties together imply safety for all reachable states.
+
+An interesting point is to compare this to the automata decision procedure ---
+While both of these fundamentally rely on exploiting a finite description of the
+bitwise behavior of the circuits, the algorithm they employ is quite different.
+The automata decision procedure uses the well-known theory of finite automata to
+decide formulas, while the circuit based approach instead chooses to take a SAT
+inspired view of the same.
+
+\section{Tactic Implementation}
+\label{sec:swbv:tactic}
+
+\begin{figure}[htb]
+\includegraphics[width=\textwidth]{chapters/single-width-bv/images/k-induction.pdf}
+\caption{The structure of the $k$ induction proof by reflection.
+See that we go from the predicate, to the bitstream semantics, to the FSM transducer semantics,
+which is then proven by the $k$ induction algorithm.}
+\label{fig:swbv:k-induction-flow}
+\end{figure}
+
+We implement and verify our algorithms in the Lean proof assistant. We
+illustrate the overall flow of the algorithm on a Lean-level, universally
+quantified statement relating addition and bitwise-or (\leaninline{|||})
+(\cref{fig:swbv:k-induction-flow}).
+%
+The Lean statement is first converted to a statement in terms of negation normal form.
+%
+Then, it is rewritten into a reflected formula~$\mathsf F$ whose denotation is
+the bitvector statement, using \leaninline{Predicate.denote}.
+%
+\begin{lean}
+def Predicate.denote (p : Predicate) (w : Nat) (vars : List (BitVec w)) : Prop :=
+  match p with
+  | .eq t₁ t₂ => t₁.denote w vars = t₂.denote w vars
+  | ... (other cases elided)
+\end{lean}
+The reflected predicate language is then transformed into the infinite stream semantics (\cref{fig:swbv:stx-sem-bv-theory}),
+using \leaninline{Predicate.eval}.
+
+\begin{lean}
+def Predicate.eval (p : Predicate) (vars : List BitStream) : BitStream :=
+  match p with
+  | eq t₁ t₂ => Predicate.evalEq (t₁.eval vars) (t₂.eval vars)
+  | ...
+\end{lean}
+
+We prove a theorem which shows that the stream semantics agrees with the bitvector semantics.
+\begin{lean}
+theorem Predicate.eval_eq_denote (w : Nat) (p : Predicate) (vars : List (BitVec w)) :
+    p.denote w vars ↔ -- denotation into bitvectors.
+    (p.eval vars w = false) -- bitstream semantics.
+\end{lean}
+
+Next, the stream semantics of the predicate is made concrete by realizing the bitstream
+as the output of a finite state machine. First, we show that every finite state machine denotes an infinite bitstream:
+
+\begin{lean}
+/-- `eval p` morally gives the function
+  `BitStream → ... → BitStream` represented by FSM `p` -/
+def FiniteStateMachine.eval (x : arity → BitStream) : BitStream
+\end{lean}
+
+Next, we define that a FSM implements a predicate $p$ iff the stream of outputs
+from the FSM agrees with the denotation of the predicate $p$:
+
+\begin{lean}
+/-- An `FSMPredicateSolution `t` is an FSM with a witness
+    that the FSM evaluates to the same value as `t` does -/
+structure FSMPredicateSolution (p : Predicate) extends FSM (Fin p.arity) where
+    good : p.eval = toFSM.eval
+\end{lean}
+
+We then show that every predicate $p$ has a corresponding FSM that implements it:
+
+\begin{lean}
+def predicateToFSM (p : Predicate) → FSMPredicateSolution p
+  | .eq t₁ t₂ =>
+    let t₁ := termEvalEqFSM t₁ -- Convert term syntax to FSM
+    let t₂ := termEvalEqFSM t₂ -- Convert term syntax to FSM
+    {
+     -- Build equality FSM from term FSMs
+     toFSM := fsmEq t₁.toFSM t₂.toFSM
+     good := eval_fsmEq_eq_evalFin_Predicate_eq
+    }
+  | ... (Other predicates, elided)
+\end{lean}
+
+With this machinery, we show that each predicate has an FSM associated to it.
+This FSM is built using constructs from our library, to build FSMs for terms,
+which are combined into FSMs for predicates.
+%
+As a concrete example, consider the equality predicate:
+%
+we build an FSM, which first outputs a $\true$, since all bitvectors are equal at width 0,
+and then, for each width, checks if the bits are equal.
+However, this does not suffice, since given two bitvectors $x \equiv \langle 100\dots\rangle$ and $y \equiv \langle 000\dots \rangle$.
+such an FSM would output $\langle \true, \false, \true, \true, \dots \rangle$.
+However, we need the FSM to output $\langle \true, \false, \colorbox{blue!5!white}{\false, \false, \dots} \rangle$ after the first bit,
+since the bitvectors being disequal at index $1$ implies they are disequal at all widths.
+Thus, we \emph{scan} the output of the FSM with boolean and to accumulate the first
+difference. In the mechanization, this is:
+
+\begin{lean}
+def fsmEq (a : FSM (Fin k)) (b : FSM (Fin l)) : FSM (Fin (k ⊔ l)) :=
+  composeUnary FSM.scanAnd (  -- scan with && to accumulate 1st difference.
+    (composeUnary (FSM.ls true)  -- At width 0, all BVs are equal.
+     composeBinary FSM.eq a b  -- For other widths, check if bit is equal
+    ))
+\end{lean}
+
+Our verification library has support for composing unary and binary functions over FSMs,
+which we use as building blocks to build the composite FSMs for terms and predicates.
+The core building block, which allows a composition of $n$-ary FSMs is the \texttt{compose} function.
+Given an FSM $p$ of arity $n$, a family of $n$ FSMs $q_i$ of arities $m_i$,
+and given yet another arity $m$ such that $m_i ≤ m$ for all $i$,
+we can compose $p$ with the $qᵢ$ yielding a single FSM of arity $m$,
+such that each FSM $qᵢ$ computes the $i$th bit that is fed to the FSM $p$.
+
+\begin{lean}
+def compose (n : Type) (p : FSM n) -- FSM p of arity n
+  (ms : n → Type) (q : ∀ (i : n), FSM (ms i)) -- family of FSMs q_i
+  (m : Type) (f : ∀ (i : n), ms i → m) : -- m_i ≤ m
+  FSM m -- output FSM
+\end{lean}
+
+This building block is used to create the functions \leaninline{composeUnary} and \leaninline{composeBinary},
+which take a unary or binary function and apply it to the FSMs.
+As seen above, we use \leaninline{composeUnary} and \leaninline{composeBinary} to build the FSM for the equality predicate,
+and more generally, to build the FSM for the predicate $P$ as a composition of smaller FSMs.
+The library has common FSM constructors for (a) lifting bitwise operations on booleans,
+(b) concatenating bits to an existing FSM, (c) scanning the output of an FSM with a binary function,
+and (d) common arithmetic circuits built from these primitives.
+
+Finally, we show that the FSM for the equality predicate is correct,
+by proving that the denotation of the FSM equals the bitstream denotation of the predicate:
+
+\begin{lean}
+/-- Evaluation FSM.eq is the same as evaluating Predicate.eq.evalFin. -/
+theorem eval_fsmEq_eq_evalFin_Predicate_eq (t₁ t₂ : Term) :
+   (fsmEq (termEvalEqFSM t₁).toFSM (termEvalEqFSM t₂).toFSM).eval =
+   (Predicate.eq t₁ t₂).evalFin
+\end{lean}
+
+See that this establishes a proof of correctness,
+which connects the semantics of the finite state machine as a transducer
+to the semantics of the term/predicate's denotation as a transducer.
+
+\section{Preprocessing and Normalization of Inputs}
+\label{sec:swbv:preprocessing}
+
+The tactic front-end performs heavy preprocessing before performing reflection.
+This preprocessing is necessary to ensure that the input formula is in a normal form that our small reflective fragment can consume.
+We also use the preprocessing to extend the set of decidable predicates that can be handled by the decision procedure,
+to a more expressive, but logically equivalent fragment.
+We use Lean's simplifier, \leaninline{simp} to drive our preprocessing.
+We register lemmas that simplify the input formula into a normal form.
+
+\paragraph{Normalize literals.}
+The constant bitvector $\langle10\rangle$ can be represented in many ways in Lean:
+(a) by the numeral \leaninlineM{3}, which is implicitly cast into a bitvector,
+(b) by the integer \leaninlineM{-1 : Int}, which is cast into a bitvector,
+(c) by the bitvector \leaninlineM{BitVec.ofNat (w := 2) 3}, which is the explicit bitvector representation.
+and (d) by the bitvector expression \leaninlineM{BitVec.ofInt (w := 2) (-1)}, which is the explicit integer representation.
+We coerce all of these into \leaninlineM{BitVec.ofNat} as a normal form,
+since it has the most complete support for reasoning and constant folding currently in the proof assistant.
+
+\paragraph{Normalize arithmetic.}
+To help with computing normal forms, we perform the usual reassociations and commutations.
+First, we move constants to the left of expressions for better constant
+folding. This permits the following set of rewrites $1 + (x + 2) \to 1 + (2 + x) \to (1 + 2) + x \to 3 + x$.
+Next, we unfold multiplication into a shift-and-add form, so that $x \times 2^l \cdot k$ is
+rewritten as $(x \ll l) * k$, and $x \times (2k + 1)$ is rewritten to $x * 2k + x$,
+and we rewrite $x \ll l \ll m \to x \ll (l + m)$. These rewrites, taken together,
+break a multiplication up into repeated shifts-and-adds. For example,
+the rewrites normalize $x * 13 \to x*12 + x \to (x \ll 2) * 3 + x \to (x \ll 2) * 2 + (x \ll 2) + x \to ((x \ll 2) \ll 1) + ((x \ll 2) + x) \to x \ll 3 + x \ll 2 + x$
+This allows the core decision procedure to only reason about shifts and adds.
+
+\paragraph{Normalize predicates.}
+Given a goal state of the form $H_1, H_2 \dots \vdash P \to Q$,
+we transform the goal into $H_1 \to H_2 \to \dots \to P \to Q$ by using Lean's \leaninline{revert} tactic to revert all hypotheses.
+Next, we convert the goal into $\vdash \lnot H_1 \lor \lnot H_2 \lor \dots \lor \lnot P \lor Q$.
+This is now in a form that can be converted to negation normal form.
+Next, we normalize the predicate into negation normal form, which pushes negation
+into the leaves, using the rewrites $\lnot (P \land Q) \to \lnot P \lor \lnot Q$,
+$\lnot (P \lor Q) \to \lnot P \land \lnot Q$, and $\lnot \lnot P \to P$,
+and $\lnot (P = Q) \to P \neq Q$ (and similar negations for the other atomic predicates),
+which we are able to do since our atomic predicates are closed under negation.
+Next, $P = P_1 \land P_2$, one can trivially distribute the quantification
+over the conjunction, since $\forall x, P_1(x) \land P_2(x)$ is logically equivalent
+to $\forall x, P_1(x) \land \forall y, P_2(y)$. This allows us to solve smaller subproblems.
+
+\paragraph{Specialized preprocessing for $k$-induction}
+The $k$-induction solver has a smaller core language, and it reduces unsigned and signed inequalities
+into properties that are checked on the \msb{} of the inputs and outputs.
+See that $a <_u b$ if and only if upon computing $a - b$, the high borrow bit
+is $1$. Therefore, one can build the stream of borrows from the subtraction circuit,
+and define $\denote{a <_u b}[i] \equiv \mathsf{subBorrow}(a, b)[i]$, where $\mathsf{subBorrow}$
+builds the borrow circuit. Similarly, note that $a <_s b$ if and only if $(a - b).\toInt < 0$.
+At any finite bitwidth $w$, we have that $(a - b)|_w.\toInt < 0$ iff $(a - b)|_w.\msb = \true$.
+So we define $\denote{a <_s b} \equiv \lnot (a - b)$, since the bit at index $w$  of $\lnot (a - b)$ is $\false$
+iff the \msb of $a - b$ is \true, which implies that $(a - b).\toInt$ is negative.
+
+\paragraph{Width Constraints}
+Furthermore, we can impose constraints on the width of the bitvector,
+by building bitstreams that start at $1$ and become $0$ after $k$ steps, or vice versa.
+This encoding provides constraints of the form $w = k$, $w \geq k$, $w \leq k$,
+thereby embedding the finite with fragment into the infinite width theory.
+The idea is that the predicate $w = k$ corresponds to a bitstream $\langle0\dots010\dots\rangle$,
+which has a $1$ at the index $k$, and $0$ everywhere else. Thus, the predicate
+will be true at bitwidth $k$, and $0$ everywhere else.
+Similarly, we encode $w \leq k$ as a bitstream that is $1$ at all indices less than $k$,
+and $0$ afterward, and $w \geq k$ as a bitstream that is $1$ at all indices greater than $k$.
+These constraints are important to rule out vacuous cases which occur at width $0$,
+and to prove special cases for small bitwidth.
+For example, the statement $\forall (w : \N)~(x~y : \BV{w}), w = 1 \to x + y = x \bitxor y$
+is only true at width $1$.
+
+\paragraph{Symbolic normalization.} We run \bvnormalize{}, a custom bitvector
+normalizer which rewrites bitvector expressions into simpler bitvector expressions,
+which produced smaller problems that are easier to then reflect into our core language.
+
+\section{A Specialized Solver for Mixed Boolean-Arithmetic}
+\label{sec:swbv:mba}
+
+We consider a restricted fragment of the larger bitvector theory, called as mixed-boolean-arithmetic \cite{liu2021mba}
+for which an efficient reduction to a decidable integer problem exists.
+This works on the fragment of the full theory where we allow linear combinations of \emph{boolean} terms,
+where boolean terms are terms comprising of purely bitwise operations on atoms (\cref{fig:swbv:mba-syntax}).
+This is an interesting fragment, which subsumes both ring properties and bitwise properties,
+and allows for mild mixtures of these properties.
+
+\begin{figure}[htb]
+\begin{align*}
+&\mathsf{A} \equiv
+  \mathsf{Const} ~|~ \mathsf{Var}
+\quad \mathsf{B}
+  \equiv \mathsf{A} ~|~
+  \mathsf{B} ~\mathsf{\boxplus}~ \mathsf{B} ~|~
+  \bitnot \mathsf{B}, \left(\boxplus \in \{\bitor, \bitand\}\right)
+\quad \mathsf{T}
+  \equiv \mathsf{B} ~|~
+  \mathsf{T} ~\mathsf{\otimes}~ \mathsf{T}, \left(\otimes \in \{+, - \}\right)
+\quad \mathsf{P} \equiv (\mathsf{T} = 0).
+\end{align*}
+\caption{Syntax of the theory decided by the MBA solver. }
+\label{fig:swbv:mba-syntax}
+\end{figure}
+
+The key idea of such a solver is to first prove MBA identities at the one-bit level,
+and to show that if they hold at the one-bit level, then they hold at all bitwidths.
+We sketch the idea with an example.
+Consider the equation $~\forall~{w : \N}~(x~y : \BV{w}),x + y - 2 (x \bitand y) - (x \bitxor y) =_{\bv{w}} 0$.
+First, note that to show this equation, it suffices to show the equation interpreted \emph{over the integers},
+with $\forall (w : \N)~(x~y : \BV{w}), \Zcal{x} + \Zcal{y} - 2 (\Zcal{x} \bitand \Zcal{y}) - (\Zcal{x} \bitxor \Zcal{y}) =_{\Z} 0$,
+where $\Zcal{\cdot} : \BV{w} \to \Z$ is the interpretation of the bitvector as a 2s complement \emph{unsigned} integer.
+Intuitively, this is true because an integer is an infinite width bitvector,
+and the equation holds for all bitwidths if it holds for the infinite width bitvector.
+To prove the example, we induct the width $w$.
+For $w = 1$, we prove the equation by exhaustive enumeration:
+
+\begin{tabular}{ccc}
+\rowcolor{gray!10}
+  x & y & $\Zcal{x} + \Zcal{y} - 2 \Zcal{x} \bitand \Zcal{y} - \Zcal{x} \bitxor \Zcal{y}$ \\
+  0 & 0 & $0 + 0 - 2 \cdot (0) - 0 = 0$ \\
+\rowcolor{gray!10}
+  0 & 1 & $0 + 1 - 2 \cdot (0) - 1 = 0$ \\
+  1 & 0 & $1 + 0 - 2 \cdot (0) - 1 = 0$ \\
+\rowcolor{gray!10}
+  1 & 1 & $1 + 1 - 2 \cdot (1) - 0 = 0$
+\end{tabular}
+
+Which shows that the equation holds for $w = 1$.
+Next, assume it holds for $w = n$, and for $w = n + 1$,
+use the key property that $\Zcal{\cdot}$ \emph{distributes} over bit concatenation and bit operations:
+$$\Zcal{\bvfst{x} : \bvsnd{xs}} \bitand \Zcal{\bvfst{y} : \bvsnd{ys}} = \Zcal{\bvfst{x \bitand y} : \bvsnd{xs \bitand ys}},$$
+and similarly for all other bitwise operations $\boxplus$.
+Also, we compute $\Zcal{\bvfst{x} : \bvsnd{xs}}$ as $2^n \cdot \Zcal{\bvfst{x}} + \Zcal{\bvsnd{xs}}$.
+This allows us to perform the following sequence of rewrites on the goal of the induction, to show
+that at width $n + 1$, the equation is zero:
+
+{\footnotesize
+\begin{align*}
+  &\Zcal{\bvpair{x}{xs}} + \Zcal{\bvpair{y}{ys}} - 2 \Zcal{\bvpair{x}{xs}} \bitand \Zcal{\bvpair{y}{ys}} - \Zcal{\bvpair{x}{xs}} \bitxor \Zcal{\bvpair{y}{ys}} \\
+  &= \Zcal{\bvpair{x}{xs}} + \Zcal{\bvpair{y}{ys}} - 2 \Zcal{\bvfst{x \bitand y} : \bvsnd{xs \bitand ys}} - \Zcal {\bvfst{x \bitxor y} : \bvsnd{xs \bitxor ys}}~ (\text{distribute})\\
+  &= (2^n \cdot \Zcal{\bvfst{x}} + \Zcal{\bvsnd{xs}}) + (2^n \cdot \Zcal{\bvfst{y}} + \Zcal{\bvsnd{ys}}) - \\
+  & \qquad 2 (2^n \cdot \Zcal{\bvfst{x \bitand y}} + \Zcal{\bvsnd{xs \bitand ys}}) - (2^n \cdot \Zcal{\bvfst{x \bitxor y}} + \Zcal{\bvsnd{xs \bitxor ys}})~(\text{evaluate})\\
+  &= 2^n \cdot (\Zcal{\bvfst{x}} + \Zcal{\bvfst{y}} - 2 \Zcal{\bvfst{x \bitand y}} - \Zcal{\bvfst{x \bitxor y}}) + \\
+  & \quad (\Zcal{\bvsnd{xs}} + \Zcal{\bvsnd{ys}} - 2 \Zcal{\bvsnd{xs \bitand ys}} - \Zcal{\bvsnd{xs \bitxor ys}})~(\text{regroup}) \\
+  &= 2^n \cdot 0~(\text{by theorem for width 1}) + 0~(\text{by IH}) = 0,
+\end{align*}
+}
+
+which proves the identity for all bitwidths.
+
+\subsection{Mechanization in Lean}
+
+In our mechanization, we use the above procedure, appropriately generalized for all boolean
+operations $\boxplus$, to check that the identity holds at width $1$ by exhaustive enumeration, as the table does.
+We use proof by reflection, and we reflect the equation into a term language:
+
+\begin{lean}
+inductive Factor
+| var (n : Nat) -- Variable index
+| and (x y : Factor) -- Bitwise &
+| ...
+| not (x : Factor) -- Bitwise !
+
+structure Term where
+  c : Int
+  f : Factor
+
+def Eqn := List Term
+\end{lean}
+
+These define a factor, which is a bitwise expression or a variable, terms, which are factors
+scaled by a constant integer, and equations, which are terms which are added up to create
+the final expression. We first run a preprocessing pass, which normalizes inputs to be of
+the form $\sum_i c_i f_i$, where $c_i$ is a constant integer and $f_i$ is the fragment of \texttt{Factor}.
+Example rewrites include translating $- (x + y) \to (-x) + (-y)$, and $-x \to \langle 0 \rangle - x$.
+Once we have reflected our expressions, we use the key theorem:
+%
+\begin{lean}
+theorem Eqn.forall_width_reflect_zero_of_width_one_denote_zero
+    (e : Eqn) (w : Nat) (env : List (BitVec w))
+    (h : (∀ env1 : EnvFin 1 e.numVars, Eqn.denoteFin e env1 = 0)) :
+    Eqn.reflect eqn env = BitVec.ofInt w 0
+\end{lean}
+%
+which states that to establish, for all widths, that the equation \leaninline{eqn} is equal to zero,
+it suffices to establish this for all a one-bit environments (as stated by hypothesis \leaninline{h}).
+The proof of this theorem follows along the lines of the example, with the reasoning generalized
+to regroup any linear combination. This establishes the identity for all bitwidths.
+Furthermore, the algorithm, while subtle, is algorithmically simple to implement,
+taking only ~\MBATotalLines{} lines of code with no external dependencies other than
+the Lean language's core library.
+
+\subsection{Algorithmic Extension to (Un)Signed Inequalities}
+
+We contribute a novel extension of the core MBA philosophy of extending $1$-bit identities to all bitwidths,
+and show that this can be used to extend the equational theory to the inequational theory.
+The key tool will be to exploit the assumption that signed and unsigned overflow do not occur.
+Compiler IRs such as LLVM express this assumption by being able to define signed (and unsigned) overflow as \emph{undefined behaviour}.
+This is necessary, for example, to express the C language semantics, where integer overflow is undefined behavior,
+and in LLVM IR, this is expressed using the \texttt{nsw} and \texttt{nuw} flags (no (un)signed wrap) on arithmetic operations.
+If we add the assumption that overflow does not occur, then it is indeed the case that $\denote{x + y}_Z = \denote{x}_Z + \denote{y}_Z$,
+which enables us to prove bounds on the integer values of the bitvectors, and to have these bounds transfer to the bitvectors themselves.
+
+For example, consider the expression $(x \bitor y) \geq_u x$.
+We can show that this is true by showing that $(x \bitor y) - x \geq 0$ is true for $w = 1$ by exhaustive enumeration,
+and by a similar regrouping argument as for equalities, show that it holds for all bitwidths.
+
+\section{Evaluation}
+\label{sec:swbv:evaluation}
+
+To show that our MBA decision procedure is complete for its fragment,
+and to show that our width-independent decision procedures are able to prove real-world identities from compiler development,
+we evaluate our decision procedures quantitatively, by measuring the number of problems solved,
+as well as with survival plots~\cite{brain2017benchmarking}, to characterize performance trade-offs of the different solvers.
+
+\begin{figure*}[htb]
+{\small
+\begin{tabular}{rcccc}
+  Solver & Hacker's Del (31) & Alive (104) &  MBA-Blast (2500) & \texttt{InstCombine} (\InstCombineTotalProblems{}) \\
+\textbf{Width Indep.} & & & & \\
+\rowcolor{gray!20}
+  \texttt{k-ind (cadical)} & 31 & 54 & \MBAKInductionVerifiedNumSolved{} & \textbf{\InstCombineNormCircuitVerifiedNumSolved{}} \\
+\rowcolor{gray!10}
+\texttt{automata} & 31 & 54 & \MBAPresburgerNumSolved{} & \InstCombineNormPresburgerNumSolved{} \\
+\textbf{Fixed Width} & & & & \\
+\rowcolor{gray!10}
+  \texttt{bv\_decide} ($w = 64$) & 31 & 54 & \MBABvDecideNumSolved{} & \InstCombineBvDecideNumSolved{}
+\end{tabular}
+}
+\caption{Both k-induction and automata based solvers are competitive, and solve similar fragments.
+  We provide a fixed-width comparison (which \textbf{does not solve} the infinite width fragment)
+  as a coarse measure of the complexity of the problems.}
+\label{fig:swbv:table-eval}
+\end{figure*}
+
+\noindent \paragraph{Hacker's Delight~(31 problems).}
+For a stock of bit-twiddling algorithms, we take the first two chapters of Hacker's Delight \cite{warren2013hacker},
+we take the problems that have been translated into Lean (by \texttt{lean-mlir}~\cite{bhat2024verifying}).
+
+\noindent \paragraph{Alive~(104 problems).} We take the test suite of Alive \cite{lopes2015provably}, which is a translation validator for LLVM IR.
+We use problems on addition, subtraction, and bitwise operations which have been translated into Lean (by \texttt{lean-mlir}~\cite{bhat2024verifying}),
+and evaluate our algorithms on this dataset.
+\noindent \paragraph{InstCombine~(\InstCombineTotalProblems{} problems).}
+We use \texttt{InstCombine} a dataset of \InstCombineTotalProblems{} bitvector
+lemmas, which are
+generated from a dataset of 4556 peephole rewrites from LLVM's peephole optimizer, by
+reducing the validity of rewrites on LLVM values to equalities of bitvectors.
+%
+Note that these problems are for fixed bitwidths.
+%
+Thus, we can run \bvdecide{} on these problems. To run our decision procedures on this dataset,
+we treat the fixed width problem as an infinite width problem, and run our decision procedures on them.
+This can introduce spurious counterexamples, such as the optimization $x + y = x \oplus y$, which untrue for bit-width greater than 1.
+Regardless, we are interested in the performance of our decision procedures to prove real-world rewrites,
+and thus this is a valuable dataset.
+
+\subsection{Choosing the Right Solver for the Right Problem}
+
+In order to understand the trade-offs of the different solvers,
+we plot the number of problems solved against cumulative wall-clock time,
+with problems sorted in ascending order of wall-clock time.
+Such a survival plot~\cite{brain2017benchmarking} allows one to quickly read off the total number of problem solved,
+as well as the behavior of the different solvers given a fixed amount of time.
+
+\begin{figure*}
+  \begin{subfigure}{\textwidth}
+  \includegraphics[width=\textwidth]{chapters/single-width-bv/plots/dataset2-cactus-plot.pdf}
+  \caption{Survival plot on the MBA-blast dataset.
+  See that the specialized MBA solver is an order of magnitude faster than both
+    k-induction and the NFA-based solver,
+  this accurately captures the trade-offs available in this space, where specialized solvers are fastest,
+  and that consuming certificates from fast, external, unverified solvers effectively does scales to moderate problem sizes.}
+  \label{fig:swbv:mba-cactus}
+  \end{subfigure}
+  \begin{subfigure}{\textwidth}
+  \includegraphics[width=\textwidth]{chapters/single-width-bv/plots/automata-automata-circuit-cactus-plot.pdf}
+  \caption{Survival plot on the InstCombine (LLVM Peephole Rewrites) dataset.
+    We treat fixed-width problems as infinite width problems to be solved by our k-induction and automata solvers.
+    Since the problem sizes are small, the lean-based automata solver is faster than the k-induction solver
+    which repeatedly invokes CaDiCaL for a proof.}
+  \label{fig:swbv:instcombine-cactus}
+  \end{subfigure}
+  \caption{Survival plots for the MBA-blast and InstCombine datasets.}
+\end{figure*}
+
+\noindent \paragraph{MBA~(\MBATotalProblems{} problems).} Out of the \MBATotalProblems{} problems (\cref{fig:swbv:mba-cactus}), the k-induction solver solves \MBAKInductionVerifiedNumSolved{} problems out of \MBATotalProblems{},
+while the other solvers solve \MBAPresburgerNumSolved{} problems.
+The k-induction solver builds circuits that are quadratic in size,
+due to the need to build a circuit that forbids loops, ensuring that all paths are simple paths.
+This is not too surprising, as the MBA dataset was designed to be a fragment used for obfuscation,
+which is hard for SAT solvers to solve.
+The NFA-based solver, which takes \MBAPresburgerTotalTime{} total time,
+is in the same order of magnitude as the bitblaster
+(where the bitblaster solves for fixed $w = 64$, which we provide as a comparison, but \emph{does not} solve the infinite width problem),
+where the bitblaster takes \MBABvDecideTotalTime{} total time.
+The MBA solver is the fastest, with a geomean time of \MBAMBAGeoMean{},
+which is an order of magnitude faster incomparison to both k-induction (\MBAKInductionVerifiedGeoMean{}) and the NFA-based
+solver (\MBAPresburgerGeoMean).
+
+The solvers introduced in this chapter, and especially the automata-based one
+which executes entirely inside of Lean, would run faster if native compilation
+was enabled (by a factor of at least two for the automata-base one, from
+experiments with earlier versions of Mathlib and Lean). However, native
+compilation does not work with the recent versions of Mathlib and Lean we tested
+with, and so our decision procedures are run in interpreted mode in these
+benchmarks.
+
+\paragraph{InstCombine (\InstCombineTotalProblems{} problems).} In the \InstCombineTotalProblems{} problems (\cref{fig:swbv:instcombine-cactus}),
+\bvdecide{} is effective, since the problem is always fixed to a particular bitwidth,
+and solves \InstCombineBvDecideNumSolved{} problems, a large majority.
+$k$-induction solves \InstCombineNormCircuitVerifiedNumSolved{} problems (the largest amongst the symbolic width solvers),
+and the automata solver solves \InstCombineNormPresburgerNumSolved{} problems.
+Interestingly, the automata solver (with preprocessing) is faster than the k-induction solver (with preprocessing) for the LLVM dataset.\footnote{We conjecture that this is because the problems are small and the overhead of invoking a SAT solver is larger than the time it takes to solve the problem.}
+The geomean time for the automata solver is \InstCombineNormPresburgerGeoMean{}, while the geomean time for the k-induction solver is \InstCombineNormCircuitVerifiedGeoMean{}. In contrast, bit-blasting is slower, with a geomean time of \InstCombineBvDecideGeoMean{}.
+Overall, this shows us that the fragments that our arbitrary-width decision procedures tackle occur in a non-trivial fraction of the real-world problems from the LLVM ecosystem,
+and that our algorithmically complete procedures for this fragment is a useful addition to the Lean ecosystem.
+
+\paragraph{Root causes of LLVM peephole failures}
+We catalog the failures on the LLVM peephole optimizer dataset,
+by logging all errors emitted from the preprocessor for reflection,
+and manually inspect the failures, using regular expressions to categorize them.
+We find the following categories: (1) Rewrites which ought to hold, but are classified as untrue (447 problems).
+These occur since we translate fixed-width problems into infinite width-problems, and such example use constants such as $7$,
+which should be generalized to e.g. $2^w - 1$; a promising path would be to use
+tools such as Hydra~\citep{mukherjee2024hydra} to automatically do the
+generalization.
+(2) Rewrites that involve quantification over multiple widths $w_1, \dots, w_k$, rather than a fixed width (1925 problems).
+These rewrites then perform truncation / sign extension of the bitvectors involved.
+(3) Theorems whose goal state lie outside our fragment (463 problems). This includes two kinds of theorems:
+(3a) those with operations that are truly not expressible in our fragment, such as signed division,
+and (3b) those with operations that need further reduction to be expressible in the fragment, such as division-by-constant.
+(4) Theorems that involve boolean equalities that lie outside our fragment (565).
+For example, a statement such as \texttt{x : BitVec w ⊢ (255\#w <ᵤ x || 255\#w <ₛ x) = (255\#w <ᵤ x)} uses the
+boolean fragment with boolean or, instead of being expressed as a proposition.
+This requires further preprocessing, using the newly developed \texttt{bool\_to\_prop} tactic in Lean,
+which we plan to integrate into our decision procedures.
+(5) Unknown boolean disequality (81 problems), which establish disequality between operations such as \texttt{msb}
+which are not supported by our preprocessor.
+%
+As many of these issues are not fundamental problems with our approach, we
+believe our decision procedures will soon be able to prove substantially more
+test cases.
+
+
+
+\section{Related Work}
+\label{sec:mono:related}
+
+\paragraph{Bitwidth Independent Boolean Circuits.}
+Bitwidth independent circuits were introduced by Pichora~\cite{pichora2003automated}.
+Algorithms for deciding this fragment based on unification~\cite{bjorner1998deciding},
+families of boolean circuits to establish base cases and inductive cases~\citep{gupta1993parametric,gupta1993representation}
+have been explored in the literature.
+
+\paragraph{Automata-Based Presburger Arithmetic Solvers.}
+The idea that a Presburger formula can be represented by a finite-state automaton is classical \cite{buchi1990weak}.
+Moreover, it can be seen that Presburger arithmetic is expressible into WS1S (weak monadic second order logic with one successor),
+which can also be decided via automata.
+%
+\citet{automata-strike-back} use similar techniques in an uncertified context to
+decide Presburger arithmetic with bitwise operations: a formula is translated
+to an alternating automaton, whose emptiness is checked using $k$-induction and
+a SAT solver.
+%
+While they mostly focus on unbounded natural numbers with bitwise operations
+rather than bitvectors (and do not support left shifts, for example), their
+high-level approach is similar to ours.
+
+\paragraph{Model Checking Finite Transition Systems.}
+Bounded Model Checking allows properties to be proved for upto $n$ states by unrolling the model.
+While the method is incomplete, the power of SAT solving meant that BMC gained popularity in the 1990s,
+when SAT solvers started outperforming BDDs \cite{biere1999symbolic}.
+\emph{$k$-Induction} \cite{sheeran2000checking} establishes that if the past $k$ states are good, then the $k+1$th state is also good,
+for all states.
+\emph{Interpolation based methods} instead try to prove the safety property
+by finding a stronger property $P$ such that it
+(i) implies the safety property, and
+(ii) if it holds for the previous $k$ states, then it also holds for the next state.
+Such properties are discovered by computing Craig interpolants \cite{craig1957linear}.
+Such interpolants can be extracted from resolution proofs in a SAT solver \cite{mcmillan2003interpolation}.
+\emph{IC3} \cite{bradley2011sat} and related algorithms all produce a sequence of lemmas,
+which are inductive relative to previous lemmas and stepwise assumptions.
+At convergence, a subset of the generated lemmas imply the safety property to be proven.
+Model checkers such as Pono~\cite{mann2021pono}, AVR~\cite{goel2020avr} can use $k$-induction,
+IC3, and interpolation to establish inductive invariants.
+
+\paragraph{Mechanized Model Checking Algorithms \& Finite State Machine Libraries.}
+The cava LTL model checker~\cite{gregoire2005proving} is formally verified in Isabelle,
+and mechanizes executable B\"uchi automata.
+This contrasts to our work, where we mechanize \emph{finite} automata,
+and consume finite traces, instead of infinite traces.
+%
+More importantly, our decision procedures, in addition to being verified, can be
+used internally to the proof assistant in the form of tactics and generate
+proofs without additional assumptions.
+%
+\citet{kat-pous} developed a tactic in Coq to decide statements in the theory of
+Kleene Algebras with Tests (KAT) by translating from to an automaton and
+checking for language inclusion.
+%
+In contrast to this work, the translation from KAT, which is a variant of
+regular expressions, to automata is more direct, and, as the statements being
+decided were very small, the automata library is not designed for performance:
+for example, the transitions are represented as closures which grow with the
+numnber of operations.
+%
+The ACL2 proof assistant internally builds finite state machines from its
+Symbolic Vector Expression (SVEX)~\cite{hunt2017industrial}, which is associated to each signal in a Verilog module.
+These finite state machines are typically used for symbolic simulation and (bounded) model checking.
+In contrast, we use our finite automata for decision procedures for bitvector arithmetic,
+and we are thus interested in the \emph{languages} that our automata consume.
+Previous work has abstractly mechanized k-induction~\cite{ishii2020formalizing},
+but does not extract executable tactics from their mechanization,
+as their mechanization is entirely abstract with no implementation.
+
+\paragraph{Finite Automata Libraries.}
+Mata \cite{chocholaty2024mata} is a high-performance automata library implemented in C++, optimized for fast manipulation and analysis of finite automata. It supports efficient automata-theoretic operations,
+Mona \cite{henriksen1995mona} is a C-based tool focused on deterministic finite automata, and is tailored for logics like WS1S. Mona, like our approach, compiles logical specifications into minimal DFAs.
+LASH \cite{boigelot2004counting} combines automata with arithmetic reasoning, leveraging automata-based representations to solve Presburger arithmetic formulas.
+In contrast to our work, none of the above libraries are mechanized, and none are directly integrated into a proof assistant.
+
+
+\paragraph{Mixed Boolean Arithmetic Solvers.}
+The line of work that builds upon the MBA-Blast algorithm \cite{liu2021mba},
+which essentially analyzes $1$-bit patterns and extrapolates them to $n$-bits to prove MBA identities.
+This was improved upon by SiMBA~\cite{reichenwallner2022efficient} that can deobfuscate all linear MBAs.
+These algorithms are specialized, and prove identities in the fragment where we have a linear combination of terms,
+where each term is bitwise operations applied to the bitvector atoms.
+To our knowledge, our extension of this algorithm to solve the full horn-clause fragment of the theory is novel,
+and our work is the first mechanization of these algorithms.
+Our modified presentation of the algorithm in terms of linear algebra is also novel, to the best of our knowledge.
+
+\section{Conclusions and Future Work}
+\label{sec:mono:conclusion}
+
+For the mono-width setting ($\text{PBV}_1$), we fill the gap in ITP proof
+automation for width-independent bitvector reasoning through verified decision
+procedures: a $k$-induction-based model checker, an automata-theoretic solver,
+and an MBA-Blast extension handling mixed arithmetic-bitwise predicates. These
+tools solve 100\% of Hacker's Delight benchmarks and 27\% of LLVM peephole
+rewrites, with the MBA solver achieving \MBAMBAGeoMean{} geomean runtime on
+\MBATotalProblems{} problems. All are mechanized in Lean, producing fully
+kernel-checked proofs via verified automata construction and $k$-induction.
+
+The procedure of this chapter decides predicates over a \emph{single} symbolic
+width. Many real compiler optimizations, however, mix operands of \emph{several}
+symbolic widths at once---truncations, zero- and sign-extensions---which the
+mono-width theory cannot express. Lifting the decision procedure to that setting
+is the subject of \cref{ch:multi-width}, which shows, perhaps surprisingly, that
+the many-width problem reduces with only linear blowup back to the mono-width
+solver developed here.
+
+\paragraph{Data availability.}
+The data supporting this chapter are openly available on Zenodo at
+\url{https://doi.org/10.5281/zenodo.16269885}~\cite{bhat_2025_16269885}; the
+artifact has been independently reproduced through published artifact evaluation.
