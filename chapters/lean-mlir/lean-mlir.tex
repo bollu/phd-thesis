@@ -518,7 +518,7 @@ The case studies based on our framework together are $\approx 5.6k$ LoC, which s
 \label{sec:mlir:bitvectors}
 
 We first demonstrate our ability to reason about a well-established domain of peephole rewrites: LLVM's arithmetic operations over fixed-bitwidth integers.
-Using the Z3 SMT solver~\cite{deMoura2008z3}, the Alive project~\cite{lopes2015provably,lopes2021alive2} can efficiently and automatically reason about these.
+Using the Z3 SMT solver~\cite{de2008z3}, the Alive project~\cite{lopes2015provably,lopes2021alive2} can efficiently and automatically reason about these.
 Notably, at the time of this writing, almost 700~LLVM patches have justified their correctness by referencing Alive.
 In this way, accessible proof tools can find a place in production compiler development workflows.
 However, Alive is limited by the capabilities of the underlying SMT solvers.

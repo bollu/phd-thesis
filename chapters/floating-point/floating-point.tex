@@ -336,8 +336,8 @@ to the nearest representable floating-point value,
 breaking ties according to the rounding mode~\cite{extrealsemantics}.
 This gives a rigorous, unambiguous specification
 that can serve as a ground truth for solver implementations,
-and it is the specification that SMT solvers such as Z3~\cite{z3},
-cvc5~\cite{cvc5}, and Bitwuzla~\cite{bitwuzla} implement.
+and it is the specification that SMT solvers such as Z3~\cite{de2008z3},
+cvc5~\cite{barbosa2022cvc5}, and Bitwuzla~\cite{niemetz2023bitwuzla} implement.
 
 Three requirements shaped the design of our mechanization of the SMT-LIB semantics.
 First, the mechanization must be \emph{faithful}: close enough to the SMT-LIB
@@ -1572,8 +1572,8 @@ The SMT-LIB semantics that we use, due to \citet{extrealsemantics}, forms the ba
 Their formalization defines operations over extended reals with explicit rounding,
 providing a precise, automatable semantics.
 SymFPU~\cite{symfpu} is the de facto standard library for reducing floating-point
-to bit-vector operations, and is used internally by both cvc5~\cite{cvc5} and
-Bitwuzla~\cite{bitwuzla}. SymFPU encodes each floating-point operation as a
+to bit-vector operations, and is used internally by both cvc5~\cite{barbosa2022cvc5} and
+Bitwuzla~\cite{niemetz2023bitwuzla}. SymFPU encodes each floating-point operation as a
 bit-vector circuit, but the encodings are unverified and, as we discovered,
 contain implicit assumptions relating the significand and exponent widths
 that exclude the small formats used in machine learning (\cref{sec:fp:testing}).
