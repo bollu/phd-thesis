@@ -30,10 +30,9 @@ The former `single-width-bv` and `multi-width-bv` chapters are now one chapter,
 
 ## Cross-chapter consistency
 
-- **Cross-reference style is mixed**: `\cref` (~81 uses) vs `\autoref` (~56 uses) across
-  chapters. **Recommended: standardize on `\cref`/`\Cref`** (cleveref is already loaded
-  `[noabbrev,capitalise]`, is the majority, and handles ranges/lists like `\cref{a,b}`
-  which `\autoref` cannot). Sweep `\autoref`→`\cref` (and sentence-initial→`\Cref`).
+- **DONE**: standardized cross-references on `\cref`/`\Cref` — swept all 56 `\autoref`
+  uses to `\cref` (parametric-bv, floating-point, lean-mlir). cleveref's `capitalise`
+  option keeps names capitalized ("Section 4.1", "Figure 5.3"), so the swap is uniform.
 - **Thin chapters**: `chapters/introduction/introduction.tex` (~111 lines) and
   `chapters/future-work/future-work.tex` (~100 lines) are lighter than the paper chapters
   and need expansion/polish to read as thesis-level framing rather than stubs.

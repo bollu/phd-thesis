@@ -75,7 +75,7 @@ Such LLVM-style IRs are built around the concepts of load/store/arithmetic/branc
 However, this level of abstraction is unsuitable for reasoning about high-level mathematical abstractions.
 
 Consider a compiler for Fully Homomorphic Encryption (FHE)~\cite{gentry2009fully}, a cryptographic technique that uses algebraic structures to allow an untrusted third party to do computation on encrypted data.
-In such a compiler, we might have a rewrite like $(a + X^{2^n} + 1 \mapsto a)$, which is a simple identity on the corresponding quotient ring.\footnote{We will discuss the underlying mathematical structure in more detail in~\autoref{sec:mlir:fully-homomorphic-encryption}}
+In such a compiler, we might have a rewrite like $(a + X^{2^n} + 1 \mapsto a)$, which is a simple identity on the corresponding quotient ring.\footnote{We will discuss the underlying mathematical structure in more detail in~\cref{sec:mlir:fully-homomorphic-encryption}}
 Expressed in LLVM, the computation of this simple operation consists of multiple basic blocks forming a loop, each containing memory loads, pointer arithmetic, scalar operations, and branches.
 As a result, the algebraic structure is completely lost and exploiting simple algebraic identities turns into a heroic effort of reasoning about side effects and stateful program behavior.
 State-of-the-art compilers for FHE consequently use domain-specific IRs (often expressed with MLIR~\cite{viand2022heco,heaanmlir}) when generating optimized code for FHE, where algebraic optimizations can take place at an FHE-specific IR that has value-semantics (e.g., is referentially transparent) and is overall closer to the mathematical structure of the problem.
@@ -85,10 +85,10 @@ State-of-the-art compilers for FHE consequently use domain-specific IRs (often e
 As an example, we model an IR aimed at FHE that manipulates objects in the algebraic structure $R \equiv (\mathbb{Z}/q\mathbb{Z})[X] / (X^{2^n} + 1)$.
 To model it, we instantiate an IR \messa{\operatorname{QuotRing}} in our framework.
 It has three simple operations: \texttt{arith\_const} and \texttt{monomial}, to construct values in $R$, and \texttt{add} to add two values of $R$.
-To define the syntax and semantics of \messa{\operatorname{QuotRing}}, we first declare the types and operations in the IR (\autoref{fig:mlir:quotring-op-ty}).
+To define the syntax and semantics of \messa{\operatorname{QuotRing}}, we first declare the types and operations in the IR (\cref{fig:mlir:quotring-op-ty}).
 \texttt{QuotRing} has two types: \texttt{r}, which represents the ring $R$, and $\texttt{nat}$ for naturals.
 Terms in \texttt{Op} represent the operations \texttt{arith\_const}, \texttt{monomial}, and \texttt{add}, as well as associated compile-time data.
-We then define the operation signatures by giving an instance of the \texttt{OpSignature} typeclass, which is offered by our framework to instantiate custom IRs (\autoref{fig:mlir:quotring-syntax}).
+We then define the operation signatures by giving an instance of the \texttt{OpSignature} typeclass, which is offered by our framework to instantiate custom IRs (\cref{fig:mlir:quotring-syntax}).
 That is, for each operation we specify:
 (1) the arity and types of arguments \texttt{sig}, and
 (2) the type of the return value \texttt{outTy}.
@@ -153,20 +153,20 @@ instance : OpDenote Op Ty where
 	\caption{\label{fig:mlir:quotring-defs}User definitions for \texttt{QuotRing}, which declares the operations and types of the IR, the type signatures of the operations, and the denotations of the types and operations into Lean types.}
 \end{figure}
 
-The type denotation is also simple to express with the \texttt{TyDenote} typeclass (\autoref{fig:mlir:quotring-semantics}).
+The type denotation is also simple to express with the \texttt{TyDenote} typeclass (\cref{fig:mlir:quotring-semantics}).
 \texttt{Ty} thus represents the embedded type in the IR and has only two inhabitants \texttt{r} and \texttt{nat}, whose denotation are \texttt{R} and \texttt{Nat}, the Lean (host) type that represents the mathematical objects $R$ and $\mathbb{N}$ respectively.
 The denotation of operations is a Lean function from the denotation of the input types (as recorded in the signature of that operation), to the denotation of the output type.\footnote{Our framework groups type and operation denotations into a \texttt{Dialect}, which we leave out for brevity.}
 Concretely, an \texttt{arith\_const n} operation takes no arguments, so its denotation is Lean's \texttt{Nat}, while \texttt{add} takes two \texttt{r} arguments, so its denotation is a function from the product\footnote{The mechanization uses a heterogeneous vector type \texttt{HVector}, which is coerced into the product type.} of its arguments to its output, i.e., \texttt{R $\times$ R $\rightarrow$ R}.
 The same is true for \texttt{monomial} for \texttt{Nat $\times$ Nat $\rightarrow$ R}.
 We define the denotation of  \texttt{arith\_const n} to evaluate to \texttt{n}, \texttt{add(x, y)} to evaluate to \texttt{x~+~y}, and \texttt{monomial(a, i)} to evaluate to \texttt{Quotient.mk (span \{generator p q\} (monomial a i))}, the equivalence class of the monomial $a X^i$.
-As the \texttt{QuotRing} IR does not require regions (\autoref{sec:mlir:structured-control-flow}), we only need to add MLIR syntax support (\autoref{sec:mlir:writing-mlirnatural-programs-in-mlir-syntax}) and translate the MLIR AST to \texttt{Ty} and \texttt{Op}, e.g., mapping \texttt{!Nat}\footnote{In practice, one would use a fixed-bitwidth type \texttt{iN} but we use \texttt{!Nat} for a simpler exposition.} to \texttt{nat} and \texttt{!R} to \texttt{r}, and a full \texttt{QuotRing} example (\autoref{fig:mlir:quotring-peephole-rewrite-example}) can be written in Lean.
+As the \texttt{QuotRing} IR does not require regions (\cref{sec:mlir:structured-control-flow}), we only need to add MLIR syntax support (\cref{sec:mlir:writing-mlirnatural-programs-in-mlir-syntax}) and translate the MLIR AST to \texttt{Ty} and \texttt{Op}, e.g., mapping \texttt{!Nat}\footnote{In practice, one would use a fixed-bitwidth type \texttt{iN} but we use \texttt{!Nat} for a simpler exposition.} to \texttt{nat} and \texttt{!R} to \texttt{r}, and a full \texttt{QuotRing} example (\cref{fig:mlir:quotring-peephole-rewrite-example}) can be written in Lean.
 
 \subsection{Defining and Executing Peephole Rewrites for \texttt{QuotRing}}
 \label{sec:mlir:rewriter}
 
 We now verify the peephole rewrite $(a + X^{2^n} + 1 \mapsto a)$, where a is a variable and $X^{2^n}$ is a constant in the ring.
 In $(\mathbb{Z}/q\mathbb{Z})[X] / (X^{2^n} + 1)$ this rewrite is simple to prove and, unsurprisingly, our custom \messa {{\operatorname{QuotRing}}} IR enables us to rewrite at exactly this level.
-Any given peephole rewrite (of which \autoref{fig:mlir:quotring-peephole-rewrite-example} is an example) consists of a context $\Gamma$ of free variables in the search pattern of the peephole rewrite.
+Any given peephole rewrite (of which \cref{fig:mlir:quotring-peephole-rewrite-example} is an example) consists of a context $\Gamma$ of free variables in the search pattern of the peephole rewrite.
 The search pattern is called \texttt{lhs}, and the replacement is \texttt{rhs}.
 The user has a proof obligation that the denotations of the left and right-hand sides are equal, which is given by the field \texttt{correct} of the peephole rewrite.
 In later examples, we reason upto semantic refinement to incorporate LLVM's notion of poison values \cite{lee2017taming}.
@@ -244,7 +244,7 @@ We will now delve into the details of the framework and see how it achieves this
 \section{\texorpdfstring{\messa{X}}{LeanMLIR(X)}: A Framework for Intrinsically Well-Typed SSA}
 \label{sec:mlir:framework}
 
-In this section, we describe the core design of the framework: the encoding of programs and their semantics in \messa{X} (\autoref{fig:mlir:iexpr-icom-def}).
+In this section, we describe the core design of the framework: the encoding of programs and their semantics in \messa{X} (\cref{fig:mlir:iexpr-icom-def}).
 We review some dependently-typed tooling we use to define our IR.
 \textbf{Contexts:}
 Our encoding is intrinsically well-typed (i.e., each inhabitant of \texttt{Expr} or \texttt{Com} described below is, by construction, well typed).
@@ -259,14 +259,14 @@ is equivalent to a tuple \texttt{(f $\alpha_1$ $\times$ ... $\times$ f $\alpha_n
 
 
 \subsection{Semantics of \texorpdfstring{\messa{X}}{LeanMLIR(X)}}
-The core types for programs are \texttt{Expr} and \texttt{Com}, shown in \autoref{fig:mlir:iexpr-icom-def}.
+The core types for programs are \texttt{Expr} and \texttt{Com}, shown in \cref{fig:mlir:iexpr-icom-def}.
 The type \texttt{Expr~$\Gamma$~$\alpha$} describes individual SSA operations; we think of it as a function from values in the context $\Gamma$---also called a \emph{valuation} for that context---to a value in the denotation of type $\alpha$.
 The type \texttt{Com~$\Gamma$~$\alpha$} has a similar interpretation but represents sequences of operations.
 Each command binds a new value in the current context (the \texttt{var} constructor) until the sequence returns the value of one such variable \texttt{v} (the \texttt{ret} constructor).
 Thus, this encoding of SSA exploits the similarity to the ANF~\cite{appel1998ssa}
 and CPS~\cite{kelsey1995correspondence} encodings.
-In particular, our \texttt{Expr} represents an SSA assignment, and \texttt{Com}s represents a block of operations, often called a basic block. A basic block typically would either return or branch to another block. In our case, blocks only return and consequently do not model branching. Instead, we use regions to model structured control flow (\autoref{sec:mlir:structured-control-flow}).
-Given our core syntax, our framework now automatically expands the semantics given by the user in \GreenBox{OpDenote} to semantics for \texttt{Expr} and \texttt{Com} (\autoref{fig:mlir:iexpr-icom-denote}).
+In particular, our \texttt{Expr} represents an SSA assignment, and \texttt{Com}s represents a block of operations, often called a basic block. A basic block typically would either return or branch to another block. In our case, blocks only return and consequently do not model branching. Instead, we use regions to model structured control flow (\cref{sec:mlir:structured-control-flow}).
+Given our core syntax, our framework now automatically expands the semantics given by the user in \GreenBox{OpDenote} to semantics for \texttt{Expr} and \texttt{Com} (\cref{fig:mlir:iexpr-icom-denote}).
 An \texttt{Expr} evaluates its arguments by looking up their value in the valuation and then invokes the user-defined \texttt{OpDenote.denote} to evaluate the semantics of the \texttt{op}.
 
 \begin{figure}
@@ -363,7 +363,7 @@ In \texttt{OpDenote}, one can now access the sub-computation represented by the 
 
 Intuitively, regions allow an \texttt{Op} to receive \texttt{Com}s as arguments, and choose to execute these \texttt{Com} arguments zero, one, or multiple times.
 This allows us to model if conditions (by executing the regions zero or once), loops (by executing the region $n$ times), and complex operations such as tensor contractions and convolutions by executing the region on the elements of the tensor \cite{linalg}.
-We implement this by extending \texttt{Expr} with a new field representing region arguments (\autoref{fig:mlir:mechanization-regions}).
+We implement this by extending \texttt{Expr} with a new field representing region arguments (\cref{fig:mlir:mechanization-regions}).
 We also extend \texttt{OpSignature} with an extra argument for the input types and output types of the region.
 In parallel, we add the denotation of regions as an argument, extending \texttt{OpDenote}.
 Similarly, we extend the denotation of \texttt{Expr} to compute the denotation of the region \texttt{Com}s in the \texttt{Expr}, before handing off to \texttt{OpDenote}.
@@ -371,7 +371,7 @@ Similarly, we extend the denotation of \texttt{Expr} to compute the denotation o
 This extension to our core calculus gives us the ability to model structured nesting of programs whose denotation is a bounded computation.\footnote{Since our semantics denote into Lean expressions, the user-given semantics must be provably terminating to be executable.
 We wish to explore richer denotations, such as (computable) coinductive and (noncomputable) domain theoretic semantics in future work.}
 This is used pervasively in MLIR, to represent \texttt{if} conditions, \texttt{for} loops, and higher-level looping patterns such as multidimensional strided array accesses over multidimensional arrays (tensors).
-We show how to model control flow in \autoref{sec:mlir:structured-control-flow}.
+We show how to model control flow in \cref{sec:mlir:structured-control-flow}.
 
 \section{Reasoning About \texorpdfstring{\messa{X}}{LeanMLIR(X)}}
 \label{sec:mlir:reasoning}
@@ -671,7 +671,7 @@ and that we add control flow to the other IR in a modular fashion.}
 \label{fig:mlir:scf-impl}
 \end{figure}
 
-The \texttt{scf.for} operation (\autoref{fig:mlir:scf-impl}) has three arguments: the number of times the loop is to be executed, a starting and step value for the iteration, and a seed value for the loop to iterate on.
+The \texttt{scf.for} operation (\cref{fig:mlir:scf-impl}) has three arguments: the number of times the loop is to be executed, a starting and step value for the iteration, and a seed value for the loop to iterate on.
 Note that in the definition, the IR \texttt{Op} is defined parametrically over another IR \texttt{Op'}, and the types of \texttt{Op} are the same as the types of other IR \texttt{Ty'}.
 We perform a similar construction for \texttt{if} conditions.
 
@@ -704,8 +704,8 @@ Contrary to what its naming implies, this IR does \emph{not} model operations on
 Instead, codewords are encoded as elements in a finitely-presented commutative ring, specifically, the ring $R \equiv (\mathbb{Z}/q\mathbb{Z})[x]/(x^{2^n} + 1)$, where $q, n \in \mathbb{N}$ are positive integers ($q$ composite).
 The name ``Poly'' comes from the equivalence class representatives are polynomials, but not all IR operations are invariants of the equivalence class.
 
-The ``Poly'' IR is, in fact, a superset of the \texttt{QuotRing} IR we defined in \autoref{sec:mlir:motivation}.
-It consists of the operations \texttt{add}, \texttt{sub}, \texttt{mul}, \texttt{mul\_constant}, \texttt{leading\_term}, \texttt{monomial}, \texttt{monomial\_mul}, \texttt{from\_tensor}, \texttt{to\_tensor}, \texttt{arith.constant} and \texttt{constant}.\footnote{It also has distinct types for integers and naturals, which we unified in \autoref{sec:mlir:motivation} for simplicity.}
+The ``Poly'' IR is, in fact, a superset of the \texttt{QuotRing} IR we defined in \cref{sec:mlir:motivation}.
+It consists of the operations \texttt{add}, \texttt{sub}, \texttt{mul}, \texttt{mul\_constant}, \texttt{leading\_term}, \texttt{monomial}, \texttt{monomial\_mul}, \texttt{from\_tensor}, \texttt{to\_tensor}, \texttt{arith.constant} and \texttt{constant}.\footnote{It also has distinct types for integers and naturals, which we unified in \cref{sec:mlir:motivation} for simplicity.}
 
 Most of these operations are self-explanatory and derive from the (commutative) ring structure of $R$ or are used to build elements in $R$, like the equivalence classes of constants or monomials.
 Three operations, \texttt{to\_tensor} and \texttt{from\_tensor} and \texttt{leading\_term} do not follow directly from the algebraic properties of the polynomial ring.
@@ -773,7 +773,7 @@ We also advocate proof automation and an intrinsically well-typed mechanized cor
 We incarnate these principles in \messa{X}, a framework built on Lean and \texttt{mathlib} to reason about domain-specific IRs in SSA with regions.
 We show how \messa{X} is simple to use, amenable to automation, and effective for verifying IRs over complex domains.
 
-The case studies of \autoref{sec:mlir:casestudies} also expose the central
+The case studies of \cref{sec:mlir:casestudies} also expose the central
 bottleneck of this workflow: once \texttt{simp\_peephole} has stripped away the
 SSA scaffolding, each rewrite leaves behind a proof obligation over bitvectors
 of arbitrary width, and only $54$ of the $93$ translated Alive rewrites could

@@ -839,7 +839,7 @@ the safety invariant that the output function $\pi$ always emits $\true$.
 \label{fig:swbv:decision-procedure-pesudocode}
 \end{figure*}
 
-We define the safety property $\Safe_k$ as the conjunction of two properties (\autoref{fig:swbv:decision-procedure-pesudocode}):
+We define the safety property $\Safe_k$ as the conjunction of two properties (\cref{fig:swbv:decision-procedure-pesudocode}):
 We notate the property of a state $s$ being reachable from $s_0$ by a sequence of inputs $p : \BV{k}$ (for some natural number $k$) as $s_0 \xtosquig{p} s$,
 and the fact that $s$ transitions to $t$ with input bit $i$ producing output bit $b$ as $s \xrightarrow{i}_b t$.
 $\InitPrecond_k$ establishes that all states reachable in $k$ steps from $s_0$ are safe
@@ -899,7 +899,7 @@ which is then proven by the $k$ induction algorithm.}
 We implement and verify our algorithms in the Lean proof assistant. We
 illustrate the overall flow of the algorithm on a Lean-level, universally
 quantified statement relating addition and bitwise-or (\leaninline{|||})
-(\autoref{fig:swbv:k-induction-flow}).
+(\cref{fig:swbv:k-induction-flow}).
 %
 The Lean statement is first converted to a statement in terms of negation normal form.
 %
@@ -912,7 +912,7 @@ def Predicate.denote (p : Predicate) (w : Nat) (vars : List (BitVec w)) : Prop :
   | .eq t₁ t₂ => t₁.denote w vars = t₂.denote w vars
   | ... (other cases elided)
 \end{lean}
-The reflected predicate language is then transformed into the infinite stream semantics (\autoref{fig:swbv:stx-sem-bv-theory}),
+The reflected predicate language is then transformed into the infinite stream semantics (\cref{fig:swbv:stx-sem-bv-theory}),
 using \leaninline{Predicate.eval}.
 
 \begin{lean}
@@ -1103,7 +1103,7 @@ which produced smaller problems that are easier to then reflect into our core la
 We consider a restricted fragment of the larger bitvector theory, called as mixed-boolean-arithmetic \cite{liu2021mba}
 for which an efficient reduction to a decidable integer problem exists.
 This works on the fragment of the full theory where we allow linear combinations of \emph{boolean} terms,
-where boolean terms are terms comprising of purely bitwise operations on atoms (\autoref{fig:swbv:mba-syntax}).
+where boolean terms are terms comprising of purely bitwise operations on atoms (\cref{fig:swbv:mba-syntax}).
 This is an interesting fragment, which subsumes both ring properties and bitwise properties,
 and allows for mild mixtures of these properties.
 
@@ -1305,7 +1305,7 @@ as well as the behavior of the different solvers given a fixed amount of time.
   \caption{Survival plots for the MBA-blast and InstCombine datasets.}
 \end{figure*}
 
-\noindent \paragraph{MBA~(\MBATotalProblems{} problems).} Out of the \MBATotalProblems{} problems (\autoref{fig:swbv:mba-cactus}), the k-induction solver solves \MBAKInductionVerifiedNumSolved{} problems out of \MBATotalProblems{},
+\noindent \paragraph{MBA~(\MBATotalProblems{} problems).} Out of the \MBATotalProblems{} problems (\cref{fig:swbv:mba-cactus}), the k-induction solver solves \MBAKInductionVerifiedNumSolved{} problems out of \MBATotalProblems{},
 while the other solvers solve \MBAPresburgerNumSolved{} problems.
 The k-induction solver builds circuits that are quadratic in size,
 due to the need to build a circuit that forbids loops, ensuring that all paths are simple paths.
@@ -1327,7 +1327,7 @@ compilation does not work with the recent versions of Mathlib and Lean we tested
 with, and so our decision procedures are run in interpreted mode in these
 benchmarks.
 
-\paragraph{InstCombine (\InstCombineTotalProblems{} problems).} In the \InstCombineTotalProblems{} problems (\autoref{fig:swbv:instcombine-cactus}),
+\paragraph{InstCombine (\InstCombineTotalProblems{} problems).} In the \InstCombineTotalProblems{} problems (\cref{fig:swbv:instcombine-cactus}),
 \bvdecide{} is effective, since the problem is always fixed to a particular bitwidth,
 and solves \InstCombineBvDecideNumSolved{} problems, a large majority.
 $k$-induction solves \InstCombineNormCircuitVerifiedNumSolved{} problems (the largest amongst the symbolic width solvers),
