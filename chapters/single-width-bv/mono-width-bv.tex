@@ -1187,6 +1187,7 @@ as well as with survival plots~\cite{brain2017benchmarking}, to characterize per
 
 \begin{figure*}[htb]
 {\small
+\resizebox{\textwidth}{!}{%
 \begin{tabular}{rcccc}
   Solver & Hacker's Del (31) & Alive (104) &  MBA-Blast (2500) & \texttt{InstCombine} (\InstCombineTotalProblems{}) \\
 \textbf{Width Indep.} & & & & \\
@@ -1198,6 +1199,7 @@ as well as with survival plots~\cite{brain2017benchmarking}, to characterize per
 \rowcolor{gray!10}
   \texttt{bv\_decide} ($w = 64$) & 31 & 54 & \MBABvDecideNumSolved{} & \InstCombineBvDecideNumSolved{}
 \end{tabular}
+}
 }
 \caption{Both k-induction and automata based solvers are competitive, and solve similar fragments.
   We provide a fixed-width comparison (which \textbf{does not solve} the infinite width fragment)
