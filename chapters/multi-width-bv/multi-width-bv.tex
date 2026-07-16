@@ -28,9 +28,8 @@ equisatisfiable reduction from $\text{PBV}_n$ to $\text{PBV}_1$. I developed the
 theoretical extension, mechanized the soundness proof, and implemented the
 reflection and preprocessing frontends.
 
-Fixed-width bitvector solvers (\qfbv{}) are fast and ubiquitous,
-and \cref{ch:mono-width} showed how to decide predicates in the
-mono-width setting ($\text{PBV}_1$). However, the theory of \emph{parametric} bitvectors
+Fixed-width bitvector solvers (\qfbv{}) are fast and ubiquitous, but the theory
+of \emph{parametric} bitvectors
 (PBV), where widths are symbolic, is much less well understood in its full
 generality. The theory of \emph{multi-width} PBV, where expressions may
 involve $n$ distinct symbolic widths ($\text{PBV}_n$), is particularly
@@ -170,7 +169,7 @@ Instantiating $o = 64$ and checking unsatisfiability proves the identity for
 \end{tabular}
 \caption{Worked example: translating
 $\forall (u\;v\;w : \N)\;(a : \BV{u}),\;
-u < v \to v \leq w \to \sext(\zext(a, v), w) = \zext(a, w)$
+u < v \to v \leq w \to \sext(\zext(a, u, v), v, w) = \zext(a, u, w)$
 from $\text{PBV}_n$ to a single \qfbv{} query over $\BV{o}$,
 previewing the rules formalized in \cref{mwbv:fig:mono-translation}.
 Primed variables ($u', v', w', a'$) denote the translated bitvector counterparts.
