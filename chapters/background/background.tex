@@ -15,7 +15,7 @@ Lean's bitvector library and the \bvdecide{} tactic, are based on
 \emph{Interactive Bitvector Reasoning using Verified
 Bit-Blasting}~\citep{leanbv} (OOPSLA 2025), joint work led by Henrik Böving on
 which I am a second author. That system is \emph{background} for this thesis:
-the decision procedures of \cref{ch:single-width-bv,ch:multi-width-bv} and the
+the decision procedures of \cref{ch:parametric-bv} and the
 floating-point bitblaster of \cref{ch:floating-point} build on top of it.
 
 \lettrine{B}{itvectors} are the lingua franca of low-level verification.
@@ -578,7 +578,7 @@ equivalence, and ring identities---but leave open the general problem of
 \emph{deciding} bitvector properties uniformly in the width, including the
 interaction of arithmetic with bitwise structure. Developing such a
 width-generic decision procedure is the subject of
-\cref{ch:single-width-bv}.
+\cref{ch:parametric-bv}.
 
 \section{SSA and MLIR}
 \label{sec:bg:ssa}

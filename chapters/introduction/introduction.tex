@@ -52,7 +52,7 @@ discharges them.
   Published at ITP~2024~\citep{leanmlir}.
 
   \item \textbf{Certified decision procedures for width-independent bitvector
-  predicates} (\cref{ch:single-width-bv}). We mechanize key model-checking
+  predicates} (\cref{sec:pbv:single-width}). We mechanize key model-checking
   algorithms---$k$-induction, automata reachability, emptiness, and
   minimization---and use them to build scalable, certified tactics for
   bitvector predicates that hold at \emph{all} widths, plus a specialized
@@ -60,7 +60,7 @@ discharges them.
   OOPSLA~2025~\citep{bhat2025certified}.
 
   \item \textbf{Sound and complete solving for multi-width parametric
-  bitvectors} (\cref{ch:multi-width-bv}). We prove that formulas over $n$
+  bitvectors} (\cref{sec:pbv:multi-width}). We prove that formulas over $n$
   symbolic widths reduce, with linear blowup, to an equisatisfiable
   single-symbolic-width formula by encoding widths as bitmasks; this collapses
   exponential enumeration into one fixed-width solver call and yields a new
@@ -83,10 +83,10 @@ The chapters of this thesis are based on the following publications:
   ITP 2024; basis of \cref{ch:lean-mlir}.
   \item \emph{Certified Decision Procedures for Width-Independent Bitvector
   Predicates}~\citep{bhat2025certified}, OOPSLA 2025; basis of
-  \cref{ch:single-width-bv}.
+  \cref{sec:pbv:single-width}.
   \item \emph{Sound and Complete Solving for Multi-Width Parametric Bitvectors
   via Principled Reductions}~\citep{bhat2026multiwidth}, conditionally
-  accepted at OOPSLA 2026; basis of \cref{ch:multi-width-bv}.
+  accepted at OOPSLA 2026; basis of \cref{sec:pbv:multi-width}.
   \item \emph{Mechanizing Floating Point Bitblasting}~\citep{bhat2027floatingpoint},
   in submission; basis of \cref{ch:floating-point}.
 \end{itemize}
@@ -106,8 +106,8 @@ this is stated in the relevant chapter's attribution note.
 SMT solving over bitvectors, bitblasting and SAT certificates, the Lean proof
 assistant, and the verified \bvdecide{} bitblaster that our decision
 procedures extend. \Cref{ch:lean-mlir} presents the verified peephole
-rewriting framework. \Cref{ch:single-width-bv,ch:multi-width-bv} present the
-width-independent and multi-width bitvector decision procedures respectively.
+rewriting framework. \Cref{ch:parametric-bv} presents the width-independent and
+multi-width bitvector decision procedures.
 \Cref{ch:floating-point} presents verified floating-point bitblasting.
 \Cref{ch:future-work} collects unpublished results and directions for future
 work.

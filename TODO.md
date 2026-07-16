@@ -1,8 +1,8 @@
 # Thesis TODO
 
 Remaining work to finish porting the five papers into a single coherent thesis.
-The build is currently green (`latexmk thesis.tex`, 188 pages, no `!` errors, no
-undefined references) with Lean code highlighted via the custom Lean 4 lexer.
+The build is currently green (`latexmk thesis.tex`, no `!` errors, no undefined
+references) with Lean code highlighted via the custom Lean 4 lexer.
 
 ## Content TODOs (author notes left in the text)
 
@@ -10,9 +10,23 @@ These are `\sid{...}` margin notes that still need addressing:
 
 - `chapters/floating-point/floating-point.tex:750` — `\sid{TODO: write this better}`: prose needs rewriting.
 - `chapters/floating-point/floating-point.tex:890` — `\sid{TODO: link code}`: add a source link (use the `\leanlink`/`\leanlinkroot` macros defined in the chapter preamble) for the square-root closeness proof.
-- `chapters/multi-width-bv/multi-width-bv.tex:1516` — `\sid{TODO: address comment on solver-time breakdown for translation vs. solving.}`
-- `chapters/multi-width-bv/multi-width-bv.tex:1533` — `\sid{TODO: regenerable table in a single run with the full camera-ready script.}`
-- `chapters/multi-width-bv/multi-width-bv.tex:1405` — commented-out `\sid{...}` note about modelling as uninterpreted functions; decide whether to fold into the text or drop.
+- `chapters/parametric-bv/parametric-bv.tex:2852` — `\sid{TODO: address comment on solver-time breakdown for translation vs. solving.}`
+- `chapters/parametric-bv/parametric-bv.tex:2869` — `\sid{TODO: regenerable table in a single run with the full camera-ready script.}`
+- `chapters/parametric-bv/parametric-bv.tex:2741` — commented-out `\sid{...}` note about modelling as uninterpreted functions; decide whether to fold into the text or drop.
+
+## Chapter merge follow-ups (parametric-bv)
+
+The former `single-width-bv` and `multi-width-bv` chapters are now one chapter,
+`chapters/parametric-bv/parametric-bv.tex` (§4.1 + §4.2, merged Related Work/Conclusions).
+- **Asset folders not yet relocated**: `chapters/single-width-bv/` and
+  `chapters/multi-width-bv/` now hold only `images/`+`plots/` (their `.tex` was removed).
+  Paths are root-relative so the build works, but the folders should be moved under
+  `chapters/parametric-bv/` and the `\input`/`\includegraphics` paths updated for tidiness.
+- **`mwbv:fig:pipeline` converted from `wrapfigure` to a `figure` float** (the tall
+  `[26]`-line wrapfigure was silently dropped in the merged pagination, losing its label).
+  Revisit if the floating placement is undesirable.
+- The demoted headings now nest to `\subsubsection` (numbered `4.1.x.y`); confirm the
+  depth reads well, and consider whether the two `\subsection`-level intros want polish.
 
 ## Cross-chapter consistency
 
