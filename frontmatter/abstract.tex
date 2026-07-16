@@ -23,8 +23,8 @@ reachability, emptiness, and minimization, and obtain scalable, certified
 tactics that solve all of Hacker's Delight and large fractions of LLVM's
 peephole test suite.
 
-We then generalize from one symbolic width to many. We prove that any
-multi-width parametric bitvector formula reduces to an equisatisfiable
+We then generalize from the mono-width to the multi-width setting. We prove that
+any multi-width parametric bitvector formula reduces to an equisatisfiable
 mono-width formula with only linear blowup, by encoding symbolic widths as
 bitmasks. This reduction yields a bounded solver that replaces exponential
 enumeration with a single fixed-width query, and, composed with our

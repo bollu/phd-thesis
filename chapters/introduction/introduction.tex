@@ -28,12 +28,13 @@ in four parts: whether peephole rewriting over realistic SSA-based IRs can be
 verified \emph{generically}, so that the structural proof burden is paid once
 and for all (\cref{ch:lean-mlir}); whether width-independent bitvector
 predicates admit \emph{verified, proof-producing} decision procedures, and
-whether these scale from one symbolic width to many (\cref{ch:parametric-bv});
+whether these scale from the mono-width to the multi-width setting
+(\cref{ch:parametric-bv});
 whether floating-point bitblasting---the unverified heart of SMT
 floating-point solving---can itself be mechanized and proved correct
 (\cref{ch:floating-point}); and, cutting across all three, whether verified
-automation can match the unverified state of the art in practice, and not
-merely in principle.
+automation can keep pace with the fastest unverified solvers in practice, and
+not merely in principle.
 
 The central claim is that
 \emph{decision procedures for finite-domain theories can be mechanized---%
@@ -41,9 +42,9 @@ implemented, proved correct, and run inside a proof assistant at a small,
 constant-factor cost over the unverified state of the art, rather than the
 order-of-magnitude slowdown usually assumed of foundational methods}. We support this
 claim with a sequence of mechanized artefacts in Lean, each published and
-evaluated against the state of the art, and each extending the reach of
-verified automation: from fixed widths, to one symbolic width, to many
-symbolic widths, and finally to floating-point arithmetic.
+evaluated against the fastest unverified tools, and each extending the reach of
+verified automation: from fixed widths, to mono-width, to multi-width, and
+finally to floating-point arithmetic.
 
 \section{Automated Speed and Interactive Trust}
 
@@ -143,9 +144,9 @@ the verified automation that discharges them.
   OOPSLA~2025~\citep{bhat2025certified}.
 
   \item \textbf{Sound and complete solving for multi-width parametric
-  bitvectors} (\cref{sec:pbv:multi-width}). We prove that formulas over $n$
-  symbolic widths reduce, with linear blowup, to an equisatisfiable
-  single-symbolic-width formula by encoding widths as bitmasks; this collapses
+  bitvectors} (\cref{sec:pbv:multi-width}). We prove that multi-width formulas
+  over $n$ symbolic widths reduce, with linear blowup, to an equisatisfiable
+  mono-width formula by encoding widths as bitmasks; this collapses
   exponential enumeration into one fixed-width solver call and yields a new
   decidable fragment subsuming the prior state of the art. Conditionally
   accepted at OOPSLA~2026~\citep{bhat2026multiwidth}.
@@ -194,8 +195,8 @@ builds the peephole-rewriting framework; by making the structural part of each
 rewrite's proof free, it exposes the semantic obligations---goals over
 bitvectors of arbitrary width---as the bottleneck that the remainder of the
 thesis attacks. \Cref{ch:parametric-bv} takes up those goals and dispatches
-them with increasing generality: first for a single symbolic width, then for
-many independent symbolic widths at once. \Cref{ch:floating-point} carries the
+them with increasing generality: first the mono-width case, then the
+multi-width case. \Cref{ch:floating-point} carries the
 same verified-bitblasting idea from bitvectors to floating-point arithmetic,
 yielding the first verified floating-point bitblaster. \Cref{ch:future-work}
 concludes and charts unpublished results and directions that extend this arc.

@@ -82,7 +82,7 @@ both.
 Procedures for Width-Independent Bitvector Predicates}~\citep{bhat2025certified},
 published at OOPSLA 2025, joint work with Léo Stefanesco, Chris Hughes, and
 Tobias Grosser.
-\emph{My contributions:} the initial algorithm---handling a single width and
+\emph{My contributions:} the initial algorithm---handling the mono-width case and
 equality predicates only---was developed by Chris Hughes. I noticed its
 connection to Presburger arithmetic, reinterpreted the classical decision
 procedure as an inductive ($k$-induction) safety proof, implemented the verified
@@ -1378,15 +1378,15 @@ test cases.
 \paragraph*{Attribution.} This section is based on \emph{Sound and Complete
 Solving for Multi-Width Parametric Bitvectors via Principled
 Reductions}~\citep{bhat2026multiwidth}, conditionally accepted at OOPSLA 2026.
-\emph{My contributions:} I generalized the procedure from one symbolic width to
-many, and recognized that encoding symbolic widths as bitmasks yields an
+\emph{My contributions:} I generalized the procedure from the mono-width to the
+multi-width setting, and recognized that encoding symbolic widths as bitmasks yields an
 equisatisfiable reduction from $\text{PBV}_n$ to $\text{PBV}_1$. I developed the
 theoretical extension, mechanized the soundness proof, and implemented the
 reflection and preprocessing frontends.
 
 Fixed-width bitvector solvers (\qfbv{}) are fast and ubiquitous,
-and \cref{sec:pbv:single-width} showed how to decide predicates over a single
-\emph{symbolic} width. However, the theory of \emph{parametric} bitvectors
+and \cref{sec:pbv:single-width} showed how to decide predicates in the
+mono-width setting ($\text{PBV}_1$). However, the theory of \emph{parametric} bitvectors
 (PBV), where widths are symbolic, is much less well understood in its full
 generality. The theory of \emph{multi-width} PBV, where expressions may
 involve $n$ distinct symbolic widths ($\text{PBV}_n$), is particularly
@@ -1585,7 +1585,7 @@ bitvector width variables.
 %
 If we restrict width expressions to have no width variables ($\text{PBV}_0$), we
 recover the standard theory of fixed-width bitvectors (\qfbv{}). If we allow
-only a single width variable, we recover the mono-width parametric bitvector
+only one width variable, we recover the mono-width parametric bitvector
 theory of prior work ($\text{PBV}_1$) \cite{bhat2025certified}.
 %
 Thus, this unifies the presentation of all three theories, and allows us to
@@ -2039,7 +2039,7 @@ The translation of \cref{sec:mwbv:reduction} computes width masks on the fly as
 $\denote{w}^\mask = (1 \bitshl \denote{w}) - 1$, a left-shift by a variable
 amount (\cref{mwbv:fig:mono-translation}).  Variable shifts fall outside the
 linear-bitwise fragment, so the translation cannot be fed directly to an existing
-automata-based single-width solver~\citep{bhat2025certified}.
+automata-based mono-width solver~\citep{bhat2025certified}.
 %
 We exploit a classical bit-manipulation identity:
 %
@@ -2061,7 +2061,7 @@ since every operation is either linear arithmetic, bitwise, or a constant shift.
 This demonstrates that automata are expressible enough to decide linear-bitwise
 formulas with multiple widths.
 %
-Instead of using the above encoding and generating a single width formula, which
+Instead of using the above encoding and generating a mono-width formula, which
 would take significant effort to prove, we instead use this idea to directly
 translate multi-width formulas to automata by extending the existing
 infrastructure~\citep{bhat2025certified}.
@@ -2652,7 +2652,7 @@ width-generic theorems solved across all three datasets, with our unbounded solv
 
 
 \subsubsection{Experimental Setup}
-Our experiments were performed on a system equipped with an \MwSystemSpecsProcessorName{} clocked at 4.3GHz and \MwSystemSpecsMemoryGb{}~GiB of RAM.\grosser{Can we double-check the GB number? Why this non-power-of-two number?}
+Our experiments were performed on a system equipped with an \MwSystemSpecsProcessorName{} clocked at 4.3GHz and \MwSystemSpecsMemoryGb{}~GiB of RAM.
 All experiments were executed under Ubuntu 24.04, with per-instance resource limits of \MwConfigTimeoutSec{}s of wall-clock time and \MwConfigMemoutMb{}~MB of memory.
 We run \MwConfigNproc{} experiments in parallel and report wall-clock time elapsed for each solver.
 
@@ -2677,7 +2677,7 @@ This is representative of the use of PBV in compiler verification, where one is 
 These are drawn from the Alive2 translation validation tool for LLVM,
 covering five parts of InstCombine: \texttt{AddSub} (19), \texttt{AndOrXor} (130), \texttt{InstCombineShift} (11),
 \texttt{Select} (27), and \texttt{muldivrem} (13).
-Each problem has one symbolic width parameter \texttt{k},
+Each problem has a mono-width parameter \texttt{k},
 and the bitvector operations include arithmetic, bitwise operations, and comparisons.
 
 \noindent\textbf{LLVM InstCombine (zext/sext).}
@@ -2785,11 +2785,6 @@ Dataset & Solver & Total & Solved & Timeout & Memout & Unknown & Geomean \\
   & CVC5-berger         & \RoverCactusNumProblemsTotal{} & \RoverCactusNumSolvedC{}             & \RoverCactusNumTimeoutC{}             & \textbf{\RoverCactusNumMemoutC{}}    & \RoverCactusNumUnknownC{} & \textbf{\RoverCactusGeomeanMsC{}} \\
 \bottomrule
 \end{tabular}
-\grosser{I am surprised that Alive leads to memouts. AFAIU, each problem BMC-Naive solves should be strictly
-simpler than BMC-Ours, so I would expect BMC-Naive to have fewer memouts than BMC-Ours. Do you have an explanation for this? My only guess is that you run many instances in parallel, which
-should (a) be documented and (b) discussed what the implications of this are with respect to memouts. I would believe
-that the parallelism and memouts will make our data not very clean. Is there a reason we cannot run this sequentially? Or at least with sufficient few threads to not
-run into memouts?}
 \end{table}
 
 \subsubsection{Bounded Solving Eliminates Enumeration \textbf{(RQ1)}}
@@ -2820,9 +2815,6 @@ Similarly, on ROVER (\cref{mwbv:fig:eval-all-rover}), with up to $k=12$ width va
 naive enumeration is completely impractical: $64^{12}$ is astronomical, and
 BMC-Naive solves only \RoverCactusNumSolvedNbmc{}/\RoverCactusNumProblemsTotal{}.
 BMC-Ours solves \RoverCactusNumSolvedMbmc{}/\RoverCactusNumProblemsTotal{}
-\grosser{Can we inline some examples that none of these solvers can solve?}
-%
-%
 It is surprising that BMC-Naive has memory-outs on quite a few problems,
 as we would expect it to time out before it runs out of memory.
 We suspect that the raw structure of the problem may trigger the SAT solver to
@@ -2858,16 +2850,9 @@ emitted by our reduction, and the multi-width automaton state space, each as a
 structural term size and an AIG (bit-level) size.
 Problem size does not grow too much under the reduction, as the generated \qfbv{}
 query stays a small factor larger than the input regardless of the number of
-width variables, On the other hand, the automaton state space grows on the many-width ROVER
-datases, tracking the harder unbounded instances and the
+width variables. On the other hand, the automaton state space grows on the many-width ROVER
+datasets, tracking the harder unbounded instances and the
 residual timeouts in \cref{mwbv:tab:eval-summary}.
-
-\sid{TODO: address comment on solver-time breakdown for translation vs.\ solving.
-The raw per-instance translation and solve times are recorded in
-\texttt{plots/output/stats/data.jsonl} (\texttt{solver-time} vs.\ total
-\texttt{Time elapsed}); add a column or companion table reporting the
-translation-vs-solving split so reviewers can see that translation is a
-negligible fraction of end-to-end time.}
 
 \begin{table}[htb]
 \centering
@@ -2995,7 +2980,7 @@ due to applications in compiler verification and hardware optimization.
 Algorithms for parametric bitvector solving based on rewriting and reductions to nonlinear integer arithmetic \cite{bit-precise-parametric-bv} have been recently proposed
 as a practically effective solution.
 The sound and complete automata-based procedures of \cref{sec:pbv:single-width}
-decide fragments of the PBV language over a single symbolic width, via reductions
+decide fragments of the PBV language in the mono-width setting ($\text{PBV}_1$), via reductions
 to automata-based decision procedures for linear integer arithmetic---an approach
 rooted in the classical result that integer arithmetic can be encoded by finite
 automata~\citep{Buchi-presburger}. The multi-width solver above builds on that
@@ -3015,7 +3000,7 @@ This chapter closes the \emph{width} axis of the thesis: bitvector reasoning
 that is generic not over a single fixed width, but over symbolic widths, and
 ultimately over arbitrarily many of them.
 
-For a single symbolic width, we fill the gap in ITP proof automation for
+For the mono-width setting, we fill the gap in ITP proof automation for
 width-independent bitvector reasoning through verified decision procedures:
 a $k$-induction-based model checker, an automata-theoretic solver, and an
 MBA-Blast extension handling mixed arithmetic-bitwise predicates. These tools
@@ -3058,7 +3043,7 @@ translated from LLVM InstCombine into parametric SMT-LIB by an agentic harness
 after we hand-generalize a representative seed set, with every generated formula
 checked against a naive enumerative solver to bound $8$ before it enters the
 dataset; this guards against mistranslation, though it does not replace a full
-correctness argument for the generalization. The single-width results, by
+correctness argument for the generalization. The mono-width results, by
 contrast, are packaged as an artifact that has been independently reproduced
 through published artifact evaluation.
 

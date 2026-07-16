@@ -757,7 +757,6 @@ The sticky bit answers whether we are exactly at a boundary or slightly above it
 
 Next, we describe the guard and sticky bits in more detail,
 and the contract the rounder expects of the operations that use it.
-\sid{TODO: write this better}
 
 \subsubsection{Inexact Results and the Sticky Compression Contract}\label{sec:fp:sticky}
 
@@ -897,7 +896,7 @@ with this approach (\cref{tab:fp:supported-ops}).
 We prove all the field operations and comparisons correct,
 as well as all the relational operations.
 The one operation whose specification is unsatisfying to us is that of square root:
-we prove that the result of the square root operation is closer to the exact result than either of the two nearest representable numbers. \sid{TODO: link code}
+we prove that the result of the square root operation is closer to the exact result than either of the two nearest representable numbers.
 However, since we do not use the real numbers, we cannot say that the result \emph{is} the square root.
 We also do not mechanize the round-to-integral and rem operations,
 as their circuits are as involved as the arithmetic circuits.
