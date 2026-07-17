@@ -1,13 +1,13 @@
-\chapter{Conclusions and Future Directions}
+\chapter{Conclusion}
 \label{ch:future-work}
 \epigraph{That depends a good deal on where you want to get to.}{The Cheshire
 Cat, \emph{Alice's Adventures in Wonderland}}
 
 \lettrine{T}{his} thesis set out to show that decision procedures for
 finite-domain theories can be mechanized---implemented, proved correct, and run
-inside a proof assistant at a small, constant-factor cost over the unverified
-state of the art, rather than the order-of-magnitude slowdown usually assumed of
-foundational methods. It made the case along a single arc. \Cref{ch:lean-mlir} built a
+inside a proof assistant at a bounded, size-independent constant factor over the
+unverified state of the art, rather than the asymptotic blow-up usually assumed
+of foundational methods. It made the case along a single arc. \Cref{ch:lean-mlir} built a
 framework for verified peephole rewriting over SSA-based IRs; by making the
 structural part of a rewrite's proof essentially free, it isolates the
 finite-domain proof obligations that each rewrite leaves behind. The remaining
@@ -43,6 +43,35 @@ problem size---rather than the asymptotic blow-up that foundational methods are
 usually assumed to carry; and that, for automation whose every answer is trusted
 down to the kernel, this is a price worth paying.
 
+The shape of that constant is what matters, and it is worth separating from its
+magnitude. A factor of $33\times$ is not a small number. But it does not grow
+with the width of a bitvector, the size of a formula, or the number of symbolic
+widths in play; it is the fixed overhead of computing inside a kernel-checked
+reflection procedure rather than in optimized C++. The alternative that
+foundational methods are usually assumed to force---enumerate the widths,
+enumerate the values---is not a constant at all. Where this thesis competes
+against such an alternative directly, the comparison is not close: the bounded
+multi-width solver replaces exponentially many \qfbv{} calls with one, and on
+small floating-point formats our bitblaster beats exhaustive enumeration by
+\SmallFpTimeElapsedRatioOKernel{} in geomean, and by \SmallFpTimeoutSpeedupLB{}
+on the instances enumeration cannot finish at all. Verification costs a constant;
+the enumeration it displaces costs an exponent.
+
+Was re-derivation the right bet? \Cref{sec:intro:trust} set out the stance: rather
+than run an unverified solver and check its certificate, port the algorithms into
+the proof assistant and prove them correct. The discipline turned out to be
+productive beyond its stated aim. Mechanizing an algorithm forces every
+assumption in it into the open, and that pressure produced results that were not
+on the agenda---the width-as-bitmask reduction of \cref{ch:multi-width}, the
+reverse-BFS argument for first-UIP computation in conflict analysis, and, in
+\cref{ch:floating-point}, the discovery that SymFPU's unpacker and rounder carry
+undocumented width assumptions that make them abort on exactly the FP8 formats
+machine learning has come to depend on. A certificate-checking approach would
+have inherited those gaps rather than found them: one cannot check a certificate
+for an answer the underlying tool declines to produce. The bet also has a bill,
+and it is paid in proof effort---three \qffp{} operations remain bitblasted but
+unproven, and the fast paths that make SymFPU quick remain unported.
+
 What resisted us was almost never the high-level algorithm and almost always
 the arithmetic beneath it. The classical procedures we set out to mechanize---%
 bitblasting circuits, automata constructions, $k$-induction---are, in their
@@ -61,10 +90,14 @@ automation for nonlinear arithmetic---ideally uniform across \texttt{Nat},
 technology for verified finite-domain reasoning at scale. It is also the thread
 that ties this retrospective to the directions that follow.
 
-The techniques of this thesis also open several concrete directions, adapted
-from the research proposals in my second-year report. We begin with those we
-consider most fertile---each backed by a concrete unpublished result or
-algorithmic plan---and close with briefer sketches and a broader outlook.
+The techniques of this thesis also open several concrete directions, adapted from
+the research proposals in my second-year report. Each takes up a limitation left
+standing by an earlier chapter: the fragment boundary that bounds the solvers of
+\cref{ch:mono-width,ch:multi-width}, and the theory coverage and error analysis
+that bound the floating-point bitblaster of \cref{ch:floating-point}. We begin
+with those we consider most fertile---each backed by a concrete unpublished
+result or algorithmic plan---and close with briefer sketches and a broader
+outlook.
 
 \section{Nonlinear Bitvector Arithmetic via the 2-adic Integers}
 \label{sec:fw:2adic}
@@ -106,7 +139,7 @@ variants of ackermannization, thereby unlocking support for the theory of
 arrays. Together with the floating-point support of \cref{ch:floating-point},
 this would bring the verified solver to theory parity with
 Bitwuzla~\citep{niemetz2023bitwuzla}
-($\qfbv{} + \texttt{QF\_FP} + \texttt{QF\_UF}$), which suffices to model
+($\qfbv{} + \qffp{} + \qfuf{}$), which suffices to model
 almost all behaviour of realistic production languages such as C and C++.
 Industry formalization efforts would be a natural testing ground for
 evaluating whether such an extended solver can handle real verification
@@ -156,3 +189,15 @@ explore whether cleaner abstractions---analogous to how \texttt{SymM} inside
 \texttt{GrindM} abstracts away the metaprogramming machinery for symbolic
 simulation---can be designed for proof by reflection, making the API
 tractable for both humans and models.
+
+\section*{Closing}
+
+The practitioner who opened this thesis was made to choose between speed without
+a warranty and a warranty without speed. That choice is narrower than it was.
+Compilers, hardware, and cryptography rest on finite-domain reasoning, and the
+procedures that discharge it need not be taken on trust: they can be implemented,
+proved correct, and run inside a proof assistant, on the problems practitioners
+actually have, at a cost that can be stated in advance. With this work we show
+that the price of foundational trust in finite-domain reasoning is a bounded,
+size-independent constant, rather than the asymptotic penalty that verified
+automation is commonly assumed to carry.

@@ -46,27 +46,18 @@ solvers also face scaling issues as widths grow, struggling beyond width 512
 in domains such as hardware design and
 cryptography~\citep{lopes2018future,mukherjee2024hydra}.
 
-To fill this gap, this chapter contributes novel, mechanized decision
-procedures for width-independent bitvector predicates in Lean. Classical
-algorithms for fragments of the width-independent theory can be viewed
-through the lens of \emph{model checking}: the formula corresponds to an
-automaton, and its correctness is a safety property. But this lens was
-previously unusable in mechanized proofs, since there were no executable,
-fast, formally verified model-checking algorithms usable \emph{from within}
-an ITP. We therefore mechanize key algorithms from the model checking
-literature---$k$-induction, automata reachability, automata emptiness
-checking, and automata minimization---and use them to build scalable,
-certified decision procedures. For the controlled mixtures of arithmetic and
-bitwise operations that occur in the deobfuscation literature, we further
-mechanize the fast MBA-Blast algorithm, which outperforms the general
-procedures on that fragment.
-
-We evaluate on benchmarks from classical compiler problems, including
-Hacker's Delight and the LLVM peephole optimizer, and on equivalence-checking
-problems from program obfuscation. Our tools solve 100\% of Hacker's Delight,
-two of our tools solve 100\% of the deobfuscation dataset, and up to
-\InstCombineNormCircuitVerifiedNumSolved{} of \InstCombineTotalProblems{}
-(about 31\%) peephole rewrites extracted from LLVM's test suite.
+To fill this gap, we take up an old observation. Classical algorithms for
+fragments of the width-independent theory can be viewed through the lens of
+\emph{model checking}: the formula corresponds to an automaton, and its
+correctness is a safety property. But this lens was previously unusable in
+mechanized proofs, since there were no executable, fast, formally verified
+model-checking algorithms usable \emph{from within} an ITP. We therefore
+mechanize key algorithms from the model checking literature---$k$-induction,
+automata reachability, automata emptiness checking, and automata
+minimization---and use them to build scalable, certified decision procedures.
+For the controlled mixtures of arithmetic and bitwise operations that occur in
+the deobfuscation literature, we further mechanize the fast MBA-Blast
+algorithm, which outperforms the general procedures on that fragment.
 
 \section{Notation \& Background}
 \label{sec:swbv:background}
@@ -1229,6 +1220,7 @@ Regardless, we are interested in the performance of our decision procedures to p
 and thus this is a valuable dataset.
 
 \subsection{Choosing the Right Solver for the Right Problem}
+\label{sec:swbv:right-solver}
 
 In order to understand the trade-offs of the different solvers,
 we plot the number of problems solved against cumulative wall-clock time,
@@ -1317,8 +1309,12 @@ test cases.
 
 
 
-\section{Related Work}
+\section{Related Work: Automata, Presburger, and Parametric Bitvectors}
 \label{sec:mono:related}
+
+\Cref{sec:intro:trust} placed this thesis among the approaches that bridge
+automated speed and kernel-checked trust; here we compare against the technical
+antecedents specific to width-independent reasoning.
 
 \paragraph{Bitwidth Independent Boolean Circuits.}
 Bitwidth independent circuits were introduced by Pichora~\cite{pichora2003automated}.
@@ -1404,19 +1400,42 @@ To our knowledge, our extension of this algorithm to solve the full horn-clause 
 and our work is the first mechanization of these algorithms.
 Our modified presentation of the algorithm in terms of linear algebra is also novel, to the best of our knowledge.
 
-\section{Conclusions and Future Work}
-\label{sec:mono:conclusion}
+\section{Limitations}
+\label{sec:mono:limitations}
 
-For the mono-width setting ($\text{PBV}_1$), we fill the gap in ITP proof
-automation for width-independent bitvector reasoning through verified decision
-procedures: a $k$-induction-based model checker, an automata-theoretic solver,
-and an MBA-Blast extension handling mixed arithmetic-bitwise predicates. These
-tools solve 100\% of Hacker's Delight benchmarks and up to
-\InstCombineNormCircuitVerifiedNumSolved{} of \InstCombineTotalProblems{}
-(about 31\%) of LLVM peephole
-rewrites, with the MBA solver achieving \MBAMBAGeoMean{} geomean runtime on
-\MBATotalProblems{} problems. All are mechanized in Lean, producing fully
-kernel-checked proofs via verified automata construction and $k$-induction.
+Three limitations bound the results of this chapter. The first is one of theory:
+the procedures decide the \emph{linear-bitwise} fragment of the parametric
+theory, and nonlinear operations---multiplication of two unknowns, and the
+like---fall outside it. The boundary is not an artefact of our encoding but of
+the reduction to automata itself, which relies on each operation being realizable
+as a finite-state transduction over the bit positions; multiplication of two
+unknowns is not. Deciding the nonlinear fragment requires a genuinely different
+tool, which we sketch, via a reduction to the first-order theory of the $2$-adic
+integers, in \cref{sec:fw:2adic}.
+
+The second is one of trust, and we state it plainly because it qualifies the
+thesis's own claim. The $k$-induction backend is verified, and every answer it
+returns is kernel-checked; but on the hardest unbounded instances we pair it with
+rIC3, an \emph{unverified} model checker, because there the unverified tool is
+substantially faster. Answers obtained through that path are trusted at the level
+of rIC3, not of the Lean kernel. The verified backend remains available for every
+such problem---the trade is one of time, not of reach---but it is a trade, and
+\cref{sec:intro:scope} records it as one.
+
+The third concerns what the procedures leave undone rather than what they get
+wrong. Of the \InstCombineTotalProblems{} peephole rewrites extracted from LLVM's
+test suite, our tools decide about 31\%. Cataloguing the failures
+(\cref{sec:swbv:right-solver}) is instructive, because the residue is mostly not
+a fragment boundary. The largest single category, by some margin, is rewrites
+that quantify over \emph{several} widths at once and truncate or extend between
+them---1925 problems, which the mono-width theory cannot even state. A further
+447 fail only because our translation from fixed-width problems leaves concrete
+constants such as $7$ ungeneralized where $2^w - 1$ was meant, and 565 because
+they phrase a goal in the boolean fragment that our preprocessor does not yet
+lift into a proposition. Only 463 lie genuinely outside the fragment, through
+operations such as signed division. The dominant limitation of this chapter is
+therefore not its fragment but its \emph{arity in widths}, and it is exactly the
+limitation \cref{ch:multi-width} removes.
 
 The procedure of this chapter decides predicates over a \emph{single} symbolic
 width. Many real compiler optimizations, however, mix operands of \emph{several}
@@ -1425,8 +1444,3 @@ mono-width theory cannot express. Lifting the decision procedure to that setting
 is the subject of \cref{ch:multi-width}, which shows, perhaps surprisingly, that
 the many-width problem reduces with only linear blowup back to the mono-width
 solver developed here.
-
-\paragraph{Data availability.}
-The data supporting this chapter are openly available on Zenodo at
-\url{https://doi.org/10.5281/zenodo.16269885}~\cite{bhat_2025_16269885}; the
-artifact has been independently reproduced through published artifact evaluation.

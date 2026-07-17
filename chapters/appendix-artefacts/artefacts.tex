@@ -1,0 +1,30 @@
+\chapter{Artefacts}
+\label{app:artefacts}
+
+Every technical chapter of this thesis is accompanied by a mechanized artefact.
+All of them are open source, and all are developed in the open rather than
+released as a snapshot at publication time. This appendix collects them, so that
+a reader who wants to run the procedures rather than read about them knows where
+to look.
+
+\paragraph{\Cref{ch:lean-mlir}: the \messa{X} framework.}
+The framework is developed openly on GitHub~\cite{leanmlirgithub}. The artefact
+accompanying the ITP~2024 publication~\citep{leanmlir} is archived on Zenodo at
+\url{https://zenodo.org/records/11519739}.
+
+\paragraph{\Cref{ch:mono-width}: mono-width parametric bitvectors.}
+The data supporting this chapter are openly available on Zenodo at
+\url{https://doi.org/10.5281/zenodo.16269885}~\cite{bhat_2025_16269885}. This
+artefact has been independently reproduced through the published artifact
+evaluation of OOPSLA~2025~\citep{bhat2025certified}; it is the only artefact in
+this thesis to have been through that process at the time of writing.
+
+\paragraph{\Cref{ch:multi-width}: multi-width parametric bitvectors.}
+The evaluation is packaged into a Docker container as the artefact for the
+multi-width results~\citep{bhat2026multiwidth}.
+
+\paragraph{\Cref{ch:floating-point}: floating-point bitblasting.}
+The mechanization lives at \url{https://github.com/opencompl/fp.lean}. Throughout
+\cref{ch:floating-point}, individual definitions and theorems are hyperlinked
+directly into this repository, so that each claim in the prose can be checked
+against the Lean source that discharges it.

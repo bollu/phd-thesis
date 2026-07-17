@@ -52,6 +52,7 @@ verified automation: from fixed widths, to mono-width, to multi-width, and
 finally to floating-point arithmetic.
 
 \section{Automated Speed and Interactive Trust}
+\label{sec:intro:trust}
 
 The tension at the heart of this thesis is one of \emph{trust}. On one side
 stand automated SMT solvers---Bitwuzla~\citep{niemetz2023bitwuzla},
@@ -163,8 +164,64 @@ the verified automation that discharges them.
   small-format (E4M3/E5M2) benchmarks. In submission~\citep{bhat2027floatingpoint}.
 \end{itemize}
 
-\section{Publications and Attribution}
+\section{Scope and Limitations}
+\label{sec:intro:scope}
 
+The claim above is a bounded one, and it is worth saying plainly at the outset
+where those bounds fall. Each limitation is discussed again at the point where it
+arises; they are collected here so that the reader knows from the start what this
+thesis does not do.
+
+\begin{itemize}
+  \item \textbf{Rewriting is proved sound only for pure operations.} The
+  framework of \cref{ch:lean-mlir} proves peephole rewriting correct for
+  operations marked \texttt{EffectKind.pure}. The one genuinely side-effectful
+  behaviour it encounters---the immediate undefined behaviour that division and
+  remainder may raise---is collapsed together with poison into
+  \texttt{Option.none}, rather than tracked as a first-class effect. Because the
+  semantics denote into total Lean functions, the semantics a user supplies for a
+  region must further be provably terminating.
+
+  \item \textbf{The decision procedures are complete only for the linear-bitwise
+  fragment.} The solvers of \cref{ch:mono-width,ch:multi-width} are sound and
+  complete for the linear-bitwise fragment of the parametric bitvector theory.
+  Nonlinear operations---multiplication of two unknowns of symbolic width, and
+  the like---fall outside it. This is not a gap that more engineering closes; we
+  sketch the tool it would require, a reduction to the first-order theory of the
+  $2$-adic integers, in \cref{sec:fw:2adic}.
+
+  \item \textbf{Not every component in the pipeline is verified.} On the hardest
+  unbounded instances the verified $k$-induction backend of
+  \cref{ch:mono-width} is paired with an \emph{unverified} model checker (rIC3),
+  because there the unverified tool is faster. Where we make such a trade, we say
+  so.
+
+  \item \textbf{Three floating-point operations are bitblasted but unproven.} The
+  solver of \cref{ch:floating-point} implements circuits for round-to-integral,
+  remainder, and the conversions to \texttt{ubv} and \texttt{sbv}, and bitblasts
+  them, but their mechanized correctness proofs are missing. We also lack some of
+  SymFPU's more sophisticated circuits, such as the fast paths for addition that
+  exploit subnormal and normal cases.
+
+  \item \textbf{The theories are those of a bitblaster, not of a full SMT
+  solver.} We support neither the theory of arrays nor uninterpreted functions
+  (\qfuf{}), and \bvdecide{} has no incremental solving. What reaching theory
+  parity with Bitwuzla would require is discussed in
+  \cref{sec:fw:ackermannization}.
+
+  \item \textbf{Two caveats bound the evaluation.} We deliberately omit
+  preprocessing such as associativity--commutativity normalization, so as to
+  measure the solving technique rather than a normal form that might render
+  problems trivial; a production tactic would want it, and its absence makes our
+  numbers conservative. Separately, the multi-width benchmarks of
+  \cref{ch:multi-width} are in part translated from LLVM InstCombine into
+  parametric SMT-LIB by an agentic harness seeded with a hand-generalized set,
+  with every generated formula checked against a naive enumerative solver before
+  it enters the dataset. This guards against mistranslation; it does not replace
+  a correctness argument for the generalization.
+\end{itemize}
+
+\paragraph{Publications and attribution.}
 The chapters of this thesis are based on the following publications:
 
 \begin{itemize}
@@ -189,8 +246,7 @@ All the works above are collaborative; throughout the thesis, ``we'' refers
 to myself and my coauthors, and where a specific contribution is not my own
 this is stated in the relevant chapter's attribution note.
 
-\section{Thesis Outline}
-
+\paragraph{Plan of this thesis.}
 The thesis follows a single arc, from the framework that generates
 finite-domain proof obligations to the decision procedures that discharge them.
 \Cref{ch:background} recalls the shared machinery: SMT solving over bitvectors,

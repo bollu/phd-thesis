@@ -148,27 +148,25 @@ on the remarkable progress in bitvector SMT solving---including the verified
 bitblasting infrastructure of \cref{ch:background}---but the floating-point
 reductions themselves are subtle, complex, and had never been verified.
 
-This chapter bridges that gap by presenting the first \emph{verified}
-floating-point bitblaster---verified for every \qffp{} operation except
-round-to-integral, remainder, and the integer conversions, whose circuits we
-implement and test but do not yet prove---a library and associated tactic in
-the Lean proof assistant that
-(a)~mechanizes the SMT-LIB theory of floating point (\qffp{}),
-(b)~extends Lean's bitvector solver \bvdecide{} with floating-point
-bitblasting capabilities,
-(c)~proves the correctness of the bitblasting reduction relative to the
-SMT-LIB theory, and
-(d)~carefully builds the underlying circuits to support the small
-floating-point formats (e.g., E4M3 and E5M2) used in machine-learning
-quantization.
+This chapter closes the width axis of the thesis and opens the value axis. The
+two preceding chapters made bitvector \emph{widths} symbolic while the values
+stayed plain machine integers; here the widths return to being concrete and the
+values become the most intricate objects compilers routinely reason about. The
+same verified-bitblasting idea carries over: we mechanize the SMT-LIB theory of
+floating point (\qffp{}), build circuits for its operations, prove them correct
+against that theory, and extend \bvdecide{} to discharge floating-point goals
+through them. The result is the first \emph{verified} floating-point
+bitblaster---verified for every \qffp{} operation except round-to-integral,
+remainder, and the integer conversions, whose circuits we implement and test but
+do not yet prove.
 
-Our evaluation shows that verified bitblasting is practical: on the SMT-COMP
-benchmarks our solver runs at a geometric-mean slowdown of
-\SmtLibGeomeanTimeElapsedRatioOB{} relative to Bitwuzla, while offering
-end-to-end correctness guarantees. On new benchmarks
-targeting small floating-point formats, we are substantially faster than the
-sound exhaustive-enumeration baseline, establishing the first sound, verified
-solver for these formats (modulo the same three unproven operations).
+Building the circuits from the mechanized theory upward, rather than porting them
+wholesale, turns out to matter. It forces into the open the width assumptions
+that SymFPU's unpacker and rounder leave implicit---assumptions on which those
+circuits abort by assertion rather than silently miscompute---and discharging
+them explicitly is what lets our circuits cover the small floating-point formats,
+E4M3 and E5M2, that machine-learning quantization has made important
+(\cref{sec:fp:surfaced}).
 
 \section{Algorithmic Overview: How to Bitblast a Floating Point Multiply}
 \label{sec:fp:overview}
@@ -1312,17 +1310,14 @@ specifications, catching errors that are easy to overlook in manual review.
 \section{Quantitative Evaluation of Solver Performance}
 \label{sec:fp:evaluation}
 
-To evaluate our solver, we ask
-whether it is competitive with the state of the art,
-and how well we do on small floating-point formats,
-whose unknown soundness in current solvers we want to fix due to application to ML workloads. We crystallize these into the following research questions:
-
-\noindent\textbf{RQ1} How does our solver compare against the state-of-the-art FP solver, Bitwuzla,
-and what is the overhead of our mechanized implementation against the unverified implementation?
-
-\noindent\textbf{RQ2} How much faster is our solver than exhaustive enumeration on small floating-point problems?
-In theory, since small floating-point formats such as FP8 only have $2^8$ values,
-exhaustive enumeration is a feasible, if not fast, strategy.
+Two questions drive the evaluation. The first is how our solver compares against
+Bitwuzla, the state-of-the-art floating-point solver---what, in other words, the
+overhead of a mechanized implementation is against an unverified one. The second
+concerns the small floating-point formats, whose soundness in current solvers is
+unknown and which matter because of their use in machine-learning workloads: how
+much faster is our solver than exhaustive enumeration there? In theory, since
+small formats such as FP8 have only $2^8$ values, enumeration is a feasible, if
+not fast, strategy.
 
 \subsection{Datasets}
 
@@ -1411,7 +1406,7 @@ run \FpConfigNproc{} solver invocations in parallel.
 \begin{figure}[htbp]
 \centering
 \includegraphics[width=\textwidth]{chapters/floating-point/plots/smtlib-rand/smtlib-cactus.pdf}
-\caption{\textbf{RQ1.} Our solver stays within a \SmtLibGeomeanTimeElapsedRatioOB{} geomean slowdown of
+\caption{\textbf{SMT-COMP.} Our solver stays within a \SmtLibGeomeanTimeElapsedRatioOB{} geomean slowdown of
   Bitwuzla on SMT-COMP, our stratified cross-family sample of the SMT-LIB 2 QF\_FP benchmarks, in exchange for end-to-end correctness.}
 \label{fig:fp:smtlib-cactus}
 \end{figure}
@@ -1460,9 +1455,8 @@ since the circuits we build are not optimized.
 Despite these overheads, our solver certifies the large majority of SMT-COMP
 within reasonable time, demonstrating that a verified bitblaster
 can scale to standard floating-point benchmarks.
-With this, we answer \textbf{RQ1} in the affirmative:
-our solver scales to standard benchmarks within a \SmtLibGeomeanTimeElapsedRatioOB{} geomean
-slowdown of the state-of-the-art Bitwuzla.
+On the first question, then: our solver scales to standard benchmarks within a
+\SmtLibGeomeanTimeElapsedRatioOB{} geomean slowdown of the state-of-the-art Bitwuzla.
 
 \subsection{Our Solver Is Faster Than Exhaustive Enumeration for Small Floating-Point Formats}
 
@@ -1496,13 +1490,13 @@ Empirically, Bitwuzla performs flawlessly on these benchmarks.
 However, it lacks is the guarantee, since its small-format support is documented as experimental and ``use at your own risk''
 and it produces no certificate that could be checked independently.
 Our claim on small formats is therefore that we are the fastest solver \emph{with a soundness guarantee}.
-We answer \textbf{RQ2} affirmatively, as our solver is faster than exhaustive enumeration by a geomean factor of \SmallFpTimeElapsedRatioON{} and by \SmallFpTimeoutSpeedupLB{} on the hardest instances,
+On the second question, our solver is faster than exhaustive enumeration by a geomean factor of \SmallFpTimeElapsedRatioON{} and by \SmallFpTimeoutSpeedupLB{} on the hardest instances,
 while remaining sound on small formats where Bitwuzla is not guaranteed to be sound.
 
 \begin{figure}[htbp]
 \centering
 \includegraphics[width=\textwidth]{chapters/floating-point/plots/instcombine-small/smtlib-cactus.pdf}
-\caption{\textbf{RQ2.} On the small FP formats (E4M3/E5M2) from the LLVM InstCombine rewrites, our verified
+\caption{\textbf{Small formats.} On the small FP formats (E4M3/E5M2) from the LLVM InstCombine rewrites, our verified
   solver is faster and more robust than exhaustive enumeration (\SmallFpSpeedupOKernel{} geomean with the kernel,
   \SmallFpSpeedupONoKernel{} without), certifying as many or more instances and avoiding the timeouts that stall enumeration:
   on the \SmallFpNaiveTimeouts{} instances where enumeration exhausts its \FpConfigTimeoutSec{}~s budget, our solver
@@ -1517,12 +1511,16 @@ Since existing solvers like Bitwuzla are fast but not known to be sound on these
 our bitblaster and our exhaustive enumerator fill a previously unoccupied niche:
 they are the only solvers for these small floating-point formats that come with a soundness guarantee,
 and of the two, bitblasting is the faster.
-We answer \textbf{RQ2} as follows: our solver outperforms exhaustive enumeration by
+Our solver outperforms exhaustive enumeration by
 \SmallFpTimeElapsedRatioON{} in geomean time and by \SmallFpTimeoutSpeedupLB{} on the instances
 enumeration cannot finish, providing verified results on formats where no proven-sound solver exists.
 
-\section{Related Work}
+\section{Related Work: Mechanized Floating-Point Arithmetic}
 \label{sec:fp:related}
+
+\Cref{sec:intro:trust} placed this thesis among the approaches that bridge
+automated speed and kernel-checked trust; here we compare against the technical
+antecedents specific to floating-point mechanization and solving.
 
 Floating point has undergone intense study in the formal methods community,
 both in terms of mechanized semantics and verified solvers.
@@ -1598,38 +1596,19 @@ of CBMC~\cite{cbmc}, combining bit-precise and abstract reasoning to verify C pr
 Overall, we owe a great deal to the line of research that has developed the SMT-LIB floating-point theory and bit-blasting encodings,
 and our work mechanizes and verifies these contributions by standing on their shoulders.
 
-\section{Conclusions, Limitations, and Future Work}
-\label{sec:fp:conclusion}
+\section{Limitations}
+\label{sec:fp:limitations}
 
-We create the first mechanized bitblaster for the QF\_FP theory,
-and in doing so,
-show that floating point SMT solving is well within the reach of formal verification.
 Three operations remain unproven:
 round-to-integral, remainder, and the conversions to \texttt{ubv} and \texttt{sbv}.
 Their circuits are implemented and the solver bitblasts them,
 but what is missing is the mechanized correctness proof.
 In a similar vein, we lack some of the sophisticated circuits that SymFPU implements,
 such as the multiple fast paths for addition that exploit various subnormal/normal cases for faster symbolic bitblasting.
-Closing both gaps is limited by proof effort rather than by floating-point insight:
-the obligations that arise are overwhelmingly nonlinear, mixing multiplication of variables, integer division and modular arithmetic, powers of two with variable exponents, and bitvector operations,
-and because existing automation closes none of them, the proof scripts become dominated by arithmetic bookkeeping that is conceptually trivial but mechanically exhausting.
-We therefore see effective proof automation for nonlinear reasoning, ideally operating uniformly across \texttt{Nat}, \texttt{Int}, \texttt{Rat}, and \texttt{BitVec}, as the key enabling technology for verified floating-point arithmetic at scale.
-This same nonlinear bottleneck recurs across the thesis, and we take it up as a decision problem in its own right---via the first-order theory of the $2$-adic integers---in \cref{sec:fw:2adic}.
-Two further directions extend this chapter: reaching theory parity with Bitwuzla by adding incremental solving, ackermannization, and the theory of arrays (\cref{sec:fw:ackermannization}), and moving from worst-case to average-case floating-point error bounds through $\delta$-satisfiability over the reals (\cref{sec:fw:deltasat}).
 
-
-Overall, we mechanize the chain from SMT-LIB semantics down to circuits and symbolic rewriting,
-with each link proven correct relative to the QF\_FP theory.
-Along the way, we discover and repair implicit assumptions in SymFPU's circuits,
-generalizing them to support formats (e.g.\ E4M3, E5M2) that are increasingly important for emerging domains such as machine learning.
-We exercise our mechanized semantics against independent reference implementations,
-thereby validating that our mechanization faithfully implements the SMT-LIB floating-point specification
-and providing trustworthiness in our implementation.
-Our evaluation shows that verified bitblasting is practical:
-on SMT-COMP, a stratified cross-family sample of the SMT-LIB floating-point benchmarks,
-our solver certifies \SmtLibNumSolvedOurs{} of \SmtLibNumTotal{} instances within a
-\SmtLibGeomeanTimeElapsedRatioOB{} geomean slowdown of Bitwuzla (and never disagrees with a known status),
-in exchange for end-to-end correctness guarantees,
-while on small floating-point formats our solver is \SmallFpTimeElapsedRatioOKernel{} faster than the sound,
-exhaustive-enumeration baseline, and \SmallFpTimeoutSpeedupLB{} faster on the hardest instances that enumeration times out on.
-Thus, we close the gap between verified reasoning and practical floating-point SMT solving.
+Closing both gaps is limited by proof effort rather than by floating-point insight,
+and it is worth being precise about why, because the same obstacle recurs across the thesis.
+The obligations that arise are overwhelmingly nonlinear, mixing multiplication of variables, integer division and modular arithmetic, powers of two with variable exponents, and bitvector operations.
+Existing automation closes none of them, so the proof scripts become dominated by arithmetic bookkeeping that is conceptually trivial but mechanically exhausting.
+Effective proof automation for nonlinear reasoning, ideally operating uniformly across \texttt{Nat}, \texttt{Int}, \texttt{Rat}, and \texttt{BitVec}, is therefore the key enabling technology for verified floating-point arithmetic at scale---%
+a thread we pick up in \cref{ch:future-work}, where it turns out to be the central lesson of the thesis rather than a difficulty local to this chapter.

@@ -43,25 +43,11 @@ formally reason about compiler optimizations.
 To address this problem, we first prove that any $\text{PBV}_n$ formula can be
 reduced to an equisatisfiable \emph{mono-width} ($\text{PBV}_1$) formula with
 only a linear increase in formula size. The key idea is to encode symbolic
-widths as \emph{bitmasks}. This reduction lets us create two solvers for
-flavors of multi-width PBV:
-\begin{enumerate}
-  \item a sound and complete \emph{bounded} PBV solver, which instantiates
-  the width variable of the $\text{PBV}_1$ formula to a concrete bound and
-  therefore requires only a \emph{single} \qfbv{} call---in practice proving
-  LLVM rewrites in seconds that enumeration fails to prove in hours; and
-  \item by composing the reduction with the automata-theoretic decision
-  procedures of \cref{ch:mono-width}, a new \emph{sound and complete
-  decision procedure} for a fragment of $\text{PBV}_n$ with parametric
-  widths, subsuming the prior state-of-the-art fragment of linear and bitwise
-  operations by adding zero and sign extension.
-\end{enumerate}
-All our solvers are implemented in Lean, with mechanized proofs of soundness
-and completeness for the unbounded solver. Empirically, the equisatisfiable
-reduction from $\text{PBV}_n$ to $\text{PBV}_1$ turns exponential enumeration
-into a single \qfbv{} query that nearly saturates standard PBV benchmarks,
-while our unbounded solvers prove $\EverybenchRatioSolvedMrOverC{}\times$ as many
-all-width problems as the state-of-the-art CVC5-based solver.
+widths as \emph{bitmasks}. That single reduction opens two paths---a bounded
+solver that needs only one \qfbv{} call, and, by composing with the automata of
+\cref{ch:mono-width}, a sound and complete decision procedure for a fragment
+strictly larger than the prior state of the art---and the next section follows
+both.
 
 \section{The Algorithmic Idea: Masks and Binary Values}
 \label{sec:mwbv:idea}
@@ -1278,31 +1264,27 @@ more problems with parametric bitwidths.}
 \label{mwbv:fig:eval-compiler}
 \end{figure}
 
-We evaluate our multi-width bitvector decision procedures
-by answering two research questions:
-
-\begin{itemize}[leftmargin=*]
-  \item \textbf{RQ1} Does our bounded solver, based on the equisatisfiable reduction from $\text{PBV}_n$ to $\text{PBV}_1$, eliminate the exponential blowup of
-naive enumeration; and, does a single \qfbv{} query suffice to saturate standard PBV benchmarks?
-(\cref{mwbv:sec:bounded-eval})
-
-\item \textbf{RQ2} Do our automata-theoretic decision procedures for unbounded
-bitwidth outperform the state of the art solver for parametric bitvector problems?
-(\cref{mwbv:sec:unbounded-eval})
-\end{itemize}
-Towards answering
-these questions, we evaluate our solvers on parametric bitvector benchmarks drawn
+Two questions drive the evaluation. The first is whether the equisatisfiable
+reduction from $\text{PBV}_n$ to $\text{PBV}_1$ really does eliminate the
+exponential blowup of naive enumeration---whether a single \qfbv{} query suffices
+to saturate standard PBV benchmarks (\cref{mwbv:sec:bounded-eval}). The second is
+whether the automata-theoretic procedures for unbounded bitwidth outperform the
+state of the art on parametric bitvector problems
+(\cref{mwbv:sec:unbounded-eval}). We take them up in turn, on benchmarks drawn
 from compiler verification and hardware optimization.
-First, we evaluate our bounded solver on the full PBV language,
-and compare against a naive enumeration-based approach (\textbf{RQ1}). Our results show that we
-saturate our benchmarks with a single \qfbv{} query, while naive enumeration
-collapses on multi-width problems---BMC-Ours solves \EverybenchNumSolvedMbmc{}/\EverybenchNumProblemsTotal{} benchmarks versus \EverybenchNumSolvedNbmc{} for BMC-Naive.
-We then evaluate our unbounded solvers on the
-automata-encodable fragment of PBV, and compare against the state of the art
-CVC5-based
-parametric-width solver of~\citet{bit-precise-parametric-bv} (\textbf{RQ2}). Our results show
-a significant improvement in terms of the number of
-width-generic theorems solved across all three datasets, with our unbounded solvers proving \EverybenchNumSolvedMr{}/\EverybenchNumProblemsTotal{} benchmarks compared to \EverybenchNumSolvedC{} for CVC5-berger.
+
+For the first, we evaluate the bounded solver on the full PBV language against a
+naive enumeration-based approach. We saturate our benchmarks with a single
+\qfbv{} query, while naive enumeration collapses on multi-width
+problems---BMC-Ours solves
+\EverybenchNumSolvedMbmc{}/\EverybenchNumProblemsTotal{} benchmarks versus
+\EverybenchNumSolvedNbmc{} for BMC-Naive. For the second, we evaluate the
+unbounded solvers on the automata-encodable fragment of PBV against the state of
+the art CVC5-based parametric-width solver
+of~\citet{bit-precise-parametric-bv}, and improve significantly on the number of
+width-generic theorems solved across all three datasets, proving
+\EverybenchNumSolvedMr{}/\EverybenchNumProblemsTotal{} benchmarks compared to
+\EverybenchNumSolvedC{} for CVC5-berger.
 
 
 \subsection{Experimental Setup}
@@ -1315,7 +1297,7 @@ We run \MwConfigNproc{} experiments in parallel and report wall-clock time elaps
 % how do the datasets we picked satisfy the objective. For example, are we interested in compiler verification
 % and hardware optimization, and if so, why? Are these BV problems representative?
 % What about the benchmarks from the CVC5 people? Did they get dropped?}
-Answering \textbf{(RQ1)} and \textbf{(RQ2)} requires benchmark datasets that are
+Answering both questions requires benchmark datasets that are
 (1)~representative of real-world applications of parametric bitvector solving,
 (2)~as well-established as possible,
 and (3)~challenging for existing solvers. Our datasets focus on two application domains:
@@ -1353,15 +1335,15 @@ We take all 19 problems from the ROVER hardware optimization tool~\cite{DBLP:jou
 which involves up to 12 symbolic width variables with constraints, and a variety of bitvector operations.
 These problems arise from RTL optimization, where ROVER uses e-graphs to perform rewriting-based equivalence checking.
 These rewrites not only involve many width variables, but also have constraints that relate the widths of different bitvectors (e.g., $q \geq t$, $u \geq t$).
-The large number of widths makes them a particularly demanding test of \textbf{(RQ1)} (the enumeration blowup is high) and \textbf{(RQ2)} (scalability of unbounded solving to many width variables).
+The large number of widths makes them a particularly demanding test on both counts: the enumeration blowup is high, and unbounded solving must scale to many width variables.
 
 \subsection{Solvers}
 
 To evaluate our solvers, we use the state-of-the-art algorithm for parametric bitvector solving from~\citet{bit-precise-parametric-bv} as a baseline for unbounded solving.
 For bounded solving, we implement a naive enumeration-based solver as the baseline, which is the approach taken by Alive2, LLVM's translation validation tool.
 We run our unbounded solver in two configurations: one using a verified $k$-induction backend, and the other using the unverified but more efficient rIC3 model checker.
-BMC-Ours and BMC-Naive address \textbf{(RQ1)} by comparing our reduction against naive enumeration.
-The unbounded solvers and CVC5-berger address \textbf{(RQ2)} by comparing our automata-based approach against the state of the art.
+BMC-Ours and BMC-Naive isolate the effect of the reduction, by comparing it against naive enumeration.
+The unbounded solvers and CVC5-berger compare our automata-based approach against the state of the art.
 
 \noindent\textbf{BMC-Ours (bounded).}
 Applies our $\text{PBV}_n \to \text{PBV}_1$ reduction, then instantiates the
@@ -1409,8 +1391,8 @@ implemented in a fork of CVC5. We run the binary for the solver\footnote{\texttt
 % Every extension has the potential to introduce bugs.}
 \caption{Summary of solver results across all three datasets.
 \textbf{Bold} marks the best value per column within each dataset.
-For \textbf{(RQ1)}, BMC-Ours saturates nearly every benchmark with a single \qfbv{} query, eliminating the enumeration bottleneck.
-For \textbf{(RQ2)}, our unbounded solvers consistently outperform CVC5-berger, proving strictly more problems for all bitwidths.
+BMC-Ours saturates nearly every benchmark with a single \qfbv{} query, eliminating the enumeration bottleneck.
+Our unbounded solvers consistently outperform CVC5-berger, proving strictly more problems for all bitwidths.
     }
 \label{mwbv:tab:eval-summary}
 \resizebox{\textwidth}{!}{%
@@ -1443,10 +1425,10 @@ Dataset & Solver & Total & Solved & Timeout & Memout & Unknown & Geomean \\
 }
 \end{table}
 
-\subsection{Bounded Solving Eliminates Enumeration \textbf{(RQ1)}}
+\subsection{Bounded Solving Eliminates Enumeration}
 \label{mwbv:sec:bounded-eval}
 
-We now address \textbf{(RQ1)}: does our $\text{PBV}_n \to \text{PBV}_1$ reduction eliminate the enumeration bottleneck?
+We turn to the first question: does our $\text{PBV}_n \to \text{PBV}_1$ reduction eliminate the enumeration bottleneck?
 Our reduction collapses an arbitrary number of symbolic widths
 into a mono-width parameter, encoding the entire problem as one \qfbv{} query.
 This makes BMC-Ours independent of the number of symbolic widths $k$,
@@ -1477,12 +1459,12 @@ We suspect that the raw structure of the problem may trigger the SAT solver to
 consume memory more quickly than time.
 %
 %
-This answers \textbf{(RQ1)} affirmatively: our reduction eliminates the BMC enumeration bottleneck.
+The reduction, then, does eliminate the BMC enumeration bottleneck.
 
-\subsection{Unbounded Solving Scales to Real-World Problems \textbf{(RQ2)}}
+\subsection{Unbounded Solving Scales to Real-World Problems}
 \label{mwbv:sec:unbounded-eval}
 
-We now address \textbf{(RQ2)}: does our unbounded solver scale to real-world compiler and hardware verification problems?
+We turn to the second question: does our unbounded solver scale to real-world compiler and hardware verification problems?
 While bounded solving is fast and practical,
 it can only verify correctness up to a chosen bound.
 Our unbounded solvers prove formulas for \emph{all} bitwidths,
@@ -1495,7 +1477,7 @@ The unsolved problems involve operations outside our linear-bitwise decidable fr
 (e.g., multiplication), for which our solvers correctly return \texttt{unknown}
 rather than an unsound result.
 
-This answers \textbf{(RQ2)} affirmatively: our automata-based unbounded solvers outperform the state of the art on every benchmark.
+Our automata-based unbounded solvers, then, outperform the state of the art on every benchmark.
 
 \subsection{Diagnostic Data: Formula and Automaton Sizes}
 \label{mwbv:sec:diagnostics}
@@ -1526,21 +1508,25 @@ the harder unbounded instances.}
 
 \subsection{Summary of Experimental Results}
 
-Overall, our results (\cref{mwbv:tab:eval-summary}) answer our research questions affirmatively.
+Overall, our results (\cref{mwbv:tab:eval-summary}) answer both questions affirmatively.
 While CVC5-berger consistently achieves the lowest geometric mean time on the problems it solves,
 it solves fewer problems overall across all three datasets.
 In our experience, it is fast on problems that work well with its rewrite rules and quantifier instantiations,
 but the translation into quantified integer arithmetic seems to cause the solver to either time out or return \texttt{unknown} after lengthy solve times
 on problems that are not immediately solved.
-For \textbf{(RQ1)}, BMC-Ours saturates nearly every benchmark with a single \qfbv{} query,
+BMC-Ours saturates nearly every benchmark with a single \qfbv{} query,
 evidencing that our multi-width to mono-width reduction eliminates the enumeration bottleneck.
-For \textbf{(RQ2)}, our automata-based unbounded solvers prove strictly more problems than CVC5-berger across all three datasets,
+Our automata-based unbounded solvers prove strictly more problems than CVC5-berger across all three datasets,
 demonstrating that they scale to real-world compiler and hardware verification benchmarks.
 
 
 
-\section{Related Work}
+\section{Related Work: Parametric and Fixed-Width Bitvector Solving}
 \label{sec:multi:related}
+
+\Cref{sec:intro:trust} placed this thesis among the approaches that bridge
+automated speed and kernel-checked trust; here we compare against the technical
+antecedents specific to parametric bitvector solving.
 
 The automata-theoretic and model-checking machinery on which our multi-width
 solver rests---bitwidth-independent circuits, automata encodings of Presburger
@@ -1575,28 +1561,8 @@ by using a SAT solver to search for counterexamples upto a given bound~\cite{bie
 Our algorithm uses ideas from BMC, where we bound the mono-width parameter after our reduction, and encode the entire problem as a single \qfbv{} query.
 
 
-\section{Conclusions, Limitations, and Future Work}
-\label{sec:multi:conclusion}
-
-For the multi-width theory $\text{PBV}_n$, we establish a key structural
-property: an equisatisfiable translation from $\text{PBV}_n$ to $\text{PBV}_1$,
-based on the idea of encoding widths themselves as bitvector masks. This enables
-two solvers. The first is a sound and complete decision procedure for the
-linear-bitwise fragment of $\text{PBV}_n$ that handles operations which change
-bitvector widths. The second is a bounded model checker that encodes the full
-$\text{PBV}_n$ theory as a \emph{single} \qfbv{} query, avoiding the exponential
-enumeration required by prior approaches. Both are implemented in Lean, with the
-unbounded solver producing fully mechanized proofs via verified automata
-construction and $k$-induction. Across \EverybenchNumProblemsTotal{} problems,
-BMC-Ours saturates nearly every dataset with a single \qfbv{} query, solving
-\EverybenchNumSolvedMbmc{} problems overall, while our unbounded solvers solve
-$\EverybenchRatioSolvedMrOverC{}\times$ as many problems as CVC5-berger.
-
-Taken together with the mono-width procedure of \cref{ch:mono-width}, the two
-reductions establish a foundation for parametric bitvector reasoning, grounding
-width-independent automation in mechanized proofs and establishing Lean as a
-platform for trustworthy, scalable bitvector reasoning across cryptography,
-hardware, and verified compilers.
+\section{Limitations}
+\label{sec:multi:limitations}
 
 Two limitations bound these results, and both point beyond this chapter. The
 first is one of theory: our solvers are sound and complete for the
@@ -1626,7 +1592,3 @@ bitblasting infrastructure to decide predicates over \emph{floating-point}
 numbers, whose bit-level encodings---sign, exponent, and mantissa---make them by
 far the most intricate values that compilers routinely reason about
 (\cref{ch:floating-point}).
-
-\paragraph{Data availability.}
-The evaluation of this chapter is packaged into a Docker container as the
-artifact for the multi-width results~\citep{bhat2026multiwidth}.

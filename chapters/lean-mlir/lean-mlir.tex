@@ -56,25 +56,13 @@ chapter we combine the convenience of automation with the versatility
 of ITPs for verifying peephole rewrites across domain-specific IRs. We
 formalize a core calculus for SSA-based IRs that is generic over the IR and
 covers \emph{regions}---the nested scoping used by many domain-specific IRs in
-the MLIR ecosystem---and mechanize it in Lean with a user-friendly frontend
-that translates MLIR syntax into our calculus.
+the MLIR ecosystem---and mechanize it in Lean, \messa{X}, with a user-friendly
+frontend that translates MLIR syntax into our calculus.
 
-Concretely, this chapter contributes:
-\begin{itemize}
-  \item a formalization of SSA with regions, parametrized over a user-defined
-  IR $X$, mechanized in our framework \messa{X}, exploiting
-  denotational-style value semantics for optimizing along the SSA use-def
-  chain of an MLIR-style IR;
-  \item a verified peephole rewriter, with a proof that lifting a peephole
-  rewrite to a rewrite on the entire program preserves semantics, together
-  with verified dead code elimination and common subexpression elimination,
-  and proof automation that eliminates the abstraction overhead of the SSA
-  calculus;
-  \item an extension of pure optimizations to contexts with side effects; and
-  \item syntax, semantics, and local rewrites for three MLIR-based IRs:
-  arithmetic over bitvectors, structured control flow, and fully homomorphic
-  encryption.
-\end{itemize}
+The framework's purpose within the thesis is to pay the structural proof burden
+once. Once it has done so, what remains of every rewrite is an obligation over
+finite-domain values, and it is those obligations---not the SSA plumbing around
+them---that the remaining chapters attack.
 
 \section{Motivation: Verifying Optimizations for High-Level IRs}
 \label{sec:mlir:motivation}
@@ -734,8 +722,12 @@ We prove all of these.
 We discussed the IR and potential semantics with the authors of the HEIR IR in the context of the upcoming open standard for homomorphic encryption.
 We believe that a framework like the one presented in this chapter will allow standards like these to be defined with formal semantics from the ground up.
 
-\section{Related Work}
+\section{Related Work: Verified Compilation and Rewriting}
 \label{sec:mlir:related}
+
+\Cref{sec:intro:trust} placed this thesis among the approaches that bridge
+automated speed and kernel-checked trust; here we compare against the technical
+antecedents specific to verified compilation and rewriting.
 
 The semantics of LLVM, the spiritual ancestor of MLIR, have been well-studied.
 Both Vellvm~\cite{zhao2012formalizing} and K-LLVM~\cite{li2020k} formalized a large portion of LLVM, including reasoning about SSA transformations explicitly~\cite{zhao2013formal}.
@@ -768,18 +760,8 @@ Furthermore, their rewriter restricts source and target patterns to be of the sa
 Their patterns permit side effects, which we disallow since we are interested in higher-level, pure rewrites.
 Our patterns provide more flexibility since the source and target patterns are arbitrary programs, and are matched on sub-DAGs instead of a linear sequence.
 
-\section{Conclusions, Limitations, and Future Work}
-\label{sec:mlir:conclusion}
-
-Peephole rewrites represent a large and important class of compiler optimizations.
-We have seen how domain-specific IRs in SSA with regions greatly extend the scope of these peephole rewrites.
-They raise the level of abstraction both syntactically with def-use chains and nesting, and semantically, with domain-specific abstractions.
-We have shown how to reason effectively about such SSA-based compilers, and, specifically, local reasoning in the form of peephole rewrites.
-We advocate building on top of a proof assistant with a small TCB, an expressive language and a large library of mathematics.
-This increases the confidence in our verification and extends its applicability to many domains where more specialized methods don't exist.
-We also advocate proof automation and an intrinsically well-typed mechanized core that can be designed to focus on the semantics of the domain.
-We incarnate these principles in \messa{X}, a framework built on Lean and \texttt{mathlib} to reason about domain-specific IRs in SSA with regions.
-We show how \messa{X} is simple to use, amenable to automation, and effective for verifying IRs over complex domains.
+\section{Limitations}
+\label{sec:mlir:limitations}
 
 Several limitations bound what we prove, and each points to concrete future
 work. First, we model side effects coarsely: rewriting is proved sound only for
@@ -808,9 +790,3 @@ purpose tactics then available. Closing this automation gap---deciding such
 bitvector goals at scale, rather than proving them by hand---is precisely the
 subject of \cref{ch:mono-width,ch:multi-width}, and the reason the rest of the thesis is
 devoted to verified decision procedures.
-
-\paragraph{Data availability.}
-The \messa{X} framework is developed openly on
-GitHub~\cite{leanmlirgithub}, and the artifact accompanying the ITP~2024
-publication is archived on Zenodo at
-\url{https://zenodo.org/records/11519739}.
