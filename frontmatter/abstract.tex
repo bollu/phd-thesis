@@ -1,44 +1,40 @@
-Automated reasoning over finite domains---bitvectors of fixed width,
-bitvectors of symbolic width, and floating-point numbers---underpins the
-verification of compilers, hardware, and cryptography. SMT solvers decide such
-theories efficiently, but they are large, unverified programs; interactive
-theorem provers (ITPs) offer foundational guarantees, but have traditionally
-lacked the automation that makes finite-domain reasoning practical. This
-thesis narrows that gap: it contributes \emph{mechanized} decision procedures
-for finite-domain theories, implemented and proved correct in the Lean proof
-assistant, together with a verified rewriting framework that motivates and
-consumes them.
+\epigraph{Immortality would have been meaningless, trapped in a ``machine'' with a finite number of possible states; in a finite time he would have exhausted the list of every possible thing he could be"}{Greg Egan, Permutation City}
 
-We first formalize a core calculus for SSA-based compiler intermediate
-representations, generic over the IR and covering MLIR-style regions. Our
-mechanization provides a verified peephole rewriter, proof automation that
-eliminates the abstraction overhead of the SSA calculus, and case studies
-ranging from LLVM bitvector rewrites to fully homomorphic encryption.
+Automated reasoning over finite domains underpins the verification of compilers, hardware, and cryptography.
+SMT solvers decide such theories efficiently, but they are large, unverified programs.
+In contrast, interactive theorem provers (ITPs) offer foundational guarantees, but have traditionally
+lacked the automation that makes finite-domain reasoning practical.
+This thesis narrows that gap: it contributes \emph{mechanized} old and new decision procedures for finite-domain theories,
+implemented and proved correct in the Lean proof assistant.
 
-Verifying such rewrites creates a demand for push-button bitvector
-automation. We contribute mechanized decision procedures for
-\emph{width-independent} bitvector predicates, viewing classical algorithms
-through the lens of model checking: we mechanize $k$-induction, automata
-reachability, emptiness, and minimization, and obtain scalable, certified
-tactics that solve all of Hacker's Delight and large fractions of LLVM's
-peephole test suite.
+Toward grounding our work in practical applications, we focus on the theory of bitvectors and floating-point arithmetic,
+since they are the bedrock of what a compiler emits. We first formalize a core calculus for SSA-based compiler intermediate
+representations, generic over the compiler IR itself.
+Our mechanization provides a verified peephole rewriter,
+proof automation that eliminates the abstraction overhead of the SSA calculus,
+and case studies ranging from LLVM bitvector rewrites to fully homomorphic encryption.
 
-We then generalize from the mono-width to the multi-width setting. We prove that
-any multi-width parametric bitvector formula reduces to an equisatisfiable
-mono-width formula with only linear blowup, by encoding symbolic widths as
-bitmasks. This reduction yields a bounded solver that replaces exponential
-enumeration with a single fixed-width query, and, composed with our
-automata-theoretic procedures, a sound and complete decision procedure for a
-fragment strictly larger than the prior state of the art.
+Verifying such rewrites is tedious, and drives a demand for push-button bitvector automation.
+We contribute mechanized decision procedures for \emph{width-independent} bitvector predicates,
+viewing classical algorithms in this space through the lens of model checking,
+and generalizing them along multiple axes.
+Firstly, when there is a single symbolic width, we show that the problem reduces to a finite-state automata reachability problem,
+and that the automata based model checking algorithms can be used to obtain scalable,
+certified tactics.
 
-Finally, we extend mechanized bitblasting from bitvectors to floating-point
-arithmetic. We mechanize the SMT-LIB theory of floating point, build verified
-bitblasting circuits for its operations, and obtain the first verified
-floating-point bitblaster, which runs within a constant geometric-mean
-factor---about $33\times$---of the state-of-the-art unverified solver Bitwuzla,
-while offering end-to-end correctness guarantees and supporting the small
-formats used in machine-learning quantization.
+We then generalize from the mono-width to the multi-width setting, where we prove that
+any multi-width parametric bitvector formula reduces to an equisatisfiable mono-width formula with only linear blowup.
+This relies on an encoding symbolic widths as bitmasks.
+This reduction not only yields a decidable fragment of multi-width parametric bitvector theory,
+but also yields solver for the bounded-width fragment that replaces exponential enumeration with a single fixed-width query.
+This solver is both algorithmically interesting, and is fast in practice.
 
-With this work we show that the price of foundational trust in finite-domain
-reasoning is a bounded, size-independent constant, rather than the asymptotic
-penalty that verified automation is commonly assumed to carry.
+Finally, we extend mechanized bitblasting from bitvectors to floating-point arithmetic.
+We mechanize the SMT-LIB theory of floating point,
+build verified bitblasting circuits for its operations,
+and obtain the first verified floating-point bitblaster,
+which runs within a constant geometric-mean factor ($\~33\times$) of the state-of-the-art unverified solver Bitwuzla,
+while offering end-to-end correctness guarantees and supporting the small formats used in machine-learning quantization.
+
+With this work we show that the price of foundational trust in finite-domain is not too dear,
+and we outline a path toward making the price of foundational trust in finite-domain reasoning even cheaper.
