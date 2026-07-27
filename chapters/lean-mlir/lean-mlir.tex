@@ -214,7 +214,10 @@ Our goal is to make the use of an interactive theorem prover part of the day-to-
 To enable this workflow, we implement a full MLIR syntax parser, along with facilities to convert from the generic MLIR abstract syntax into our framework type, such that we can use MLIR syntax in Lean.
 
 To prove the correctness of \texttt{a\_plus\_generator\_eq\_a}, we use the \texttt{simp\_peephole} \circled{1} tactic from our framework, which removes any overhead of our SSA encoding. We are left with:
-\LightGrayBlueBox{\texttt{$\vdash$ a + ((Quotient.mk (span \{f q n\})) ((monomial (2**n)) 1) + 1) = a}},
+% Box starts a fresh line and is set \small: at full size it is wider than the
+% measure and bleeds into the margin.
+\newline
+\LightGrayBlueBox{\small\texttt{$\vdash$ a + ((Quotient.mk (span \{f q n\})) ((monomial (2**n)) 1) + 1) = a}},
 a proof obligation in the underlying algebraic structure that, thanks to Lean's \texttt{mathlib}, can be closed with a few (elided) lines of algebraic reasoning.
 
 \subsection{Executing Peephole Rewrites}

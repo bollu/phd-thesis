@@ -23,11 +23,41 @@
 \usepackage{xurl}
 
 %%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%
-%% Fonts: Palatino body (mathpazo), classicthesis styling, drop caps.
-%% NB: do NOT load lmodern after mathpazo -- it silently overrides Palatino.
+%% Fonts: Cochineal body, classicthesis styling, drop caps.
+%%
+%% Cochineal is a Crimson/Garamond-lineage oldstyle face chosen to stand in for
+%% Adobe Sabon -- the typeface the Computer Laboratory recommends and which
+%% Fraser's lock-freedom dissertation is set in (cf. cam-thesis.cls's commented
+%% \rmdefault{psb}). Sabon itself is commercial and not in TeX Live; Cochineal
+%% is the closest free match, and at this measure it reproduces Sabon's line
+%% breaks essentially verbatim.
+%%
+%% [p,osf] = proportional oldstyle figures, matching the previous mathpazo
+%% [sc,osf] setup; Cochineal supplies real small caps. newtxmath's `cochineal'
+%% option gives math matched to the text face.
+%%
+%% NB: classicthesis defaults to loading mathpazo itself -- palatino=false
+%% suppresses that. Do NOT load lmodern afterwards; it silently overrides the
+%% roman family.
 %%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%
-\usepackage[sc,osf]{mathpazo}
-\usepackage{classicthesis}
+\usepackage[p,osf]{cochineal}
+\usepackage[cochineal]{newtxmath}
+%% dottedtoc: keep tocloft's dotted leaders and flush-right page numbers.
+%% classicthesis's default replaces the leader with \hspace{1.5em} and sets
+%% \cftparfillskip, which parks the number inline right after the title.
+\usepackage[palatino=false,dottedtoc]{classicthesis}
+%% classicthesis's 70pt margin chapter number is hard-wired to Palatino
+%% oldstyle (pplj); repoint it at Cochineal oldstyle so it matches the body.
+\DeclareFixedFont{\chapterNumber}{T1}{Cochineal-OsF}{m}{n}{70}
+%% Leading. classicthesis's Palatino branch used to issue \linespread{1.05},
+%% which silently overrode the \onehalfspacing that cam-thesis.cls applies --
+%% so the thesis has always been set at ~15.2pt leading, not 1.5 spacing.
+%% palatino=false removes that \linespread, which would let \onehalfspacing
+%% take over (~17.9pt, ~8 pages longer). Set it explicitly instead: 1.08 gives
+%% ~15.5pt, matching both the previous leading and Fraser's Sabon-set thesis,
+%% and suits Cochineal's smaller x-height. NB: raise to \onehalfspacing if the
+%% Board of Graduate Studies' 1.5-spacing rule has to be met literally.
+\linespread{1.08}
 % dropcaps:
 % https://tex.stackexchange.com/questions/250474/how-to-use-fancy-dropcaps-with-pdflatex
 \usepackage{Carrickc,Typocaps,lettrine}
@@ -37,21 +67,50 @@
 %% Page geometry.
 %% classicthesis (above) clamps the text block to a narrow 336pt (~118mm)
 %% \areaset measure. We widen it to ~135mm -- classicthesis's own recommended
-%% width for 12pt Palatino -- while keeping a WIDE outer margin. The wide outer
-%% margin is essential: classicthesis typesets the 70pt chapter number in the
-%% margin via \marginpar, so a narrow outer margin makes the number overflow
-%% and drift off toward the page edge. inner 28mm / text 135mm / outer 47mm,
-%% with marginparwidth ~= classicthesis's 7em so the chapter number fits.
+%% width for a 12pt oldstyle body.
+%%
+%% The margins are SYMMETRIC (37.5mm each side), so the text block sits in the
+%% same place on recto and verso and does not shuffle left/right as you page
+%% through the PDF. The margin must still be wide enough for classicthesis's
+%% 70pt chapter number, which is typeset in the margin via \marginpar: with
+%% marginparsep 8mm that leaves 29.5mm, so marginparwidth stays at
+%% classicthesis's ~7em and the number does not overflow.
 %%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%
 \usepackage{geometry}
-\geometry{a4paper, inner=28mm, outer=47mm, top=30mm, bottom=30mm,
+\geometry{a4paper, left=37.5mm, right=37.5mm, top=30mm, bottom=30mm,
           marginparwidth=29mm, marginparsep=8mm}
+
+%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%
+%% Contents pages.
+%% The body measure (135mm) is too narrow for this thesis's long section
+%% titles, so ToC entries wrapped onto a second line -- and with the dotted
+%% leaders enabled above, a wrapped title also costs a whole leader run.
+%%
+%% The ToC needs no wide outer margin (no \marginpar chapter numbers there), so
+%% give it its own near-symmetric geometry: ~165mm of measure, +30mm over the
+%% body. Geometry is restored immediately afterwards, so only the contents
+%% pages are affected. NB: \@tocrmarg is deliberately left at tocloft's default
+%% -- it reserves the column the flush-right page numbers live in.
+%%
+%% Depth: listed down to subsection, no deeper. cam-thesis.cls sets tocdepth
+%% to 3, which pulls x.y.z.w subsubsections into the contents. Set locally so
+%% only the ToC is pruned -- secnumdepth is untouched, so subsubsections are
+%% still numbered in the body. Drop to {1} for chapters and sections only.
+%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%
+\let\cam@origtoc\tableofcontents
+\renewcommand{\tableofcontents}{%
+  \newgeometry{a4paper, left=22.5mm, right=22.5mm, top=30mm, bottom=30mm,
+               marginparwidth=12mm, marginparsep=4mm}%
+  \setcounter{tocdepth}{2}%
+  \cam@origtoc
+  \restoregeometry
+}
 
 %%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%
 %% Chapter-opening epigraphs (\epigraph{quote}{author}).
 %%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%
 \usepackage{epigraph}
-\setlength{\epigraphwidth}{0.6\textwidth}
+\setlength{\epigraphwidth}{0.85\textwidth}
 \setlength{\epigraphrule}{0pt}       % no rule under the quote
 \setlength{\beforeepigraphskip}{1\baselineskip}
 \setlength{\afterepigraphskip}{2\baselineskip}
@@ -69,6 +128,24 @@
 %%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%
 \usepackage{calc}
 \usepackage[shortlabels]{enumitem}
+%% Tighter list indentation. LaTeX's default \leftmargini is 2.5em, which at
+%% this measure pushes list bodies a long way in from the text block and eats
+%% the measure again at every nesting level.
+%%
+%% leftmargin=* sizes the indent to the label itself (label width + labelsep)
+%% rather than to a fixed em value: bullets and numbers then sit flush with the
+%% surrounding text margin, continuation lines align under the item text, and
+%% nested levels stay compact instead of compounding. Applies to itemize,
+%% enumerate and description at every depth.
+\setlist{leftmargin=*, labelsep=0.5em}
+%% Top-level itemize costs no horizontal space at all: the bullet is \llap'ed
+%% into the left margin, so item text -- first and continuation lines alike --
+%% sits flush with the surrounding body text. This is what the publications
+%% list in the introduction wants. Nested itemize, enumerate and description
+%% keep the leftmargin=* above, since outdenting numbers or long description
+%% labels into the margin reads badly.
+\setlist[itemize,1]{leftmargin=0pt, labelwidth=0pt, labelsep=0pt,
+                    itemindent=0pt, label=\llap{\textbullet\hspace{0.5em}}}
 \usepackage{booktabs}
 \usepackage{multirow}
 \usepackage{colortbl}
