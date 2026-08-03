@@ -3,60 +3,56 @@
 \epigraph{Begin at the beginning, and go on till you come to the end: then
 stop.}{The King, \emph{Alice's Adventures in Wonderland}}
 
-\lettrine{C}{ompilers}, hardware designs, and cryptographic routines are
-trusted by billions of users, yet the reasoning that justifies their correctness ultimately bottoms out in \emph{finite domains}:
-machine integers of a fixed width, registers whose width is a design parameter,
-and floating-point numbers laid out in IEEE-754 formats.
-Two research communities have built impressive, but largely disjoint, tools for this kind
-of reasoning. Automated SMT solvers such as Bitwuzla~\citep{niemetz2023bitwuzla}
-and cvc5~\citep{barbosa2022cvc5} decide finite-domain theories with remarkable
-efficiency, but are themselves large, highly optimized, and unverified
-programs. Interactive theorem provers (ITPs) such as
-Lean~\citep{demoura2021lean} offer foundational guarantees, checked by a small
-trusted kernel, but have historically provided little of the push-button
-automation that makes finite-domain reasoning practical at scale.
+\lettrine{A} real computer is a finite thing: a finite number of registers, a finite amount of memory.
+However, the set of all computers, with various register widths and memory sizes, is infinite.
+This exposes a tension in the lines of thinking of compiler design, and eventually, compiler verification.
+Do we choose to consider just a \emph{single} machine, which is entirely finite, and this in principle,
+is entirely knowable? Or do we consider a \emph{family} of machines, where the register width is a design parameter,
+and is fundamentally unbounded? The former is a finite-domain problem, and the latter is an infinite-domain problem.
 
-This thesis contributes to closing that gap. It began as an effort in verified compilation,
-but I realized that a verified compiler must discharge \emph{thousands} of proof obligations over bitvectors
-and floating-point values, and it is these proof obligations that resist mechanization at scale.
-That discovery redirected the toward decision procedures that discharge such obligations.
+Mathematicians have pondered such questions too, via the notion of ``compactness'',
+\footnote{A quote goes, as cleanliness is next to godliness, so too is compactness next to finiteness}
+which guarantees that an infinite object such as a topological space can be understood by reasoning about a finite collection of parts of it.
+In this thesis, we show similar design principles can be applied to reasoning about infinite families of finite-domian problems.
+For example, while a compiler itself is incredibly complicated, the actual collection of peephole rewrites,
+that perform a local, finite transformation is in itself very simple, and provides a solid bedrock for mechanization.
+Similarly, while a peephole rewrite, parametrized by the size of the registers is itself an infinite domain problem,
+we show that it can be reduced to a finite-domain problem, thereby enabling efficient solving of such problems.
+Finally, while floating point number semantics are defined on an infinite domain of real numbers,
+the key step of rounding a floating point number ensures that only a finite amount of information is needed to reason about the
+resulting value, thereby, once again, allowing a finite-domain reasoning approach to be applied.
 
-From this work, we show that decision procedures for finite-domain theories can be implemented, proved correct,
-and run inside a proof assistant at not too great a cost over unverified state of the art.
-We support this claim with a sequence of mechanized artefacts in Lean.
+Overall, the thurst of this thesis is to create, mechanize, and exploit reductions from the infinite to the finite.
+Luckily for us, computer scientists have made remarkable progress in solving finite domain problems (via SAT solving),
+and we apply these techniques to some infinite domain problems in compiler verification.
+With finiteness comes tractability, with tractability comes automation, and with automation comes scale.
+We hope to apply our techniques to \emph{scale up} the verification of compilers,
+thereby enabling the verification of more more complex compilers.
 
-\section{Verified Rewriting Demands Verified Automation}
+Finally, another key theme throughout the thesis is that of mechanization.
+That is, not only do we come up with new algorithms, and implement new solvers,
+but we do so in a mechanized proof assistant, Lean, and prove the correctness of our algorithms in its proof language.
+Is this really worth it? Only time will tell, but I believe that mechanization will only grow in importance.
+We live in interesting times (as of July 2026),
+where large language models are able to produce impressive amounts of code, but which cannot be trusted to get the details right.
+Indeed, models are known to be even more adverserial, and regularly reward hack, fulfilling the letter but not the sprit
+of one's specification, making our research even more timely.
+In this thesis, we show mechanization is possible and practical for a wide range of automation necessary for large-scale compiler verification,
+and we hope that our work lays down techniques that enable future mechanization of even larger ambition.
 
-Our starting point is compilation. A modern optimizing compiler is not one
-monolithic transformation, but an accretion of \emph{thousands} of small, local
-rewrites. For example LLVM's InstCombine peephole optimizer alone makes up roughly a tenth of all IR-transforming code in the project.
-Each rewrite is individually simple, yet they coalesce into the whole,
-and the compiler is correct only if \emph{every} one of them is.
-Frameworks such as MLIR~\citep{lattner2020mlir} multiply this further,
-encouraging many domain-specific IRs, each with its own family of peephole rewrites.
 
-Verifying rewrites at this scale in an ITP simply does not work if human input in the loop is necessary.
-Thus, we build two conceptual pieces, one to enable to  \emph{state and compose} rewrites over an arbitrary IR without re-proving the structural plumbing (e.g. SSA form).
-Second, every rewrite discharges to a proof obligation over finite-domain values, for which we build verified decision procedures.
-The framework we present in \cref{ch:lean-mlir} builds the framework,
-making the \emph{structural} part of such proofs free.
-The decision procedures we build in later chapters discharge the remaining \emph{semantic} obligations.
-
-\section{How To Build Trustworthy Automation for Finite-Domain Theories}
-\label{sec:intro:trust}
-
-The tension at the heart of this thesis is one of \emph{trust}. On one side
-stand state-of-the-art SMT solvers, such as Bitwuzla~\citep{niemetz2023bitwuzla},
-cvc5~\citep{barbosa2022cvc5}, Z3~\citep{de2008z3},
-which decide these theories with formidable speed and on which compiler writers and hardware verifiers rely daily.
-Yet these solvers are large, aggressively optimized programs whose correctness rests on manual reasoning and testing.
-On the other side stand interactive theorem provers such as
-Lean~\citep{demoura2021lean}, Rocq, and Isabelle, whose every theorem is checked by a small trusted kernel,
-but which have historically offered only weak, best-effort automation for these theories.
-Isabelle's \emph{Sledgehammer}~\citep{blanchette2011automatic} delegates goals to external
-provers, yet its bitvector reach is limited precisely because the underlying
-solvers expose no fine-grained, checkable proof.
-The practitioner is thus made to choose between speed and trust.
+% The tension at the heart of this thesis is one of \emph{trust}. On one side
+% stand state-of-the-art SMT solvers, such as Bitwuzla~\citep{niemetz2023bitwuzla},
+% cvc5~\citep{barbosa2022cvc5}, Z3~\citep{de2008z3},
+% which decide these theories with formidable speed and on which compiler writers and hardware verifiers rely daily.
+% Yet these solvers are large, aggressively optimized programs whose correctness rests on manual reasoning and testing.
+% On the other side stand interactive theorem provers such as
+% Lean~\citep{demoura2021lean}, Rocq, and Isabelle, whose every theorem is checked by a small trusted kernel,
+% but which have historically offered only weak, best-effort automation for these theories.
+% Isabelle's \emph{Sledgehammer}~\citep{blanchette2011automatic} delegates goals to external
+% provers, yet its bitvector reach is limited precisely because the underlying
+% solvers expose no fine-grained, checkable proof.
+% The practitioner is thus made to choose between speed and trust.
 
 % This thesis descends from, and departs from, the verified-compilation
 % tradition. CompCert~\citep{leroy2016compcert} showed that an optimizing C
@@ -72,18 +68,18 @@ The practitioner is thus made to choose between speed and trust.
 % does not suffice if the automation that discharges its arithmetic obligations
 % is itself unverified.
 
-Several lines of work already try to bridge automated speed and kernel-checked trust.
-\emph{Certifying} approaches run an external solver and check the certificate it emits inside the kernel.
-Solvers such as SMTCoq~\citep{ekici2017smtcoq} reconstructs proofs from SMT solvers in Rocq,
-and CoqQFBV~\citep{shi2021coqqfbv} checks a bitblaster's SAT certificate.
-Moreover, systems such as F\textsuperscript{*}/HACL\textsuperscript{*}~\citep{swamy2023proof}
-couple strong SMT automation to verified code.
-In our case, rather than trust an external SMT solver and replay its output,
-\sid{TODO: move the text about SAT solving somewhere above, where we describe the remarkable progress in SAT solving, and how we rely on it.}
-we reimplement and reprove the solver in the proof assistant, but we rely on SAT certificate checking,
-which is a far better developed suite of techniques, both theoretically and practically, than SMT certificate checking.
-We port the algorithms of the state of the art (e.g. SymFPU's floating-point circuits~\citep{symfpu}) into Lean and prove them correct,
-so that each answer is trusted down to the kernel.
+% Several lines of work already try to bridge automated speed and kernel-checked trust.
+% \emph{Certifying} approaches run an external solver and check the certificate it emits inside the kernel.
+% Solvers such as SMTCoq~\citep{ekici2017smtcoq} reconstructs proofs from SMT solvers in Rocq,
+% and CoqQFBV~\citep{shi2021coqqfbv} checks a bitblaster's SAT certificate.
+% Moreover, systems such as F\textsuperscript{*}/HACL\textsuperscript{*}~\citep{swamy2023proof}
+% couple strong SMT automation to verified code.
+% In our case, rather than trust an external SMT solver and replay its output,
+% \sid{TODO: move the text about SAT solving somewhere above, where we describe the remarkable progress in SAT solving, and how we rely on it.}
+% we reimplement and reprove the solver in the proof assistant, but we rely on SAT certificate checking,
+% which is a far better developed suite of techniques, both theoretically and practically, than SMT certificate checking.
+% We port the algorithms of the state of the art (e.g. SymFPU's floating-point circuits~\citep{symfpu}) into Lean and prove them correct,
+% so that each answer is trusted down to the kernel.
 
 \section{Contributions}
 

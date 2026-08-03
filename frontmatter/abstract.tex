@@ -1,40 +1,62 @@
 \epigraph{Immortality would have been meaningless, trapped in a ``machine'' with a finite number of possible states; in a finite time he would have exhausted the list of every possible thing he could be"}{Greg Egan, Permutation City}
 
-Automated reasoning over finite domains underpins the verification of compilers, hardware, and cryptography.
-SMT solvers decide such theories efficiently, but they are large, unverified programs.
-In contrast, interactive theorem provers (ITPs) offer foundational guarantees, but have traditionally
-lacked the automation that makes finite-domain reasoning practical.
-This thesis narrows that gap: it contributes \emph{mechanized} old and new decision procedures for finite-domain theories,
-implemented and proved correct in the Lean proof assistant.
+A real computer is a finite thing: finitely many registers, each of finite width.
+The set of all computers is not.
+A compiler writer reasons not about one machine but about a family of them,
+and so the objects they must get right---a peephole rewrite that has to hold at \emph{every}
+register width, a floating-point operation whose meaning is given over the reals---live in
+infinite domains, even though every instance of them is finite.
+This thesis is about closing that gap where it matters most for compilers, hardware, and
+cryptography: the theories of bitvectors and floating-point arithmetic.
 
-Toward grounding our work in practical applications, we focus on the theory of bitvectors and floating-point arithmetic,
-since they are the bedrock of what a compiler emits. We first formalize a core calculus for SSA-based compiler intermediate
-representations, generic over the compiler IR itself.
-Our mechanization provides a verified peephole rewriter,
-proof automation that eliminates the abstraction overhead of the SSA calculus,
+Automating such reasoning today forces a choice.
+SMT solvers decide the finite instances with formidable speed,
+but are large, aggressively optimized, unverified programs.
+Interactive theorem provers check every step against a small kernel,
+but have traditionally offered only weak automation for finite-domain theories.
+We want the speed without surrendering the guarantee.
+
+Our key idea is borrowed from the mathematician's notion of compactness:
+an infinite object can often be understood by reasoning about finitely much of it.
+We create, mechanize, and exploit reductions from the infinite to the finite---from a family
+of machines to a single machine, from the reals to the finitely many bits that survive
+rounding---and discharge what remains by SAT solving, inside the Lean proof assistant.
+The appeal is that with finiteness comes tractability, with tractability automation,
+and with automation scale; and that the reductions are themselves mathematical content,
+which is precisely what a proof assistant is good at holding.
+
+We first formalize a core calculus for SSA-based compiler intermediate representations,
+generic over the compiler IR itself, and prove correct a generic peephole rewriter,
+together with proof automation that eliminates the abstraction overhead of the calculus
 and case studies ranging from LLVM bitvector rewrites to fully homomorphic encryption.
+Discharging such rewrites by hand is tedious,
+and it is this tedium that drives the demand for the push-button automation that follows.
 
-Verifying such rewrites is tedious, and drives a demand for push-button bitvector automation.
-We contribute mechanized decision procedures for \emph{width-independent} bitvector predicates,
-viewing classical algorithms in this space through the lens of model checking,
-and generalizing them along multiple axes.
-Firstly, when there is a single symbolic width, we show that the problem reduces to a finite-state automata reachability problem,
-and that the automata based model checking algorithms can be used to obtain scalable,
-certified tactics.
+For a width-parametric rewrite, the infinity is the width.
+We show that with a single symbolic width the problem reduces to reachability in a finite
+automaton, and we mechanize the model-checking algorithms---$k$-induction, reachability,
+emptiness, minimization---that turn this into scalable, certified tactics.
+We then lift the mono-width restriction: encoding symbolic widths as bitmasks,
+any multi-width parametric formula reduces with only linear blowup to an equisatisfiable
+mono-width one. This yields a new decidable fragment of the multi-width theory,
+and replaces exponential enumeration over widths with a single fixed-width query.
 
-We then generalize from the mono-width to the multi-width setting, where we prove that
-any multi-width parametric bitvector formula reduces to an equisatisfiable mono-width formula with only linear blowup.
-This relies on an encoding symbolic widths as bitmasks.
-This reduction not only yields a decidable fragment of multi-width parametric bitvector theory,
-but also yields solver for the bounded-width fragment that replaces exponential enumeration with a single fixed-width query.
-This solver is both algorithmically interesting, and is fast in practice.
-
-Finally, we extend mechanized bitblasting from bitvectors to floating-point arithmetic.
+For floating point, the infinity is that of the reals,
+and rounding is what buys back finiteness.
 We mechanize the SMT-LIB theory of floating point,
 build verified bitblasting circuits for its operations,
 and obtain the first verified floating-point bitblaster,
-which runs within a constant geometric-mean factor (around $33\times$) of the state-of-the-art unverified solver Bitwuzla,
-while offering end-to-end correctness guarantees and supporting the small formats used in machine-learning quantization.
+which runs within a constant geometric-mean factor (around $33\times$) of the
+state-of-the-art unverified solver Bitwuzla,
+while offering end-to-end correctness guarantees and supporting the small formats used in
+machine-learning quantization.
 
-With this work we show that the price of foundational trust in finite-domain is not too dear,
-and we outline a path toward making the price of foundational trust in finite-domain reasoning even cheaper.
+What we learn is that the price of foundational trust is real, but affordable where it is
+actually charged.
+On the largest problems we throw at them, our mechanized solvers remain one to two orders
+of magnitude slower than the unverified state of the art;
+but the problems that arise in peephole rewrite verification are small enough that this
+gap does not bite.
+Foundational proof and push-button automation need not be at odds.
+We hope that these reductions, and their mechanizations,
+lay the groundwork for verification efforts of far greater ambition.
