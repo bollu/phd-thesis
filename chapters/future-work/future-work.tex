@@ -50,10 +50,22 @@ and using the infrastructure of this thesis to bootstrap large-scale formalizati
 % See also: Solving Satisfiability of Polynomial Formulas By Sample-Cell
 % Projection, https://arxiv.org/pdf/2003.00409
 
-\section{Ackermannization, Incremental Solving, \& Arrays}
+\section{Fullly Mechanized Bitwuzla}
 
-Adding \emph{incremental solving} to \bvdecide{} would enable much better
-variants of ackermannization, thereby unlocking support for the theory of
+
+The key missing piece of the verified solver is support for the theory of arrays.
+Arrays can be implemented in terms of a larger body of theory, called \emph{ackermannization},
+which reduces array reasoning to uninterpreted functions and bitvectors.
+The idea is that in order to... arrays, we do ... uninterpreted functions.
+Uninterpreted functions on a finite domain are captured entirely by their congruece rule,
+$x = y \implies f(x) = f(y)$. So, we creae new atoms called $f_x$ and $f_y$, which stand in for $f(x)$ and $f(y)$, and add the axiom
+$x = y \implies f_x = f_y$. This is a standard technique for adding support for uninterpreted functions to a SAT based theory.
+However, since there are quadratically many pairs of terms,
+doing this eagerly is not feasible.
+Instead, one can do this \emph{incrementally}, only adding the axiom when the solver finds a counterexample to it.
+
+Adding \emph{incremental solving} to \bvdecide{} would therefore enable much better
+variants of ackermannization, and unlocking support for the theory of
 arrays. Together with the floating-point support of \cref{ch:floating-point},
 this would bring the verified solver to theory parity with
 Bitwuzla~\citep{niemetz2023bitwuzla} ($\qfbv{} + \qffp{} + \qfuf{}$),
@@ -63,33 +75,24 @@ evaluating whether such an extended solver can handle real verification
 workloads. Bitwuzla's ackermannization and multiplication-abstraction
 machinery is a natural starting point for a mechanization.
 
-\section{Floating-Point Analysis By The Theory Of Exponential Rings}
+\section{Tensor Bitblasting}
 
-% \section{Broader Outlook: AI for Formal Verification}
-% \label{sec:fw:ai}
-% 
-% Beyond decision procedures themselves, two directions apply the
-% infrastructure of this thesis to machine-assisted formalization.
-% 
-% \paragraph{Large-scale auto-formalization of software engineering theories.}
-% Formal libraries for bitvector and floating-point theories remain sparse,
-% owing to a lack of both training data (such as textbooks) and domain-specific
-% tactics that work well over these rich domains. The tactic infrastructure and
-% domain knowledge developed in this thesis provide the foundation needed to
-% bootstrap large-scale formalization efforts for these theories, given
-% sufficient models and compute.
-% 
-% \paragraph{Teaching models to metaprogram in Lean.}
-% A principled tactic in Lean comprises (a)~a decision procedure for the
-% domain, and (b)~the metaprogramming glue connecting it to the user frontend
-% (proof by reflection, \texttt{simp}, \texttt{grind}, simprocs, and so on).
-% The metaprogramming API is complex, underdocumented, and contains subtle
-% invariants that are easy to break; if AI models are to create their own
-% tactics, they must master this metaprogramming layer. We would like to
-% explore whether cleaner abstractions---analogous to how \texttt{SymM} inside
-% \texttt{GrindM} abstracts away the metaprogramming machinery for symbolic
-% simulation---can be designed for proof by reflection, making the API
-% tractable for both humans and models.
+Tensor bitblasting should be possible, since all the parts are there:
+fpsan for floating point level equivalence,
+tensorright for shape level equivalence,
+linear layouts for layout encodings.
+This builds exactly along our strengths: fpsan can be implemented as a bitvector solver,
+and guarantees equivalence-upto-exponential ring, which is what ML practicioners care about.
+tensorright offers a guarnatee similar to our automata based solvers,
+where they compute a safety cutoff for the number of dimensions to be checked for,
+and they then check upto this dimension size. The key innovation will be to find a good BV based encoding for this,
+but it should be possible, using similar masking tricks as our multi-width solver.
+Finally, linear layouts shows how to encode layouts efficiently in terms of bitpatterns,
+under the assumption that the layouts are all going to be powers of 2, which they are in practice.
+This should feed into tensorright, and allow us to implement a tensor bitblaster that
+is fast (since it is powered by SAT), as well as providing a bounded-to-unbounded transfer principle,
+by building on top of tensorright's theory.
+
 
 \section*{Closing}
 

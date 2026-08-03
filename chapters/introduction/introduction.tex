@@ -1,47 +1,56 @@
 \chapter{Introduction}
 \label{ch:intro}
-\epigraph{Begin at the beginning, and go on till you come to the end: then
-stop.}{The King, \emph{Alice's Adventures in Wonderland}}
+\epigraph{You can't get to the moon by climbing successively taller trees}{Akin's Laws of Spacecraft Design (Law 31)}
 
-\lettrine{A} real computer is a finite thing: a finite number of registers, a finite amount of memory.
-However, the set of all computers, with various register widths and memory sizes, is infinite.
-This exposes a tension in the lines of thinking of compiler design~\citep{aho1985compilers,lattner2004llvm}, and eventually, compiler verification~\citep{leroy2016compcert,kumar2014cakeml}.
-Do we choose to consider just a \emph{single} machine, which is entirely finite, and this in principle,
-is entirely knowable? Or do we consider a \emph{family} of machines, where the register width is a design parameter,
-and is fundamentally unbounded? The former is a finite-domain problem, and the latter is an infinite-domain problem.
+The bitter lesson~\citep{sutton2019bitter} is the central observation in AI that search and learning
+are the only two paradigms which keep paying off as we feed more compute into the algorithm.
+The same appears to hold in automated reasoning, where search, exemplified by SAT solving~\citep{biere2024cadical,kissatSATComp2024}, now routinely
+settles problems with hundreds of millions of variables.
+Betting on this scaling has given us the bitblasting tradition of encoding rich theories into propositional logic~\citep{tseitin1983complexity,niemetz2023bitwuzla,barbosa2022cvc5},
+which powers the state-of-the-art approaches to building SMT solvers.
 
-Mathematicians have pondered such questions too, via the notion of ``compactness''~\citep{boolos2002computability},
-\footnote{A quote goes, as cleanliness is next to godliness, so too is compactness next to finiteness}
-which guarantees that an infinite object such as a topological space can be understood by reasoning about a finite collection of parts of it.
-In this thesis, we show similar design principles can be applied to reasoning about infinite families of finite-domian problems.
-For example, while a compiler itself is incredibly complicated, the actual collection of peephole rewrites~\citep{mckeeman1965peephole},
-that perform a local, finite transformation is in itself very simple, and provides a solid bedrock for mechanization,
+
+This forces a question upon us: how do we, as practitioners of the art of verification, bring the paradigm of search into our own domain?
+In my own area, that of compiler construction~\citep{aho1985compilers,lattner2004llvm}, and eventually, compiler verification~\citep{leroy2016compcert,kumar2014cakeml},
+there are two broad answers.
+The first is to reason about a single machine and a single program, both of which are finite, and are therefore in principle
+encodable as a (potentially gigantic) SAT formula.
+This is what translation validation and related approaches do, to great effect.
+The second, and more satisfying, is to ask for correctness proofs that are quantified over
+the programs and the machines they speak about.
+This is a fundamentally unbounded problem, and so appears out of reach of search,
+which, at least naively, demands a finite domain.
+
+Mathematicians and logicians have pondered such questions too.
+Compactness~\citep{boolos2002computability}, for instance, guarantees that an infinite set of first-order sentences
+is satisfiable exactly when each of its finite subsets is, so that an unbounded question may be settled by finite means.
+In this thesis, we follow the same design principle to reason about the infinite families of finite-domain problems that arise in compiler construction and compiler verification.
+
+We focus on compiler verification. A compiler, in total, is extremely complicated, but each of its peephole rewrites~\citep{mckeeman1965peephole}
+performs a single local transformation on a finite window, and is simple enough to serve as a bedrock for mechanization,
 as witnessed by the Alive line of work on LLVM's instruction combiner~\citep{lopes2015provably,lopes2021alive2}.
-Similarly, while a peephole rewrite, parametrized by the size of the registers is itself an infinite domain problem~\citep{niemetz2019towards,bit-precise-parametric-bv},
-we show that it can be reduced to a finite-domain problem, thereby enabling efficient solving of such problems.
-Finally, while floating point number semantics~\citep{ieeefp} are defined on an infinite domain of real numbers,
-the key step of rounding a floating point number~\citep{fphandbook} ensures that only a finite amount of information is needed to reason about the
-resulting value, thereby, once again, allowing a finite-domain reasoning approach to be applied.
+A peephole rewrite parametrized by the size of the registers it acts on is once again an infinite-domain problem~\citep{niemetz2019towards,bit-precise-parametric-bv},
+and we show that it too reduces to a finite-domain one, which can then be solved efficiently.
+Finally, floating-point semantics~\citep{ieeefp} are defined over the infinite domain of the real numbers,
+yet the rounding step~\citep{fphandbook} ensures that only a finite amount of information about a real number
+survives into the result, so that finite-domain reasoning applies here as well.
 
-Overall, the thurst of this thesis is to create, mechanize, and exploit reductions from the infinite to the finite.
-Luckily for us, computer scientists have made remarkable progress in solving finite domain problems (via SAT solving~\citep{biere2024cadical,kissatSATComp2024}),
-and, following the bitblasting tradition of encoding rich theories into propositional logic~\citep{tseitin1983complexity,niemetz2023bitwuzla,barbosa2022cvc5},
-we apply these techniques to some infinite domain problems in compiler verification.
+Overall, the thrust of this thesis is to create, mechanize, and exploit reductions from the infinite to the finite,
+and to apply these techniques to infinite-domain problems in compiler verification.
 With finiteness comes tractability, with tractability comes automation, and with automation comes scale.
-We hope to apply our techniques to \emph{scale up} the verification of compilers,
-thereby enabling the verification of more more complex compilers.
+Our ambition is to carry compiler verification up to the volume of a production compiler such as LLVM,
+where the peephole rewriter alone is larger than the entire vectorizer!
 
-Finally, another key theme throughout the thesis is that of mechanization.
-That is, not only do we come up with new algorithms, and implement new solvers,
-but we do so in a mechanized proof assistant, Lean~\citep{moura2021lean}, and prove the correctness of our algorithms in its proof language.
-Is this really worth it? Only time will tell, but I believe that mechanization will only grow in importance.
+A second theme running throughout this thesis is that of mechanization.
+That is, we do not merely devise new algorithms and implement new solvers:
+we do so inside a proof assistant, Lean~\citep{demoura2021lean}, and prove our algorithms correct in its proof language.
+Is this really worth the effort? Only time will tell, but I believe that mechanization will only grow in importance.
 We live in interesting times (as of July 2026),
-where large language models~\citep{brown2020language,touvron2023llama} are able to produce impressive amounts of code, but which cannot be trusted to get the details right.
-Indeed, models are known to be even more adverserial, and regularly reward hack, fulfilling the letter but not the sprit
-of one's specification, making our research even more timely.
-In this thesis, we show mechanization is possible and practical for a wide range of automation necessary for large-scale compiler verification,
-and we hope that our work lays down techniques that enable future mechanization of even larger ambition.
-
+in which large language models~\citep{brown2020language,touvron2023llama} produce impressive volumes of code that cannot be trusted to get the details right.
+Worse, such models regularly reward hack, fulfilling the letter but not the spirit
+of the specification they are handed, which makes a machine-checked specification all the more valuable.
+In this thesis, we show that mechanization is possible and practical across a wide range of the automation that large-scale compiler verification demands,
+and we hope that our techniques enable future mechanization of even greater ambition.
 
 % The tension at the heart of this thesis is one of \emph{trust}. On one side
 % stand state-of-the-art SMT solvers, such as Bitwuzla~\citep{niemetz2023bitwuzla},
@@ -85,28 +94,28 @@ and we hope that our work lays down techniques that enable future mechanization 
 
 \section{Contributions}
 
-\noindent Firstly, we contribute \textbf{A verified framework for peephole rewriting in SSA-based IRs} (\cref{ch:lean-mlir}).
+\noindent First, we contribute \textbf{A verified framework for peephole rewriting in SSA-based IRs} (\cref{ch:lean-mlir}).
 We formalize a core calculus for SSA-based IRs~\citep{appel1998ssa,rastello2022ssa},
 generic over the user's IR and covering MLIR-style regions~\citep{lattner2020mlir}, mechanize it in
 Lean with an MLIR-syntax frontend, and prove correct a generic peephole
 rewriter as well as dead-code and common-subexpression elimination.
 \publishedat{Published @ ITP~2024~\citep{leanmlir}}
 
-\noindent Secondly, we build \textbf{Certified decision procedures for width-independent bitvector predicates} (\cref{ch:mono-width}).
+\noindent Second, we develop \textbf{Certified decision procedures for width-independent bitvector predicates} (\cref{ch:mono-width}).
 We mechanize key model-checking algorithms, such as $k$-induction, automata reachability, emptiness, and
 minimization, and use them to build scalable, certified tactics for
 bitvector predicates that hold at \emph{all} widths, plus a specialized
 solver for mixed Boolean-arithmetic~\citep{liu2021mba,reichenwallner2022efficient}.
 \publishedat{Published @ OOPSLA~2025~\citep{bhat2025certified}}
 
-\noindent Thirdly, we lift the mono-width restriction, and build \textbf{Sound and complete solving for multi-width parametric bitvectors} (\cref{ch:multi-width}).
+\noindent Third, we lift the mono-width restriction and obtain \textbf{Sound and complete solving for multi-width parametric bitvectors} (\cref{ch:multi-width}).
 We prove that multi-width formulas over $n$ symbolic widths reduce, with linear blowup, to an equisatisfiable mono-width formula by encoding widths as bitmasks.
 This translation collapses exponential enumeration into one fixed-width solver call and yields a new decidable fragment subsuming the prior state of the art.
 \publishedat{Accepted with minor revision @ OOPSLA~2026~\citep{bhat2026multiwidth}}
 
-\noindent Finally, we build the first \textbf{Mechanized floating-point bitblaster} (\cref{ch:floating-point}), where we mechanize the SMT-LIB \qffp{} theory~\citep{smtlibfpa},
-build verified bitblasting circuits for its operations following SymFPU~\citep{symfpu}, and obtain the first
-verified floating-point bitblaster, evaluated on SMT-COMP~\citep{smtcomp2024} and on new
+\noindent Finally, we construct the first \textbf{Mechanized floating-point bitblaster} (\cref{ch:floating-point}).
+We mechanize the SMT-LIB \qffp{} theory~\citep{smtlibfpa} and build verified bitblasting circuits for its operations
+following SymFPU~\citep{symfpu}, and we evaluate the resulting solver on SMT-COMP~\citep{smtcomp2024} and on new
 small-format (E4M3/E5M2) benchmarks~\citep{fp8fordl}.
 \publishedat{Submitted @ POPL 2027~\citep{bhat2027floatingpoint}}
 
@@ -169,20 +178,20 @@ small-format (E4M3/E5M2) benchmarks~\citep{fp8fordl}.
 
 \paragraph{Publications and attribution.}
 Each contribution above is based on the publication whose venue is named beside it,
-and each such chapter reuses text from that paper.
+and the corresponding chapter reuses text from that paper.
 All of these works are collaborative; throughout the thesis, ``we'' refers to myself and my coauthors,
-and my personal contributions are stated in the beginning of each chapter with an attribution note.
-In addition, we draw on ``Interactive Bitvector Reasoning using Verified Bit-Blasting''~\citep{leanbv} (OOPSLA 2025),
-the fixed-width bitvector bitblasting paper on which I am a second author,
+and my own contributions are stated at the beginning of each chapter in an attribution note.
+We also draw on ``Interactive Bitvector Reasoning using Verified Bit-Blasting''~\citep{leanbv} (OOPSLA 2025),
+the fixed-width bitvector bitblasting paper on which I am second author,
 and reuse text from it in the exposition of \bvdecide{} in the background chapter (\cref{ch:background}).
 That work is presented as background rather than as a contribution of this thesis.
 
 \paragraph{Plan of this thesis.}
 We begin by surveying the shared machinery of SAT solving, bitblasting, the Lean proof assistant,
 and the verified \bvdecide{} bitblaster that the later procedures extend (\cref{ch:background}).
-We then explain the peephole-rewriting framework (\cref{ch:lean-mlir}).
+We then present the peephole-rewriting framework (\cref{ch:lean-mlir}).
 With this framework in hand, we build solvers for parametric bitvectors,
 first for a single symbolic width (\cref{ch:mono-width}), and then for many symbolic widths at once (\cref{ch:multi-width}).
-We next turn to floating-point formulas, and show how to bitblast them in a verified fashion,
+We next turn to floating-point formulas and show how to bitblast them in a verified fashion,
 yielding the first verified floating-point bitblaster (\cref{ch:floating-point}).
 We conclude by charting unpublished results and future directions (\cref{ch:future-work}).
