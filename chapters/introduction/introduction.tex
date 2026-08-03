@@ -5,36 +5,38 @@ stop.}{The King, \emph{Alice's Adventures in Wonderland}}
 
 \lettrine{A} real computer is a finite thing: a finite number of registers, a finite amount of memory.
 However, the set of all computers, with various register widths and memory sizes, is infinite.
-This exposes a tension in the lines of thinking of compiler design, and eventually, compiler verification.
+This exposes a tension in the lines of thinking of compiler design~\citep{aho1985compilers,lattner2004llvm}, and eventually, compiler verification~\citep{leroy2016compcert,kumar2014cakeml}.
 Do we choose to consider just a \emph{single} machine, which is entirely finite, and this in principle,
 is entirely knowable? Or do we consider a \emph{family} of machines, where the register width is a design parameter,
 and is fundamentally unbounded? The former is a finite-domain problem, and the latter is an infinite-domain problem.
 
-Mathematicians have pondered such questions too, via the notion of ``compactness'',
+Mathematicians have pondered such questions too, via the notion of ``compactness''~\citep{boolos2002computability},
 \footnote{A quote goes, as cleanliness is next to godliness, so too is compactness next to finiteness}
 which guarantees that an infinite object such as a topological space can be understood by reasoning about a finite collection of parts of it.
 In this thesis, we show similar design principles can be applied to reasoning about infinite families of finite-domian problems.
-For example, while a compiler itself is incredibly complicated, the actual collection of peephole rewrites,
-that perform a local, finite transformation is in itself very simple, and provides a solid bedrock for mechanization.
-Similarly, while a peephole rewrite, parametrized by the size of the registers is itself an infinite domain problem,
+For example, while a compiler itself is incredibly complicated, the actual collection of peephole rewrites~\citep{mckeeman1965peephole},
+that perform a local, finite transformation is in itself very simple, and provides a solid bedrock for mechanization,
+as witnessed by the Alive line of work on LLVM's instruction combiner~\citep{lopes2015provably,lopes2021alive2}.
+Similarly, while a peephole rewrite, parametrized by the size of the registers is itself an infinite domain problem~\citep{niemetz2019towards,bit-precise-parametric-bv},
 we show that it can be reduced to a finite-domain problem, thereby enabling efficient solving of such problems.
-Finally, while floating point number semantics are defined on an infinite domain of real numbers,
-the key step of rounding a floating point number ensures that only a finite amount of information is needed to reason about the
+Finally, while floating point number semantics~\citep{ieeefp} are defined on an infinite domain of real numbers,
+the key step of rounding a floating point number~\citep{fphandbook} ensures that only a finite amount of information is needed to reason about the
 resulting value, thereby, once again, allowing a finite-domain reasoning approach to be applied.
 
 Overall, the thurst of this thesis is to create, mechanize, and exploit reductions from the infinite to the finite.
-Luckily for us, computer scientists have made remarkable progress in solving finite domain problems (via SAT solving),
-and we apply these techniques to some infinite domain problems in compiler verification.
+Luckily for us, computer scientists have made remarkable progress in solving finite domain problems (via SAT solving~\citep{biere2024cadical,kissatSATComp2024}),
+and, following the bitblasting tradition of encoding rich theories into propositional logic~\citep{tseitin1983complexity,niemetz2023bitwuzla,barbosa2022cvc5},
+we apply these techniques to some infinite domain problems in compiler verification.
 With finiteness comes tractability, with tractability comes automation, and with automation comes scale.
 We hope to apply our techniques to \emph{scale up} the verification of compilers,
 thereby enabling the verification of more more complex compilers.
 
 Finally, another key theme throughout the thesis is that of mechanization.
 That is, not only do we come up with new algorithms, and implement new solvers,
-but we do so in a mechanized proof assistant, Lean, and prove the correctness of our algorithms in its proof language.
+but we do so in a mechanized proof assistant, Lean~\citep{moura2021lean}, and prove the correctness of our algorithms in its proof language.
 Is this really worth it? Only time will tell, but I believe that mechanization will only grow in importance.
 We live in interesting times (as of July 2026),
-where large language models are able to produce impressive amounts of code, but which cannot be trusted to get the details right.
+where large language models~\citep{brown2020language,touvron2023llama} are able to produce impressive amounts of code, but which cannot be trusted to get the details right.
 Indeed, models are known to be even more adverserial, and regularly reward hack, fulfilling the letter but not the sprit
 of one's specification, making our research even more timely.
 In this thesis, we show mechanization is possible and practical for a wide range of automation necessary for large-scale compiler verification,
@@ -83,28 +85,30 @@ and we hope that our work lays down techniques that enable future mechanization 
 
 \section{Contributions}
 
-Firstly, we contribute \textbf{A verified framework for peephole rewriting in SSA-based IRs} (\cref{ch:lean-mlir}).
-We formalize a core calculus for SSA-based IRs,
-generic over the user's IR and covering MLIR-style regions, mechanize it in
+\noindent Firstly, we contribute \textbf{A verified framework for peephole rewriting in SSA-based IRs} (\cref{ch:lean-mlir}).
+We formalize a core calculus for SSA-based IRs~\citep{appel1998ssa,rastello2022ssa},
+generic over the user's IR and covering MLIR-style regions~\citep{lattner2020mlir}, mechanize it in
 Lean with an MLIR-syntax frontend, and prove correct a generic peephole
 rewriter as well as dead-code and common-subexpression elimination.
-Published at ITP~2024~\citep{leanmlir}.
+\publishedat{Published @ ITP~2024~\citep{leanmlir}}
 
-Secondly, we build \textbf{Certified decision procedures for width-independent bitvector predicates} (\cref{ch:mono-width}).
+\noindent Secondly, we build \textbf{Certified decision procedures for width-independent bitvector predicates} (\cref{ch:mono-width}).
 We mechanize key model-checking algorithms, such as $k$-induction, automata reachability, emptiness, and
 minimization, and use them to build scalable, certified tactics for
 bitvector predicates that hold at \emph{all} widths, plus a specialized
-solver for mixed Boolean-arithmetic. Published at OOPSLA~2025~\citep{bhat2025certified}.
+solver for mixed Boolean-arithmetic~\citep{liu2021mba,reichenwallner2022efficient}.
+\publishedat{Published @ OOPSLA~2025~\citep{bhat2025certified}}
 
-Thirdly, we lift the mono-width restriction, and build \textbf{Sound and complete solving for multi-width parametric bitvectors} (\cref{ch:multi-width}).
+\noindent Thirdly, we lift the mono-width restriction, and build \textbf{Sound and complete solving for multi-width parametric bitvectors} (\cref{ch:multi-width}).
 We prove that multi-width formulas over $n$ symbolic widths reduce, with linear blowup, to an equisatisfiable mono-width formula by encoding widths as bitmasks.
 This translation collapses exponential enumeration into one fixed-width solver call and yields a new decidable fragment subsuming the prior state of the art.
-Conditionally accepted at OOPSLA~2026~\citep{bhat2026multiwidth}.
+\publishedat{Accepted with minor revision @ OOPSLA~2026~\citep{bhat2026multiwidth}}
 
-Finally, we build the first \textbf{Mechanized floating-point bitblaster} (\cref{ch:floating-point}), where we mechanize the SMT-LIB \qffp{} theory,
-build verified bitblasting circuits for its operations, and obtain the first
-verified floating-point bitblaster, evaluated on SMT-COMP and on new
-small-format (E4M3/E5M2) benchmarks. In submission at POPL 2027~\citep{bhat2027floatingpoint}.
+\noindent Finally, we build the first \textbf{Mechanized floating-point bitblaster} (\cref{ch:floating-point}), where we mechanize the SMT-LIB \qffp{} theory~\citep{smtlibfpa},
+build verified bitblasting circuits for its operations following SymFPU~\citep{symfpu}, and obtain the first
+verified floating-point bitblaster, evaluated on SMT-COMP~\citep{smtcomp2024} and on new
+small-format (E4M3/E5M2) benchmarks~\citep{fp8fordl}.
+\publishedat{Submitted @ POPL 2027~\citep{bhat2027floatingpoint}}
 
 % \section{Scope and Limitations}
 % \label{sec:intro:scope}
@@ -164,31 +168,21 @@ small-format (E4M3/E5M2) benchmarks. In submission at POPL 2027~\citep{bhat2027f
 % \end{itemize}
 
 \paragraph{Publications and attribution.}
-The chapters of this thesis are based on the following publications:
-
-\begin{itemize}
-  \item \emph{Verifying Peephole Rewriting in SSA Compiler IRs}~\citep{leanmlir},
-  ITP 2024; basis of \cref{ch:lean-mlir}.
-  \item \emph{Certified Decision Procedures for Width-Independent Bitvector
-  Predicates}~\citep{bhat2025certified}, OOPSLA 2025; basis of
-  \cref{ch:mono-width}.
-  \item \emph{Sound and Complete Solving for Multi-Width Parametric Bitvectors
-  via Principled Reductions}~\citep{bhat2026multiwidth}, conditionally
-  accepted at OOPSLA 2026; basis of \cref{ch:multi-width}.
-  \item \emph{Mechanizing Floating Point Bitblasting}~\citep{bhat2027floatingpoint},
-  in submission; basis of \cref{ch:floating-point}.
-\end{itemize}
-
-In addition, \cref{ch:background} draws on ``Interactive Bitvector Reasoning using Verified Bit-Blasting''~\citep{leanbv} (OOPSLA 2025), on which I am a second author.
-That work is presented as background rather than as a contribution of this thesis.
-All the works above are collaborative; throughout the thesis, ``we'' refers to myself and my coauthors,
+Each contribution above is based on the publication whose venue is named beside it,
+and each such chapter reuses text from that paper.
+All of these works are collaborative; throughout the thesis, ``we'' refers to myself and my coauthors,
 and my personal contributions are stated in the beginning of each chapter with an attribution note.
+In addition, we draw on ``Interactive Bitvector Reasoning using Verified Bit-Blasting''~\citep{leanbv} (OOPSLA 2025),
+the fixed-width bitvector bitblasting paper on which I am a second author,
+and reuse text from it in the exposition of \bvdecide{} in the background chapter (\cref{ch:background}).
+That work is presented as background rather than as a contribution of this thesis.
 
 \paragraph{Plan of this thesis.}
-The \Cref{ch:background} explains the shared machinery of SAT solving, bitblasting, the Lean proof assistant,
-and the verified \bvdecide{} bitblaster that the later procedures extend.
-In \Cref{ch:lean-mlir}, we explain the peephole-rewriting framework.
-Then, the \Cref{ch:mono-width} and \cref{ch:multi-width} chapters build solvers for mono-width and multi-width parametric bitvectors.
-Finally, \Cref{ch:floating-point} explains how to perform verified-bitblasting for floating-point formulas,
-yielding the first verified floating-point bitblaster. Finally, \Cref{ch:future-work}
-concludes and charts unpublished results and directions.
+We begin by surveying the shared machinery of SAT solving, bitblasting, the Lean proof assistant,
+and the verified \bvdecide{} bitblaster that the later procedures extend (\cref{ch:background}).
+We then explain the peephole-rewriting framework (\cref{ch:lean-mlir}).
+With this framework in hand, we build solvers for parametric bitvectors,
+first for a single symbolic width (\cref{ch:mono-width}), and then for many symbolic widths at once (\cref{ch:multi-width}).
+We next turn to floating-point formulas, and show how to bitblast them in a verified fashion,
+yielding the first verified floating-point bitblaster (\cref{ch:floating-point}).
+We conclude by charting unpublished results and future directions (\cref{ch:future-work}).

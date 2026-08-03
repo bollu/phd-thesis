@@ -124,6 +124,15 @@
 \requiredelimiter{\leanmlir}
 
 %%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%
+%% Publication venue tag, flushed right on its own line below a contribution.
+%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%
+\newcommand{\publishedat}[1]{%
+  \par\nobreak\vspace{0.15\baselineskip}%
+  {\raggedleft\footnotesize\mbox{#1}\par}%
+  \vspace{0.75\baselineskip}%
+}
+
+%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%
 %% Unicode characters appearing in pasted Lean code.
 %%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%
 \newunicodechar{₀}{\ensuremath{_0}}

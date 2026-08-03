@@ -1,10 +1,10 @@
-\epigraph{Immortality would have been meaningless, trapped in a ``machine'' with a finite number of possible states; in a finite time he would have exhausted the list of every possible thing he could be"}{Greg Egan, Permutation City}
+\epigraph{Immortality would have been meaningless, trapped in a ``machine'' with a finite number of possible states; in a finite time he would have exhausted the list of every possible thing he could be}{Greg Egan, Permutation City}
 
 A real computer is a finite thing: finitely many registers, each of finite width.
 A compiler writer reasons not about one, finite, machine but about an infinite family of them,
 parametrized by register width, memory size, and all the other dimensions of the machine that can be scaled up or down.
 Thus, a peephole rewrite has to hold at \emph{every} register width,
-a floating-point rewrite has to hold at \emph{every} exponent-and-manitssa combination.
+a floating-point rewrite has to hold at \emph{every} exponent and manitssa combination.
 This thesis is about closing the gap, by translating many of these infinite problems
 into a (family) of finite ones, and proving these translations correct
 in order to enable push-button automation of the finite problems.
@@ -46,7 +46,7 @@ and replaces exponential enumeration over widths with a single fixed-width query
 For floating point, while the semantics are defined in terms of real numbers,
 rounding back to a fixed width buys back finiteness.
 We mechanize the SMT-LIB theory of floating point, build verified bitblasting circuits for its operations,
-and obtain floating-point bitblaster that's trustworthy across all widths and exponent/mantissa combinations.
+and obtain floating-point bitblaster that's trustworthy across all widths and exponent and mantissa combinations.
 We are 33x slower than the state-of-the-art unverified solver Bitwuzla,
 but in exchange, offer end-to-end correctness guarantees.
 
