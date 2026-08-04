@@ -19,20 +19,6 @@
 \newcommand{\isinf}{\ensuremath{\mathrm{isInf}}}
 \newcommand{\iszero}{\ensuremath{\mathrm{isZero}}}
 
-% Links into our Lean development, in the style of rocq-sims source links.
-% \linklean[ShortLabel]{Path/In/Repo.lean}{line} renders [L∃∀N ShortLabel:line]
-% (defaulting to the full path) and hyperlinks to the file and line on GitHub.
-% \leanlinkroot links to the repository root.
-\providecolor{leanblue}{HTML}{283593}
-\newcommand{\leanlogo}{{\small \ensuremath{\texttt{L}\exists\forall\texttt{N}}}~~}
-\newcommand{\leanprojecturl}{https://github.com/opencompl/fp.lean/}
-\newcommand{\leanrepourl}{https://github.com/opencompl/fp.lean/blob/main}
-\newcommand{\leanlink}[2]{\href{#1}{{\color{leanblue}[{\footnotesize\leanlogo}\,\texttt{\footnotesize #2}]}}}
-\newcommand{\leanlinkroot}{\leanlink{\leanprojecturl}{fp.lean}}
-\newcommand{\linklean}[3][]{%
-  \ifthenelse{\isempty{#1}}%
-    {\leanlink{\leanrepourl/#2\#L#3}{#2:#3}}%
-    {\leanlink{\leanrepourl/#2\#L#3}{#1:#3}}}
 % Link a SymFPU commit hash (third-party repo).
 \newcommand{\symfpucommit}[1]{\href{https://github.com/martin-cs/symfpu/commit/#1}{\texttt{#1}}}
 
@@ -400,8 +386,7 @@ The packed bit-level representation of floating-point numbers is fixed by the IE
 Recall that IEEE 754 states that floating-point numbers are represented by three parts:
 a sign $s$, exponent $e$, and significand $m$ (we write $m$ for the significand, after its historical name, the \textit{mantissa}),
 where the sign is represented by a single bit and the exponent and significand are represented by unsigned integer bit-vectors.
-Our \texttt{PackedFloat}\footnote{\linklean[PackedFloat/Basic.lean]{Fp/PackedFloat/Basic.lean}{20}.
-Lean source links resolve to the corresponding file and line of our development, \leanlinkroot{}.} datatype
+Our \texttt{PackedFloat} datatype
 is a \emph{bit-exact mirror} of this layout:
 \begin{lean4}
 structure PackedFloat (E M : Nat) where
@@ -439,7 +424,7 @@ In summary, the value denoted by a \texttt{PackedFloat} is determined by its exp
 \paragraph{Equivalence Up to NaN.}
 As noted above, the packed IEEE format admits many \nan{} bit patterns (differing in their payloads),
 whereas the SMT-LIB model contains a \emph{single} \nan{} value for its packed floating-point representation.
-To model this, we define the relation \texttt{EquivUptoNaN}\footnote{\linklean[PackedFloat/Basic.lean]{Fp/PackedFloat/Basic.lean}{281}},
+To model this, we define the relation \texttt{EquivUptoNaN},
 which relates two packed floats iff they are both bit-equal, or both \nan{}.
 Our top-level theorems prove that the circuit and the SMT-LIB specification agree up to \nan{}.
 This gives us the floats themselves, the first ingredient of the recipe.
@@ -533,7 +518,7 @@ $(\mathrm{lower}(r) : \texttt{X})$ is the \emph{greatest} float whose embedding 
 and $(\mathrm{upper}(r) : \texttt{X})$ is the \emph{least} float whose embedding is at least $r$.
 The bounds themselves are then obtained from the axiom of choice,
 where Hilbert's choice operator $\varepsilon$ picks an arbitrary value satisfying the
-relation~\linklean[SmtLibSemantics.lean]{Fp/SmtLibSemantics.lean}{282}:
+relation:
 \begin{lean4}
 -- The abstract bound: *some* lawful lower bound, given by choice.
 noncomputable def smtLibLower : RoundMethod (PackedFloat e s) ExtRat where
@@ -550,7 +535,7 @@ the floats of \texttt{PackedFloat e (s+1)} sit exactly at the floats of \texttt{
 so one extra bit of precision is exactly enough to resolve the position of $r$ relative to the midpoint.
 
 The computable instantiation finds the same bounds by brute
-force\footnote{\linklean[Enumerator.lean]{FpExecutableTests/SmtLibSemanticsEnumerator.lean}{18}}:
+force:
 it enumerates the finitely many floats of the format and selects the closest representable values directly.
 We prove the abstract and computable instantiations equivalent,
 which both simplifies proofs and provides a test oracle for the circuit implementation (\cref{sec:fp:testing}).
@@ -677,7 +662,7 @@ Separating the exceptional states from the numeric payload keeps illegal bit pat
 and the real value of the exponent is computed by subtracting the bias.
 This gives us an unpacked floating point number that represents a value of the form $1.m_1 m_2 \dots m_N \times 2^{e}$ for all numbers.
 \emph{Packing.} Not all unpacked floats can be packed back, since the unpacked floating point range is larger than the packed floating point range.
-Therefore, we have a predicate \texttt{Packable}\footnote{\linklean[packable.lean]{Fp/UnpackedFloat/packable.lean}{14}. We prove that \texttt{Packable} characterizes exactly the image of unpacking: a \texttt{Packable} float packs and unpacks back to itself~\linklean[PackUnpackRoundTrip.lean]{Fp/Theorems/PackUnpackRoundTrip.lean}{52}, and conversely, the unpacking of any packed float is \texttt{Packable}~\linklean[Packing.lean]{Fp/Theorems/PackedFloat/Packing.lean}{924}.} that checks whether an unpacked float can be packed back into the packed representation.
+Therefore, we have a predicate \texttt{Packable}\footnote{We prove that \texttt{Packable} characterizes exactly the image of unpacking: a \texttt{Packable} float packs and unpacks back to itself, and conversely, the unpacking of any packed float is \texttt{Packable}.} that checks whether an unpacked float can be packed back into the packed representation.
 
 
 \subsection{Implementing Rounding with Guard and Sticky Bits}\label{sec:fp:rounding}
@@ -776,14 +761,13 @@ this information into a single sticky bit.
 \begin{definition}[Sticky compression]\label{def:fp:sticky-compression}
 At precision $k$, the value $q$ is a sticky compression of the exact
 result $r$, written $\mathrm{StickyEquiv}_k(q, r)$, iff either $q = r$,
-or $q$ is an odd multiple of $2^k$ and $|r - q| < 2^k$.%
-~\linklean[StickyEquiv.lean]{Fp/Theorems/StickyEquiv.lean}{16}
+or $q$ is an odd multiple of $2^k$ and $|r - q| < 2^k$.
 \end{definition}
 
 This is exactly the contract of a guard-and-sticky implementation:
 either no low bits were discarded, or the kept value has its lowest bit forced to $1$ (the sticky OR)
 and the true result lies strictly within $2^k$ of the kept value.
-The master lemma~\linklean[RoundEquiv.lean]{Fp/Theorems/RoundEquiv.lean}{367}
+The master lemma
 then states that rounding cannot tell the difference.
 We prove a theorem that connects the bit-level rounder to the SMT-LIB rounder,
 which is then reused by all operations that need rounding:
@@ -794,8 +778,8 @@ significand bits and sufficient exponent range compared to a target format $(e, 
 Then rounding $x$ into $(e, s)$ with the bit-level rounder agrees, up to the
 choice of~\nan{}, with rounding the exact rational value of $x$
 with the SMT-LIB rounder, for every SMT-LIB rounding mode.\footnote{%
-\texttt{UnpackedFloat.toExtRat\_round\_Rel\_smtLibRound}~\linklean[AllRoundingModes.lean]{Fp/Theorems/AllRoundingModes.lean}{30} in our development,
-which dispatches on the rounding mode to five per-mode bridge lemmas (e.g.,~\texttt{\ldots\_of\_RNE}~\linklean[Round/RNE.lean]{Fp/Theorems/UnpackedFloat/Round/RNE.lean}{720}).}
+\texttt{UnpackedFloat.toExtRat\_round\_Rel\_smtLibRound} in our development,
+which dispatches on the rounding mode to five per-mode bridge lemmas (e.g.,~\texttt{\ldots\_of\_RNE}).}
 \end{theorem}
 
 The precondition of two extra bits of precision in the input is the guard-and-sticky requirement.
@@ -856,11 +840,9 @@ we finally survey the core implementation of each operation and its correctness 
 
 Each verified operation has one top-level theorem that states that the circuit and SMT-LIB specification agree up to \nan{} equivalence.
 For example, for multiplication, we state:\footnote{%
-\texttt{Fp.mul\_eq\_mul}~\linklean[Multiplication.lean]{Fp/Theorems/Multiplication.lean}{303} in our development.
-Its analogues are
-\linklean[Addition.lean]{Fp/Theorems/Addition.lean}{1777},
-\linklean[Division.lean]{Fp/Theorems/Division.lean}{424}, and
-\linklean[FMA.lean]{Fp/Theorems/FMA.lean}{287}.}
+\texttt{Fp.mul\_eq\_mul} in our development.
+Its analogues for addition, division, and fused multiply-add are proved
+the same way.}
 \begin{lean4}
 theorem mul_eq_mul (a b : PackedFloat e s) (rm : RoundingMode)
     (he : 3 ≤ e) (hs : 1 ≤ s) :
@@ -1074,7 +1056,7 @@ We perform testing against a trusted oracle to have a high degree of confidence 
 \noindent\textbf{Exhaustive enumeration frontend.}
 We also provide a second way to decide a closed \texttt{QF\_FP} goal that does not go through SAT.
 Since a floating-point format is a finite type, a universally quantified goal over packed floats is decidable, and we can settle it by enumerating every input.
-We synthesize the \texttt{Decidable} instance for this quantifier~\linklean[PackedFloat/Basic.lean]{Fp/PackedFloat/Basic.lean}{677}.
+We synthesize the \texttt{Decidable} instance for this quantifier.
 The instance destructures a \texttt{PackedFloat} into its sign bit, exponent bitvector, and significand bitvector, and reduces a goal $\forall\,(x : \texttt{PackedFloat}~e~s),\, P(x)$ to a quantifier over $\texttt{Bool} \times \texttt{BitVec}~e \times \texttt{BitVec}~s$, which the standard \texttt{Decidable} instances for \texttt{Bool} and \texttt{BitVec} settle by finite enumeration.
 We provide the analogous instances for \texttt{EUnpackedFloat}, \texttt{UnpackedFloat}, \texttt{State}, and \texttt{RoundingMode}, so that quantifiers over all of our floating-point types are decidable.
 Invoking \texttt{native\_decide} on the goal compiles this enumeration to native code, and either proves the goal or produces a counterexample.
@@ -1278,7 +1260,7 @@ against it. The fix, which carries the result exponent through a subtract-with-b
 and weakens the divider's postcondition to a range check rather than re-extending a
 fixed-width exponent, is present in the reworked \texttt{502cd63}, and our enumerator
 finds no E3M4 division abort there.
-Our theorem \texttt{div\_eq\_div}~\linklean[Division.lean]{Fp/Theorems/Division.lean}{424}
+Our theorem \texttt{div\_eq\_div}
 establishes that the divider circuit agrees with the SMT-LIB specification for every
 format satisfying $s \geq 1, e \geq 3$.
 
