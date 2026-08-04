@@ -1,62 +1,50 @@
-\epigraph{Immortality would have been meaningless, trapped in a ``machine'' with a finite number of possible states; in a finite time he would have exhausted the list of every possible thing he could be}{Greg Egan, Permutation City}
+\epigraph{Civilization advances by extending the number of important operations which we can perform without thinking about them}{Alfred North Whitehead, An Introduction to Mathematics}
 
-As computer scientists, we often contemplate idealizations of computers that are infinite in multiple dimensions: infinite memory, infinite registers, infinite precision.
-However, real computer is a finite thing: finitely many registers, finitely much memory, finitely many bits of precision.
-Thus, in principle, everything about a real computer can be exhaustive enumerated, and all questions can be answered by a brute force search.
-But things are never so easy. When we write a compiler, we reason not about one, finite, machine but about an infinite family of machines,
-parametrized by the dimensions of the machine that can be scaled up or down.
-Thus, for example, a rewrite has to be correct at \emph{every} register width,
-a floating-point rewrite has to hold at \emph{every} exponent and manitssa combination.
-Can we do better, and somehow reduce these infinitary problems to finite ones, to exploit the speed of brute-force search and automation?
-In this these, we make an attempt at translating some of these infinite problems
-into a (family) of finite ones, and proving these translations correct
-in order to enable push-button automation via search.
+A compiler is a large program.
+In LLVM, the peephole rewriter alone is larger than the entire vectorizer!
+This thesis is about verifying such a compiler.
+Its unit of work is the peephole rewrite: a single, local transformation on a finite window of instructions.
+Each is small enough to prove correct, but compiler correctness is,
+to a first approximation, thousands of such little theorems.
 
-% Automating such reasoning today forces a choice.
-% SMT solvers decide the finite instances with formidable speed,
-% but are large, aggressively optimized, unverified programs.
-% Interactive theorem provers check every step against a small kernel,
-% but have traditionally offered only weak automation for finite-domain theories.
-% We want the speed without surrendering the guarantee.
+Can we prove them by hand? In principle, yes. In practice, this is deathly tedious.
+We first formalize a core calculus for SSA-based compiler intermediate representations,
+generic over the user's IR, and prove correct a generic peephole rewriter,
+with case studies from LLVM bitvector rewrites to fully homomorphic encryption.
+This teaches us where the difficulty lives.
+The structural half of each proof comes for free;
+the arithmetic half does not, and it is here that our LLVM case study stalls.
+It is this tedium that drives the demand for push-button automation: a decision procedure.
 
-Our key idea is borrowed from the mathematician's notion of compactness:
-an infinite object can often be understood by reasoning about finitely much of it.
-We create, mechanize, and exploit reductions from the infinite to the finite.
-We discharge what remains of the finite portion by SAT solving.
-With finiteness comes tractability, with tractability automation,
-and with automation scale.
+Which automation should we bet on? Bitblasting.
+Encode a rich theory into propositional logic, and hand the result to a SAT solver.
+This tradition powers today's fastest SMT solvers,
+and has recently been made foundational:
+\bvdecide{} bitblasts fixed-width bitvector goals inside the Lean proof assistant,
+and has the SAT certificate rechecked by Lean's kernel.
+Speed and trust, at the same time. We take this as our bedrock.
 
+But things are never so easy.
+The obligations a compiler hands us are not bitblastable as they stand.
+A rewrite has to be correct at \emph{every} register width, where a bitblaster wants one fixed width,
+and floating-point semantics live over the real numbers, which admit no bit-level encoding.
+The heart of this thesis is three reductions that close this gap, each mechanized in Lean.
+First, predicates that must hold at all widths reduce to reachability in a finite automaton,
+which we decide by $k$-induction and language emptiness, bottoming out, as usual, in SAT.
+Next, by a neat encoding trick, widths as bitmasks,
+any formula over many symbolic widths reduces, with linear blowup, to an equisatisfiable single-width one.
+This trades exponential width enumeration for one fixed-width query,
+and yields a new sound and complete fragment of the multi-width theory.
+Finally, we mechanize the SMT-LIB \qffp{} theory and build verified bitblasting circuits for its operations,
+trustworthy at every exponent and mantissa width.
 
-Toward this goal of large-scale compiler verification,
-we first formalize a core calculus for SSA-based compiler intermediate representations,
-generic over the compiler IR itself, and prove correct a generic peephole rewriter,
-together with proof automation that eliminates the abstraction overhead of the calculus
-and case studies ranging from LLVM bitvector rewrites to fully homomorphic encryption.
-Discharging such rewrites by hand is tedious,
-and it is this tedium that drives the demand for the push-button automation that follows.
-
-Next, to enable large-scale verifcation of integer bitvector rewrites,
-we prove that bitvector problems with a single symbolic width the problem reduces to reachability in a
-finite automaton. This enables us to exploit finiteness,
-and use (finite!) state-space exploration based model-checking algorithms such as
-$k$-induction and regular language emptiness, to effectively decide these problems.
-As usual, the bedrock is SAT solving, where $k$-induction reduces to a large SAT query.
-Next, we lift the mono-width restriction, and by a neat encoding trick,
-prove that any multi-width parametric formula reduces to an equisatisfiable mono-width formula.
-This yields a new sound and complete fragment of the multi-width theory,
-and replaces exponential enumeration over widths with a single fixed-width query.
-
-For floating point, while the semantics are defined in terms of real numbers,
-rounding back to a fixed width buys back finiteness.
-We mechanize the SMT-LIB theory of floating point, build verified bitblasting circuits for its operations,
-and obtain floating-point bitblaster that's trustworthy across all widths and exponent and mantissa combinations.
-We are 33x slower than the state-of-the-art unverified solver Bitwuzla,
-but in exchange, offer end-to-end correctness guarantees.
-
-Overall, what we learn is a flavour of the bitter lesson, where indeed, the only thing that scales is search and automation.
-Furthermore, we learn that mechanization of such algorithms is not out of reach of today's proof assistant technology.
-On the largest problems we throw at them, our mechanized solvers remain one to two orders
-of magnitude slower than the unverified state of the art. 
-However, the problems that arise in peephole rewrite verification are small enough that this gap does not bite.
-Overall, foundational proof and push-button automation need not be at odds.
-We hope that these reductions, and their mechanizations lay the groundwork for verification efforts of far greater ambition.
+Does the bet pay off? We think so.
+Our width-generic solvers prove more all-width problems than the unverified state of the art,
+and our floating-point bitblaster, while slower than Bitwuzla,
+offers end-to-end guarantees down to Lean's kernel in exchange.
+The price of verification is a constant factor, not an asymptotic one,
+and on peephole-sized problems that factor does not bite.
+Overall, what we learn is a flavour of the bitter lesson: the only thing that scales is search.
+Mechanizing such algorithms is within reach of today's proof assistants,
+and foundational proof and push-button automation need not be at odds.
+We hope these reductions lay the groundwork for verification efforts of far greater ambition.
