@@ -165,7 +165,7 @@ Unsatisfiability at $o = 64$ proves the identity for all widths $\leq 64$.}
 \label{mwbv:fig:worked-example}
 \end{figure}
 
-\paragraph{The general principle.}
+\paragraph{The General Principle.}
 %
 The worked example illustrates a general pattern: every $\text{PBV}_n$
 operation maps to a fixed sequence of $\BV{o}$ operations, with widths stored
@@ -182,7 +182,7 @@ This translation yields two paths, depending on whether we wish to prove the
 formula up to a bound, or to completely prove it when it lies in the
 linear-bitwise fragment.
 
-\paragraph{Path 1: Bounded model checking via a single \qfbv{} call.}
+\paragraph{Path 1: Bounded Model Checking via a Single \qfbv{} Call.}
 %
 After reducing $\text{PBV}_n$ to $\text{PBV}_1$, we instantiate the unique
 width parameter~$o$ to a concrete value (e.g., $64$), yielding a standard
@@ -191,7 +191,7 @@ call.  This handles the full theory, including multiplication and
 concatenation.  The cost drops from~$o^k$ solver calls under naive enumeration
 to exactly one call.
 
-\paragraph{Path 2: Sound and complete decision via automata.}
+\paragraph{Path 2: Sound and Complete Decision via Automata.}
 %
 For the linear-bitwise fragment, we can do better: prove validity for \emph{all}
 widths simultaneously.  The idea is to extend bitvectors to infinite bitstreams
@@ -1583,7 +1583,7 @@ correctness argument for the generalization. The mono-width results of
 \cref{ch:mono-width}, by contrast, are packaged as an artifact that has been
 independently reproduced through published artifact evaluation.
 
-\paragraph{From richer widths to richer values.}
+\paragraph{From Richer Widths to Richer Values.}
 These two chapters complete the \emph{width} axis of the thesis, but the values
 themselves have so far remained plain machine integers. The next chapter turns
 from richer \emph{widths} to richer \emph{values}: it reuses the same verified

@@ -83,7 +83,7 @@ are both a boolean algebra (a sequence of bits) and a ring (seen as integers
 modulo~$2^w$), and the two algebraic structures mix in subtle ways when reasoning
 about bitvectors (e.g., $-x = \lnot x + 1$).
 
-\paragraph{Signed and unsigned comparison}
+\paragraph{Signed and Unsigned Comparison}
 Because bitvectors can either be seen as representing signed or unsigned
 integers, they are equipped with two relevant orders depending on how they are
 interpreted, and which our decision procedures need to handle:
@@ -366,7 +366,7 @@ code during type checking.
 As part of this decision procedure, we implement a formally verified NFA library
 in Lean which needs to be efficient in order to decide large problems.
 
-\paragraph{Data representation}
+\paragraph{Data Representation}
 
 One important feature for efficiency is that the states of the automaton do not
 have an identity, they are instead natural numbers between 0 and
@@ -397,7 +397,7 @@ increment \leaninline{stateMax} and thus invalidate this type.
 All high-level operations are exposed in terms of
 \leaninline{CNFA}.
 
-\paragraph{Operations over automata}
+\paragraph{Operations over Automata}
 
 There are a handful of widely useful operations over NFAs, namely the product
 construction (to define disjunction and conjunction of formulas) and the
@@ -420,7 +420,7 @@ automaton that have not yet been explored is decreasing.
 To amortize this effort, we define a generic worklist algorithm for NFAs which
 dramatically reduces the required proof effort for the individual operations.
 
-\paragraph{Generic construction algorithm}
+\paragraph{Generic Construction Algorithm}
 The idea is that, although our automata states do not have identities,
 \emph{during the construction}, we need to keep track of the mapping between
 states in the new automaton and state(s) in the input automata.
@@ -562,7 +562,7 @@ becomes easy, and thus the proof that Brzozowski's algorithm is correct.
 With this NFA library in hand, it is relatively straightforward to implement the
 encoding of bitvector formulas into automata:
 
-\paragraph{Correspondence between solutions and language}
+\paragraph{Correspondence Between Solutions and Language}
 
 We formalize the isomorphism between the set of solutions of the
 formula, which is a set of vectors of $n$ bitvectors of arbitrary bitwidths,
@@ -581,7 +581,7 @@ bitvectors of width~$w$:
 We then give a specification to each construction on NFAs over the alphabet~$\BV
 n$ in terms of the set of \leaninline{BitVecs n} that it accepts.
 
-\paragraph{Composition of relations and operations}
+\paragraph{Composition of Relations and Operations}
 
 To simplify the encoding, we use an over-approximation of the set~$\FV(\mathsf
 F)$ of free variables: we only keep track of $n = \max \FV(\mathsf F)$.
@@ -621,7 +621,7 @@ With these tools at hand, it is straightforward to interpret any formula as an
 NFA. We choose to apply a minimization procedure at each step of the process
 in order to keep their size manageable.
 
-\paragraph{Automata for the base cases}
+\paragraph{Automata for the Base Cases}
 
 The standard constructions on NFAs handle the Boolean structure of formulas.
 %
@@ -976,7 +976,7 @@ to a more expressive, but logically equivalent fragment.
 We use Lean's simplifier, \leaninline{simp} to drive our preprocessing.
 We register lemmas that simplify the input formula into a normal form.
 
-\paragraph{Normalize literals.}
+\paragraph{Normalize Literals.}
 The constant bitvector $\langle10\rangle$ can be represented in many ways in Lean:
 (a) by the numeral \leaninlineM{3}, which is implicitly cast into a bitvector,
 (b) by the integer \leaninlineM{-1 : Int}, which is cast into a bitvector,
@@ -985,7 +985,7 @@ and (d) by the bitvector expression \leaninlineM{BitVec.ofInt (w := 2) (-1)}, wh
 We coerce all of these into \leaninlineM{BitVec.ofNat} as a normal form,
 since it has the most complete support for reasoning and constant folding currently in the proof assistant.
 
-\paragraph{Normalize arithmetic.}
+\paragraph{Normalize Arithmetic.}
 To help with computing normal forms, we perform the usual reassociations and commutations.
 First, we move constants to the left of expressions for better constant
 folding. This permits the following set of rewrites $1 + (x + 2) \to 1 + (2 + x) \to (1 + 2) + x \to 3 + x$.
@@ -996,7 +996,7 @@ break a multiplication up into repeated shifts-and-adds. For example,
 the rewrites normalize $x * 13 \to x*12 + x \to (x \ll 2) * 3 + x \to (x \ll 2) * 2 + (x \ll 2) + x \to ((x \ll 2) \ll 1) + ((x \ll 2) + x) \to x \ll 3 + x \ll 2 + x$
 This allows the core decision procedure to only reason about shifts and adds.
 
-\paragraph{Normalize predicates.}
+\paragraph{Normalize Predicates.}
 Given a goal state of the form $H_1, H_2 \dots \vdash P \to Q$,
 we transform the goal into $H_1 \to H_2 \to \dots \to P \to Q$ by using Lean's \leaninline{revert} tactic to revert all hypotheses.
 Next, we convert the goal into $\vdash \lnot H_1 \lor \lnot H_2 \lor \dots \lor \lnot P \lor Q$.
@@ -1010,7 +1010,7 @@ Next, $P = P_1 \land P_2$, one can trivially distribute the quantification
 over the conjunction, since $\forall x, P_1(x) \land P_2(x)$ is logically equivalent
 to $\forall x, P_1(x) \land \forall y, P_2(y)$. This allows us to solve smaller subproblems.
 
-\paragraph{Specialized preprocessing for $k$-induction}
+\paragraph{Specialized Preprocessing for $k$-induction}
 The $k$-induction solver has a smaller core language, and it reduces unsigned and signed inequalities
 into properties that are checked on the \msb{} of the inputs and outputs.
 See that $a <_u b$ if and only if upon computing $a - b$, the high borrow bit
@@ -1036,7 +1036,7 @@ and to prove special cases for small bitwidth.
 For example, the statement $\forall (w : \N)~(x~y : \BV{w}), w = 1 \to x + y = x \bitxor y$
 is only true at width $1$.
 
-\paragraph{Symbolic normalization.} We run \bvnormalize{}, a custom bitvector
+\paragraph{Symbolic Normalization.} We run \bvnormalize{}, a custom bitvector
 normalizer which rewrites bitvector expressions into simpler bitvector expressions,
 which produced smaller problems that are easier to then reflect into our core language.
 
@@ -1279,7 +1279,7 @@ The geomean time for the automata solver is \InstCombineNormPresburgerGeoMean{},
 Overall, this shows us that the fragments that our arbitrary-width decision procedures tackle occur in a non-trivial fraction of the real-world problems from the LLVM ecosystem,
 and that our algorithmically complete procedures for this fragment is a useful addition to the Lean ecosystem.
 
-\paragraph{Root causes of LLVM peephole failures}
+\paragraph{Root Causes of LLVM Peephole Failures}
 We catalog the failures on the LLVM peephole optimizer dataset,
 by logging all errors emitted from the preprocessor for reflection,
 and manually inspect the failures, using regular expressions to categorize them.

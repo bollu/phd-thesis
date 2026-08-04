@@ -61,7 +61,8 @@
 %% Monospace: Inconsolata (zi4). The default Computer Modern typewriter is a
 %% different colour and skeleton from Cochineal and reads as a foreign body in
 %% running text; Inconsolata is humanist and narrow, which matters here because
-%% Lean listings are set at \small in a 120mm measure and must not overrun.
+%% Lean listings are set at \footnotesize in a 135mm measure and must not
+%% overrun (they still do in ~24 places; those need shorter source lines).
 %%   varqu -- upright (not curly) quotes, so 'x' in code is not a typographic
 %%            apostrophe; matters for Lean's primed identifiers.
 %%   varl  -- l with a tail, distinguishing it from 1 and I.
@@ -125,11 +126,13 @@
 %% number, the rule under the chapter title, and all of titlesec's spacing are
 %% classicthesis's and are reproduced verbatim.
 %%
-%% Run-in \paragraph headings deliberately KEEP \spacedlowsmallcaps. They are
-%% small caps, not caps -- lowercase letterforms at capital height, which is a
-%% different texture from the shouting the chapter titles were doing -- and at
-%% run-in size they are the only thing that distinguishes the head from the
-%% sentence it introduces without resorting to bold.
+%% Run-in \paragraph headings go the same way. classicthesis letterspaces them
+%% as small caps, which at run-in size reads as PUBLICATIONS AND ATTRIBUTION --
+%% indistinguishable from caps to anyone not looking for it. They are set in
+%% bold title case instead: something has to separate the head from the
+%% sentence it introduces, and with the document's only other weights being
+%% roman and italic (italic is already \emph and the subsection titles), bold
+%% is the one signal left that is unambiguous at this size.
 %%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%
 %% WIDTH. Several titles are longer than the 135mm measure -- "A Unified
 %% Presentation of Zero, One, Many Width Parametric Bitvector Theory" wants
@@ -166,6 +169,8 @@
     {\relax}{\thesubsection}{1em}{\normalsize\itshape}
 \titleformat{\subsubsection}
     {\relax}{\thesubsubsection}{1em}{\normalsize\itshape}
+\titleformat{\paragraph}[runin]
+    {\normalfont\normalsize\bfseries}{\theparagraph}{0pt}{}
 
 %% Spacing. The negative right-spec is the overhang described above; the
 %% before/after values are tightened from classicthesis's (1.25/1 baselineskip
@@ -313,11 +318,27 @@
 \usepackage{soul}
 \definecolor{Accent}{HTML}{8A2B2B}
 \definecolor{AccentDark}{HTML}{5C1D1D}
-%% Background tint shared by all code (display listings and \leaninline).
-%% Deliberately a warm neutral rather than a blue: it has to sit under Lean
-%% code coloured by the `lovelace' pygments style (see macros.sty) without
-%% tinting it, and next to oxblood links without clashing.
-\colorlet{CodeBg}{black!4}
+%% Inline code tint. Display listings are untinted (see macros.sty), but inline
+%% code keeps a background so that an identifier dropped into running prose is
+%% visibly a piece of code.
+%%
+%% The point of doing it here is CONSISTENCY. Inline code was marked up two
+%% different ways depending on the chapter: \leaninline (Lean-lexed, tinted)
+%% in the mono-width chapter, ~60 uses, and plain \texttt (no tint) everywhere
+%% else, ~620 uses. Same thing on the page, two different appearances. Both now
+%% go through the same tint.
+%%
+%% \fboxsep is pulled in to 1pt: \colorbox's 3pt default puts a visible slab
+%% around a two-character identifier and pushes the surrounding words apart.
+%%
+%% NB \makeatletter: this sits after the epigraph block's \makeatother, so `@'
+%% is back to catcode 12 here and \cam@... would tokenise as \cam followed by
+%% letters. Same trap at the end of macros.sty.
+\colorlet{CodeBg}{black!5}
+\makeatletter
+\newcommand{\cam@codetint}[1]{%
+  {\setlength{\fboxsep}{1pt}\colorbox{CodeBg}{#1}}}
+\makeatother
 
 %%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%
 %% Enumerations and tables.

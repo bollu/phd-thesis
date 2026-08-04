@@ -306,7 +306,7 @@
 %% The style itself is set once, globally, by \usemintedstyle in packages.sty;
 %% the per-environment `style=' options that used to pin bw are gone so that
 %% there is a single place to change it.
-\newminted[llvm]{llvm}{fontsize=\small}
+\newminted[llvm]{llvm}{fontsize=\footnotesize}
 \newminted[ccode]{text}{fontsize=\footnotesize}
 
 % Lean listings use the custom Lean 4 lexer (tools/lexers/Lean4Lexer.py,
@@ -328,8 +328,13 @@
      \newcommand{\clopt}{customlexer, }}
     {\newcommand{\lexLean}{tools/lexers/Lean4Lexer.py:Lean4Lexer -x}%
      \newcommand{\clopt}{}}}
-\newminted[lean]{\lexLean}{\clopt bgcolor=CodeBg, fontsize=\small}
-\newminted[lean4]{\lexLean}{\clopt mathescape, bgcolor=CodeBg, fontsize=\small}
+%% No background tint, and \footnotesize throughout -- the settings the
+%% background chapter's listings already used, which read better than the
+%% tinted \small the rest of the document had. The tint was doing the job of
+%% saying "this is code"; the mono face and the colour scheme say it more
+%% quietly, and a full-width panel of tint on every other page is heavy.
+\newminted[lean]{\lexLean}{\clopt fontsize=\footnotesize}
+\newminted[lean4]{\lexLean}{\clopt mathescape, fontsize=\footnotesize}
 \newminted[leanfootnotesize]{\lexLean}{\clopt fontsize=\footnotesize, escapeinside=@@, mathescape}
 \newcommand{\leaninline}[1]{\mintinline[\clopt bgcolor=CodeBg]{\lexLean}{#1}}
 \newcommand{\leaninlineM}[1]{\text{\mintinline[\clopt bgcolor=CodeBg]{\lexLean}{#1}}}
@@ -339,3 +344,22 @@
 %% Shims for text ported from acmart papers.
 %%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%
 \newcommand{\Description}[2][]{}
+
+%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%
+%% \texttt carries the same inline-code tint as \leaninline (see the note in
+%% packages.sty). Declared robust because \texttt appears in section titles and
+%% captions, which are written to the .aux and re-read for the ToC and the
+%% running heads. Defined last so that it also catches the tool-name macros
+%% (\bvdecide, \bvnormalize, ...), which expand to \texttt.
+%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%
+%%
+%% \texttt is ALREADY robust (\DeclareTextFontCommand), so \texttt expands to
+%% "\protect\texttt<space>" and the real definition lives in \csname texttt
+%% <space>\endcsname. \let-ting the outer name therefore captures the protected
+%% shell, which after the redefinition below points back at the new \texttt --
+%% infinite recursion, which TeX reports as "grouping levels=255" the moment
+%% the .toc is read back. Grab the inner command instead.
+\makeatletter
+\expandafter\let\expandafter\cam@plaintexttt\csname texttt \endcsname
+\DeclareRobustCommand{\texttt}[1]{\cam@codetint{\cam@plaintexttt{#1}}}
+\makeatother
