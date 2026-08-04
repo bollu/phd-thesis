@@ -79,6 +79,17 @@
 %% Title page, abstract, declaration, acknowledgements, table of contents:
 \frontmatter{}
 
+%% Running heads. cam-thesis.cls leaves the body on \pagestyle{plain} -- a bare
+%% outer page number and nothing else. classicthesis has already configured
+%% scrlayer-scrpage for its own headline style (spaced small caps: chapter
+%% title on the verso, numbered section title on the recto, with the page
+%% number hung outboard in the margin); it just is not switched on. Do that
+%% here rather than in the class, which is upstream code.
+%%
+%% `plain' stays in force on chapter-opening pages via scrheadings' plain
+%% variant, so the \ofoot page number there is unaffected.
+\pagestyle{scrheadings}
+
 %%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%
 %% Thesis body: one folder per chapter.
 %%

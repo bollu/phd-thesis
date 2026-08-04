@@ -291,7 +291,22 @@
 %%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%
 %% Lean / LLVM listings via minted.
 %%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%
-\newminted[llvm]{llvm}{style=bw, fontsize=\small}
+%% Colour scheme. Everything was previously `style=bw' -- bold for keywords and
+%% nothing else -- which makes a 20-line Lean listing an undifferentiated grey
+%% block. `lovelace' is pygments' print-oriented style: desaturated blue
+%% keywords (not bold, so the block keeps an even colour), grey italic
+%% comments, green italic operators, dark red literals. It is the only stock
+%% style muted enough to sit on a page set in Cochineal without shouting.
+%%
+%% NB: minted 3 resolves styles by name from pygments' installed set; custom
+%% style classes cannot be registered the way tools/lexers/Lean4Lexer.py is
+%% (latexminted's .latexminted_config supports custom_lexers only). So the
+%% scheme has to be chosen from the stock list rather than tuned to Accent.
+%%
+%% The style itself is set once, globally, by \usemintedstyle in packages.sty;
+%% the per-environment `style=' options that used to pin bw are gone so that
+%% there is a single place to change it.
+\newminted[llvm]{llvm}{fontsize=\small}
 \newminted[ccode]{text}{fontsize=\footnotesize}
 
 % Lean listings use the custom Lean 4 lexer (tools/lexers/Lean4Lexer.py,
@@ -313,11 +328,11 @@
      \newcommand{\clopt}{customlexer, }}
     {\newcommand{\lexLean}{tools/lexers/Lean4Lexer.py:Lean4Lexer -x}%
      \newcommand{\clopt}{}}}
-\newminted[lean]{\lexLean}{\clopt style=bw, bgcolor=blue!5!white, fontsize=\small}
-\newminted[lean4]{\lexLean}{\clopt mathescape, style=bw, bgcolor=blue!5!white, fontsize=\small}
-\newminted[leanfootnotesize]{\lexLean}{\clopt style=bw, fontsize=\footnotesize, escapeinside=@@, mathescape}
-\newcommand{\leaninline}[1]{\mintinline[\clopt style=bw, bgcolor=blue!5!white]{\lexLean}{#1}}
-\newcommand{\leaninlineM}[1]{\text{\mintinline[\clopt style=bw, bgcolor=blue!5!white]{\lexLean}{#1}}}
+\newminted[lean]{\lexLean}{\clopt bgcolor=CodeBg, fontsize=\small}
+\newminted[lean4]{\lexLean}{\clopt mathescape, bgcolor=CodeBg, fontsize=\small}
+\newminted[leanfootnotesize]{\lexLean}{\clopt fontsize=\footnotesize, escapeinside=@@, mathescape}
+\newcommand{\leaninline}[1]{\mintinline[\clopt bgcolor=CodeBg]{\lexLean}{#1}}
+\newcommand{\leaninlineM}[1]{\text{\mintinline[\clopt bgcolor=CodeBg]{\lexLean}{#1}}}
 \makeatother
 
 %%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%

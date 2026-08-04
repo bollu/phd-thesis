@@ -1,13 +1,16 @@
 \epigraph{Immortality would have been meaningless, trapped in a ``machine'' with a finite number of possible states; in a finite time he would have exhausted the list of every possible thing he could be}{Greg Egan, Permutation City}
 
-A real computer is a finite thing: finitely many registers, each of finite width.
-A compiler writer reasons not about one, finite, machine but about an infinite family of them,
-parametrized by register width, memory size, and all the other dimensions of the machine that can be scaled up or down.
-Thus, a peephole rewrite has to hold at \emph{every} register width,
+As computer scientists, we often contemplate idealizations of computers that are infinite in multiple dimensions: infinite memory, infinite registers, infinite precision.
+However, real computer is a finite thing: finitely many registers, finitely much memory, finitely many bits of precision.
+Thus, in principle, everything about a real computer can be exhaustive enumerated, and all questions can be answered by a brute force search.
+But things are never so easy. When we write a compiler, we reason not about one, finite, machine but about an infinite family of machines,
+parametrized by the dimensions of the machine that can be scaled up or down.
+Thus, for example, a rewrite has to be correct at \emph{every} register width,
 a floating-point rewrite has to hold at \emph{every} exponent and manitssa combination.
-This thesis is about closing the gap, by translating many of these infinite problems
+Can we do better, and somehow reduce these infinitary problems to finite ones, to exploit the speed of brute-force search and automation?
+In this these, we make an attempt at translating some of these infinite problems
 into a (family) of finite ones, and proving these translations correct
-in order to enable push-button automation of the finite problems.
+in order to enable push-button automation via search.
 
 % Automating such reasoning today forces a choice.
 % SMT solvers decide the finite instances with formidable speed,

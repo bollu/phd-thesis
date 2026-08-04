@@ -58,6 +58,18 @@
 %% and suits Cochineal's smaller x-height. NB: raise to \onehalfspacing if the
 %% Board of Graduate Studies' 1.5-spacing rule has to be met literally.
 \linespread{1.08}
+%% Monospace: Inconsolata (zi4). The default Computer Modern typewriter is a
+%% different colour and skeleton from Cochineal and reads as a foreign body in
+%% running text; Inconsolata is humanist and narrow, which matters here because
+%% Lean listings are set at \small in a 120mm measure and must not overrun.
+%%   varqu -- upright (not curly) quotes, so 'x' in code is not a typographic
+%%            apostrophe; matters for Lean's primed identifiers.
+%%   varl  -- l with a tail, distinguishing it from 1 and I.
+%%   scaled -- Inconsolata runs large against Cochineal's modest x-height.
+%% NB: every Unicode maths glyph in listings (∀ α → ∧ ...) is remapped to a
+%% real maths glyph by newunicodechar in macros.sty, so the mono face is never
+%% asked to supply them and coverage is not a constraint here.
+\usepackage[varqu,varl,scaled=0.95]{zi4}
 % dropcaps:
 % https://tex.stackexchange.com/questions/250474/how-to-use-fancy-dropcaps-with-pdflatex
 \usepackage{Carrickc,Typocaps,lettrine}
@@ -69,16 +81,88 @@
 %% \areaset measure. We widen it to ~135mm -- classicthesis's own recommended
 %% width for a 12pt oldstyle body.
 %%
-%% The margins are SYMMETRIC (37.5mm each side), so the text block sits in the
-%% same place on recto and verso and does not shuffle left/right as you page
-%% through the PDF. The margin must still be wide enough for classicthesis's
-%% 70pt chapter number, which is typeset in the margin via \marginpar: with
-%% marginparsep 8mm that leaves 29.5mm, so marginparwidth stays at
-%% classicthesis's ~7em and the number does not overflow.
+%% The margins are ASYMMETRIC but NOT MIRRORED: 25mm on the left and 55mm on
+%% the right of EVERY page, recto and verso alike. This is the point of
+%% `twoside=false' below -- geometry would otherwise swap the two on verso
+%% pages, which is the conventional book arrangement but makes the text block
+%% shuffle left and right as you page through the PDF.
+%%
+%% Consequences of the fixed wide margin:
+%%   * The wide margin is always the right-hand one, so margin captions (see
+%%     the caption section below) and classicthesis's 70pt chapter number
+%%     always appear on the same side, and the running heads use the recto
+%%     arrangement on both parities rather than alternating.
+%%   * 55 - 6 (sep) - 5 (slack to the trimmed edge) = 44mm (~125pt) of caption
+%%     column, about 28 characters at \footnotesize. That is a readable
+%%     measure for a caption; the 34mm a symmetric layout could afford was not.
+%%   * The binding edge alternates between the 25mm and the 55mm side, so the
+%%     binding margin is >= 25mm on every page either way.
+%%
+%% Measure: 210 - 25 - 55 = 130mm, against classicthesis's recommended ~135mm
+%% for a 12pt oldstyle body. Captions no longer sit inside the measure, so the
+%% body column reads wider than the number suggests.
 %%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%
 \usepackage{geometry}
-\geometry{a4paper, left=37.5mm, right=37.5mm, top=30mm, bottom=30mm,
-          marginparwidth=29mm, marginparsep=8mm}
+\geometry{a4paper, twoside=false, left=25mm, right=55mm, top=30mm, bottom=30mm,
+          marginparwidth=44mm, marginparsep=6mm}
+
+%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%
+%% Heading style: title case, not caps.
+%%
+%% classicthesis sets chapter titles in letterspaced FULL CAPS
+%% (\spacedallcaps) and section titles in letterspaced small caps
+%% (\spacedlowsmallcaps). Both are replaced here by title case set in
+%% Cochineal. Caps at display size read as shouting, letterspacing makes a
+%% long title ("Verifying Peephole Rewriting in SSA Compiler IRs") hard to
+%% scan, and caps throw away the ascender/descender pattern that makes a
+%% heading recognisable at a glance.
+%%
+%% Only the font applied to the title text changes. The marginal chapter
+%% number, the rule under the chapter title, and all of titlesec's spacing are
+%% classicthesis's and are reproduced verbatim.
+%%
+%% Run-in \paragraph headings deliberately KEEP \spacedlowsmallcaps. They are
+%% small caps, not caps -- lowercase letterforms at capital height, which is a
+%% different texture from the shouting the chapter titles were doing -- and at
+%% run-in size they are the only thing that distinguishes the head from the
+%% sentence it introduces without resorting to bold.
+%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%
+\titleformat{\chapter}[display]%
+  {\relax}%
+  {\mbox{}\oldmarginpar{\vspace*{-3\baselineskip}\color{CTsemi}%
+                        \chapterNumber\thechapter}}{0pt}%
+  {\raggedright\LARGE}%
+  [\normalsize\vspace*{.8\baselineskip}\titlerule]%
+\titleformat{\section}
+    {\relax}{\large\thesection}{1em}{\large}
+\titleformat{\subsection}
+    {\relax}{\thesubsection}{1em}{\normalsize\itshape}
+\titleformat{\subsubsection}
+    {\relax}{\thesubsubsection}{1em}{\normalsize\itshape}
+
+%% Contents entries follow the headings. classicthesis sets chapter lines in
+%% spaced small caps, which would be the only caps left in the document.
+\renewcommand{\cftchappresnum}{\normalfont}
+\renewcommand{\cftchapaftersnumb}{\normalfont}
+\renewcommand{\cftchapfont}{\normalfont}
+
+%% Running heads. Two changes to classicthesis's setup:
+%%   1. The marks are plain roman rather than spaced small caps, to match the
+%%      headings they name.
+%%   2. Both parities get the recto arrangement -- title flush right, page
+%%      number hung out past it -- because the wide margin is on the right of
+%%      every page (see the geometry note above). Keeping classicthesis's
+%%      alternation would swing the page number into the 25mm side on versos
+%%      and read as a mistake rather than as a spread.
+\renewcommand{\chaptermark}[1]{\markboth{#1}{#1}}
+\renewcommand{\sectionmark}[1]{\markright{\thesection\enspace #1}}
+\lehead{}\lohead{}
+\rehead{\mbox{\hfil{\headmark}\rlap{\small\kern2em\pagemark}}}
+\rohead{\mbox{\hfil{\headmark}\rlap{\small\kern2em\pagemark}}}
+%% Chapter-opening pages use the `plain' variant: no head, page number in the
+%% foot. Pin it to the right foot on both parities for the same reason.
+\lefoot[]{}\lofoot[]{}
+\refoot[\small\pagemark]{}\rofoot[\small\pagemark]{}
 
 %%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%
 %% Contents pages.
@@ -99,8 +183,8 @@
 %%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%
 \let\cam@origtoc\tableofcontents
 \renewcommand{\tableofcontents}{%
-  \newgeometry{a4paper, left=22.5mm, right=22.5mm, top=30mm, bottom=30mm,
-               marginparwidth=12mm, marginparsep=4mm}%
+  \newgeometry{a4paper, twoside=false, left=25mm, right=25mm, top=30mm,
+               bottom=30mm, marginparwidth=12mm, marginparsep=4mm}%
   \setcounter{tocdepth}{2}%
   \cam@origtoc
   \restoregeometry
@@ -116,12 +200,50 @@
 \setlength{\afterepigraphskip}{2\baselineskip}
 \renewcommand{\textflush}{flushright}    % ragged-left quote body
 \renewcommand{\sourceflush}{flushright}
+%% Attribution line. Out of the box, epigraph sets the source at the same size
+%% and weight as the quote and leaves only 1ex above it, so the attribution
+%% reads as one more line of the quotation. Two changes, both in the package's
+%% internals so that \epigraph, \qitem and the epigraphs environment all get
+%% them:
+%%
+%%   \@epitext   -- open the gap under the quote from 1ex to 0.6\baselineskip.
+%%   \@episource -- drop one size step and prefix an em dash. The source stays
+%%                  upright roman rather than going italic or small caps, so
+%%                  that \emph{...} in the source argument (several chapters
+%%                  italicise the work's title there) still contrasts, and so
+%%                  that author names are not spaced out by small caps.
+\makeatletter
+\renewcommand{\@epitext}[1]{%
+  \begin{minipage}{\epigraphwidth}\begin{\textflush} #1\\
+    \ifdim\epigraphrule>\z@ \@epirule \else \vspace*{0.6\baselineskip} \fi
+  \end{\textflush}\end{minipage}}
+\renewcommand{\@episource}[1]{%
+  \begin{minipage}{\epigraphwidth}\begin{\sourceflush}
+    \footnotesize\textemdash\,#1%
+  \end{\sourceflush}\end{minipage}}
+\makeatother
 
 %%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%
 %% Colours. dvipsnames is passed via \PassOptionsToPackage in thesis.tex.
+%%
+%% The document has ONE accent colour. Everything that is not black body text
+%% -- internal links, citations, URLs -- is set in Accent; the only other
+%% non-black elements are classicthesis's grey chapter numbers and the pale
+%% theorem/code tints below. Three saturated hues (the previous NavyBlue /
+%% Green / BrickRed) fight each other and fight Cochineal's warm black.
+%%
+%% Accent is an oxblood that sits in Cochineal's warm register. AccentDark is
+%% for the rare case where a link needs to read as text rather than as a link.
 %%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%
 \usepackage{xcolor}
 \usepackage{soul}
+\definecolor{Accent}{HTML}{8A2B2B}
+\definecolor{AccentDark}{HTML}{5C1D1D}
+%% Background tint shared by all code (display listings and \leaninline).
+%% Deliberately a warm neutral rather than a blue: it has to sit under Lean
+%% code coloured by the `lovelace' pygments style (see macros.sty) without
+%% tinting it, and next to oxblood links without clashing.
+\colorlet{CodeBg}{black!4}
 
 %%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%
 %% Enumerations and tables.
@@ -157,6 +279,228 @@
 \newcommand{\ra}[1]{\renewcommand{\arraystretch}{#1}}
 
 %%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%
+%% Margin captions.
+%%
+%% Figure and table captions are set in the wide right-hand margin rather than
+%% under the float, so the figure anchors the page, the caption stops
+%% interrupting the column, and the margin earns its width.
+%%
+%% MECHANISM. The obvious implementation -- \marginnote (or the sidenotes
+%% package, which wraps it) at the point of \caption -- was tried and does not
+%% work here, for two independent reasons:
+%%
+%%   1. \marginnote has no collision avoidance. Two floats on one page put two
+%%      captions in the margin at their own vertical positions and the taller
+%%      one simply prints through the one below it. Several of this thesis's
+%%      captions run to 60-100 words, which is 15-20 lines in a 44mm column,
+%%      so this is the common case rather than the corner case.
+%%   2. The caption lands at the BOTTOM of the float (where \caption appears in
+%%      the source) and then hangs down past it, rather than starting level
+%%      with the top of the figure.
+%%
+%% Instead the caption is made part of the float. The float body is captured
+%% in a box, the caption is typeset into a second box \marginparwidth wide, and
+%% the two are set side by side in an \hbox that overhangs into the margin.
+%% Consequences, all of them the point of doing it this way:
+%%   * The float's height is max(body, caption), so LaTeX's ordinary float
+%%     placement keeps captions apart. Overlap is structurally impossible.
+%%   * Captions are top-aligned with their figure for free.
+%%   * A caption too long to fit beside its figure makes the float tall, and
+%%     LaTeX moves it to a page where it fits, rather than overprinting.
+%%
+%% \longcaption is the escape hatch: it is the original \caption, set under the
+%% float at full measure. Use it where a caption is long enough that a 44mm
+%% column would turn the float into a full page.
+%%
+%% SUBCAPTIONS. \subcaption text is routed into the same margin column, below
+%% the main caption, in subfloat order. The sub-label ((a), (b), ...) is still
+%% printed under the subfloat it belongs to, so the figure remains readable on
+%% its own and the reader can pair label with description. The subcaption is
+%% typeset into its box AT THE POINT OF USE, not deferred, so that a \label
+%% inside the subcaption argument -- which is how this thesis writes them,
+%% \caption{\label{fig:x} ...} -- still sees the correct subfigure counter.
+%%
+%% EXCLUSIONS. wrapfigure, wraptable and longtable keep ordinary captions:
+%% all three do their own column surgery and do not survive being boxed.
+%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%
+\DeclareCaptionStyle{margincaption}{font=footnotesize,
+                                    justification=raggedright,
+                                    singlelinecheck=false,
+                                    width=\marginparwidth,
+                                    skip=0pt}
+\makeatletter
+\let\cam@origcaption\caption
+\newcommand{\longcaption}{\cam@origcaption}
+
+\newsavebox{\cam@bodybox}
+\newsavebox{\cam@capbox}
+\newsavebox{\cam@subbox}
+\newsavebox{\cam@tmpbox}
+\newif\ifcam@hascap
+\newif\ifcam@hassub
+
+%% Typeset #1 into \cam@tmpbox as a \marginparwidth-wide column.
+%%
+%% \caption calls \refstepcounter, which sets \@currentlabel and hyperref's and
+%% cleveref's equivalents LOCALLY. Typesetting the caption inside a box means
+%% that group closes before the \label that follows \caption in the source is
+%% read -- this thesis writes both \caption{...}\label{...} and
+%% \caption{\label{...} ...} -- so a trailing \label would point at whatever
+%% was current before the float (in practice the enclosing section, which is
+%% why \cref{fig:...} silently rendered as a section reference). Carry the
+%% label state out of the box by hand.
+\providecommand{\@currentlabelname}{}
+\providecommand{\@currentHref}{}
+\providecommand{\cref@currentlabel}{}
+\providecommand{\@currentcounter}{}
+\newcommand{\cam@mkcolbox}[1]{%
+  \global\setbox\cam@tmpbox=\vbox{%
+    \hsize=\marginparwidth
+    \linewidth=\hsize \columnwidth=\hsize
+    \@parboxrestore
+    \captionsetup{style=margincaption}%
+    #1%
+    \global\let\cam@lbl@label\@currentlabel
+    \global\let\cam@lbl@name\@currentlabelname
+    \global\let\cam@lbl@href\@currentHref
+    \global\let\cam@lbl@cref\cref@currentlabel
+    \global\let\cam@lbl@ctr\@currentcounter}%
+  \let\@currentlabel\cam@lbl@label
+  \let\@currentlabelname\cam@lbl@name
+  \let\@currentHref\cam@lbl@href
+  \let\cref@currentlabel\cam@lbl@cref
+  \let\@currentcounter\cam@lbl@ctr}
+
+%% Caption dispatch. Both levels come through \caption, but telling them apart
+%% is not as simple as reading \@captype: subcaption marks a subfloat with a
+%% caption-package flag (\captionsetup{subtype}) and leaves \@captype at
+%% `figure', so inside a subfigure \@captype still says figure. Hence the
+%% explicit \ifcam@insub, set by the subfloat patch below. It is set inside the
+%% subfloat's minipage group, so it unsets itself when the subfloat ends.
+\newcommand{\cam@caption}{%
+  \@ifnextchar[{\cam@caption@opt}{\cam@caption@noopt}}
+\def\cam@caption@opt[#1]#2{\cam@caption@do{#1}{#2}}
+\def\cam@caption@noopt#1{\cam@caption@do{}{#1}}
+%% Both emitters call the \caption that was in force at the point they hook,
+%% NOT the \cam@origcaption saved in the preamble. The caption package
+%% specialises \caption per float (and again per subfloat), and part of that
+%% specialisation decides whether the float's counter still needs stepping.
+%% Calling the preamble copy bypasses it, and the float counter gets stepped a
+%% second time: subfloats of Figure 3.2 came out labelled 3.1a, 3.1b, and every
+%% figure after a subfigured one was numbered one too high.
+\newcommand{\cam@emitcaption}[2]{%
+  \ifstrempty{#1}{\cam@floatcmd{#2}}{\cam@floatcmd[#1]{#2}}}
+\newif\ifcam@insub
+\newcommand{\cam@caption@do}[2]{%
+  \ifcam@insub
+    \cam@subcaption@do{#1}{#2}%
+  \else
+    \ifthenelse{\equal{\@captype}{figure} \OR \equal{\@captype}{table}}%
+      {\cam@mkcolbox{\cam@emitcaption{#1}{#2}}%
+       \global\setbox\cam@capbox=\box\cam@tmpbox
+       \global\cam@hascaptrue}%
+      {\cam@emitcaption{#1}{#2}}%
+  \fi}
+
+%% Subcaption: the description is boxed for the margin column; only the label
+%% is printed under the subfloat it belongs to.
+\newcommand{\cam@emitsubcaption}[2]{%
+  \ifstrempty{#1}{\cam@subcmd{#2}}{\cam@subcmd[#1]{#2}}}
+\newcommand{\cam@subcaption@do}[2]{%
+  \cam@mkcolbox{\cam@emitsubcaption{#1}{#2}}%
+  \ifcam@hassub
+    \global\setbox\cam@subbox=\vbox{\unvbox\cam@subbox
+                                    \vskip0.5\baselineskip
+                                    \unvbox\cam@tmpbox}%
+  \else
+    \global\setbox\cam@subbox=\box\cam@tmpbox
+    \global\cam@hassubtrue
+  \fi
+  %% The counter was stepped inside the box above (LaTeX counters are global),
+  %% so \thesubfigure is now this subfloat's letter.
+  \par\centering{\footnotesize(\thesubfigure)}\par}
+
+%% Float body capture and side-by-side assembly.
+%%
+%% \cam@startfloat CANNOT be installed with \AtBeginEnvironment{figure}: that
+%% hook fires before \@float has looked ahead for the [htb] optional argument,
+%% so the hook's tokens are what \@ifnextchar sees. The placement specifier is
+%% then typeset as literal text and \@xfloat runs inside our \vbox, where it
+%% dies with "Not in outer par mode". Appending to \@xfloat instead puts the
+%% hook inside the float box, after \@floatboxreset, which is exactly where the
+%% body starts. \@captype is set by then, so the same hook serves every float
+%% class and can decline the ones it should not touch.
+\newif\ifcam@boxed
+\newcommand{\cam@startfloat}{%
+  \global\cam@boxedfalse
+  \ifthenelse{\equal{\@captype}{figure} \OR \equal{\@captype}{table}}%
+    {\global\cam@boxedtrue
+     \global\cam@hascapfalse
+     \global\cam@hassubfalse
+     \let\cam@floatcmd\caption
+     \let\caption\cam@caption
+     \setbox\cam@bodybox=\vbox\bgroup
+       \hsize=\textwidth
+       \linewidth=\hsize \columnwidth=\hsize
+       \@parboxrestore}%
+    {}}
+\newcommand{\cam@endfloat}{%
+  \ifcam@boxed
+    \egroup
+    \ifcam@hascap
+      \global\setbox\cam@capbox=\vbox{%
+        \unvbox\cam@capbox
+        \ifcam@hassub \vskip0.6\baselineskip \unvbox\cam@subbox \fi}%
+    \else
+      \ifcam@hassub
+        \global\setbox\cam@capbox=\box\cam@subbox
+        \global\cam@hascaptrue
+      \fi
+    \fi
+    \noindent
+    \ifcam@hascap
+      %% \hss absorbs the overhang into the margin without an overfull warning.
+      \hbox to\textwidth{\vtop{\unvbox\cam@bodybox}%
+                         \hskip\marginparsep
+                         \vtop{\unvbox\cam@capbox}\hss}%
+    \else
+      \unvbox\cam@bodybox
+    \fi
+    \global\cam@boxedfalse
+  \fi}
+
+%% Same story one level down. \AtBeginEnvironment{subfigure} is no good for
+%% the same reason it was no good for figure: subcaption's environment looks
+%% ahead for the [b] and {width} arguments, so the hook's tokens arrive before
+%% the minipage exists -- and the minipage's \@parboxrestore then puts \caption
+%% back to the caption package's own. \subcaption@iiminipage is the point after
+%% the minipage has been opened, which is where the rebinding survives.
+\apptocmd{\@xfloat}{\cam@startfloat}{}{%
+  \PackageWarning{packages}{Could not patch \string\@xfloat;
+                            margin captions disabled}}
+\apptocmd{\subcaption@iiminipage}{%
+  \cam@insubtrue
+  %% \caption inside a subfloat is NOT the top-level \caption: subcaption
+  %% installs a subfloat-aware one that numbers against the subfigure counter.
+  %% Save it before overwriting, and call the saved one to typeset the
+  %% subcaption -- calling the top-level \caption instead silently numbers
+  %% every subfloat as a new figure ("Figure (3)" for what should be "(b)").
+  \let\cam@subcmd\caption
+  \let\caption\cam@caption}{}{%
+  \PackageWarning{packages}{Could not patch \string\subcaption@iiminipage;
+                            subcaptions stay under their subfloat}}
+\AtBeginDocument{%
+  \AtEndEnvironment{figure}{\cam@endfloat}%
+  \AtEndEnvironment{figure*}{\cam@endfloat}%
+  \AtEndEnvironment{table}{\cam@endfloat}%
+  \AtEndEnvironment{table*}{\cam@endfloat}%
+  \AtBeginEnvironment{wrapfigure}{\let\caption\cam@origcaption}%
+  \AtBeginEnvironment{wraptable}{\let\caption\cam@origcaption}%
+  \AtBeginEnvironment{longtable}{\let\caption\cam@origcaption}%
+}
+\makeatother
+
+%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%
 %% Math.
 %%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%
 \usepackage{mathtools}
@@ -184,9 +528,9 @@
 \hypersetup{
   colorlinks=true,   % Remove the boxes
   linktocpage=true,  % Make page numbers (not section titles) links in ToC
-  linkcolor=NavyBlue,% Colour for internal links
-  citecolor=Green,   % Colour for bibliographical citations
-  urlcolor=BrickRed, % Colour for (external) urls
+  linkcolor=Accent,  % Colour for internal links
+  citecolor=Accent,  % Colour for bibliographical citations
+  urlcolor=Accent,   % Colour for (external) urls
 }
 \usepackage[noabbrev,capitalise]{cleveref}
 \newcommand{\creflastconjunction}{, and\nobreakspace}
@@ -266,7 +610,9 @@
 %% see .latexmkrc.
 %%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%
 \usepackage{minted}
-\usemintedstyle{colorful}
+%% Single global colour scheme for all listings; see the discussion in
+%% macros.sty next to the \newminted definitions.
+\usemintedstyle{lovelace}
 
 % Newer versions of minted require the 'customlexer' argument for custom
 % lexers, whereas older versions require '-x' on the command line.

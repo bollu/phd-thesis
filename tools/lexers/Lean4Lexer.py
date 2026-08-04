@@ -83,7 +83,19 @@ class Lean4Lexer(RegexLexer):
              u"\u207f-\u2089\u2090-\u209c\u2100-\u214f0-9]*", Name),
             (r'\d+', Number.Integer),
             (r'"', String.Double, 'string'),
-            (r'[~?][a-z][\w\']*:', Name.Variable)
+            (r'[~?][a-z][\w\']*:', Name.Variable),
+            # Catch-all. Lean's surface syntax is far larger than the operator
+            # and punctuation tables above -- '^', '$', '%', '⟦', '‹' and the
+            # rest of the mixfix zoo are all missing. Without this rule
+            # RegexLexer emits Token.Error for each one, which pygments styles
+            # render as a red/purple box: a stray '^' in an exponent lights up
+            # the listing as if it were a syntax error. Falling back to Text
+            # renders unknown characters in plain body-coloured mono, which is
+            # what they should look like.
+            #
+            # Keep this rule LAST: it matches a single character, so any rule
+            # placed after it is unreachable.
+            (r'.', Text),
         ],
         'comment': [
             # Multiline Comments
