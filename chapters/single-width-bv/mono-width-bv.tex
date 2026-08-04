@@ -11,11 +11,11 @@
 \lettrine{B}{itvectors} underpin automated reasoning about compilers, hardware,
 and cryptography, yet their \emph{widths} are as much a part of the problem as
 their values. Fixed-width solvers must know every width in advance, while a
-great many real-world goals---compiler rewrites, normalization lemmas, hardware
-identities---must hold for \emph{all} widths at once. This chapter takes the
-first step toward deciding such \emph{parametric} bitvector goals: it decides
-predicates over a \emph{single} symbolic width---the \emph{mono-width} fragment,
-$\text{PBV}_1$---by casting them as model-checking problems and mechanizing the
+great many real-world goals, such as compiler rewrites,
+require us to prove an identity for \emph{all} widths at once.
+This chapter takes the first step toward deciding such \emph{parametric} bitvector goals: it decides
+predicates over a \emph{single} symbolic width, called the \emph{mono-width} fragment,
+$\text{PBV}_1$. It does so by casting them as model-checking problems and mechanizing the
 requisite automata and $k$-induction machinery. \Cref{ch:multi-width} then
 lifts this procedure from one symbolic width to many independent ones at once.
 
@@ -23,8 +23,8 @@ lifts this procedure from one symbolic width to many independent ones at once.
 Procedures for Width-Independent Bitvector Predicates}~\citep{bhat2025certified},
 published at OOPSLA 2025, joint work with Léo Stefanesco, Chris Hughes, and
 Tobias Grosser.
-\emph{My contributions:} the initial algorithm---handling the mono-width case and
-equality predicates only---was developed by Chris Hughes. I noticed its
+\emph{My contributions:} the initial algorithm, of handling the mono-width case and
+equality predicates only, was developed by Chris Hughes. I noticed its
 connection to Presburger arithmetic, reinterpreted the classical decision
 procedure as an inductive ($k$-induction) safety proof, implemented the verified
 procedure in Lean together with its tactic-preprocessing and reflection
@@ -50,9 +50,9 @@ fragments of the width-independent theory can be viewed through the lens of
 correctness is a safety property. But this lens was previously unusable in
 mechanized proofs, since there were no executable, fast, formally verified
 model-checking algorithms usable \emph{from within} an ITP. We therefore
-mechanize key algorithms from the model checking literature---$k$-induction,
+mechanize key algorithms from the model checking literature: $k$-induction,
 automata reachability, automata emptiness checking, and automata
-minimization---and use them to build scalable, certified decision procedures.
+minimization, and use them to build scalable, certified decision procedures.
 For the controlled mixtures of arithmetic and bitwise operations that occur in
 the deobfuscation literature, we further mechanize the fast MBA-Blast
 algorithm, which outperforms the general procedures on that fragment.
