@@ -9,9 +9,6 @@ They are evaluated against the unverified state of the art, and none of them mat
 Our floating-point bitblaster trails Bitwuzla by a geometric-mean factor of $\SmtlibRandSpeedupBitwuzlaOverOurs\times$,
 and the fixed-width bitvector engine it is built on is itself within roughly an order of magnitude of Bitwuzla's.
 What we buy at that price is an end-to-end correctness guarantee that reaches down to Lean's kernel.
-The price is a constant factor rather than an asymptotic one:
-it does not grow with the size of the problem or with the number of symbolic widths,
-where the enumerative approaches we replace blow up exponentially.
 Together, our solvers are evidence that foundational proof and push-button automation need not be at odds:
 The finite-domain reasoning that underpins compilers, hardware, and cryptography can be carried out inside a proof assistant at scale.
 
