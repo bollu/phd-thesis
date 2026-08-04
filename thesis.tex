@@ -21,6 +21,10 @@
 %   backrefs    - add back references in the Bibliography section
 %
 % For more info see `README.md`
+%% cam-thesis.cls loads microtype itself, so expansion has to be passed in
+%% before the class runs; \microtypesetup after the fact is too late to affect
+%% fonts the class has already selected.
+\PassOptionsToPackage{expansion=alltext}{microtype}
 \documentclass[withindex,glossary]{cam-thesis}
 
 % Citations using numbers
@@ -35,7 +39,7 @@
 %% Thesis meta-information
 %%
 
-\title{Mechanized Bitblasting Decision Procedures for Compiler Vefification}
+\title{Mechanized Decision Procedures for Compiler Verification}
 \author{Siddharth Bhat}
 \college{Churchill College}
 \collegeshield{CollegeShields/Churchill}

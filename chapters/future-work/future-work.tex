@@ -5,12 +5,16 @@
 \lettrine{T}{his} thesis set out to show that decision procedures for
 finite-domain theories can be mechanized to be fast enough to be usable on real problems.
 Each of our solvers is implemented in Lean, and all of them are proof producing in some fashion.
-They are evaluated against the unverified state of the art,
-and run within a small factor of it while offering end-to-end correctness guarantees.
-Together, they are evidence that foundational proof and push-button automation need not be at odds:
+They are evaluated against the unverified state of the art, and none of them matches its raw speed.
+Our floating-point bitblaster trails Bitwuzla by a geometric-mean factor of $\SmtlibRandSpeedupBitwuzlaOverOurs\times$,
+and the fixed-width bitvector engine it is built on is itself within roughly an order of magnitude of Bitwuzla's.
+What we buy at that price is an end-to-end correctness guarantee that reaches down to Lean's kernel.
+The price is a constant factor rather than an asymptotic one:
+it does not grow with the size of the problem or with the number of symbolic widths,
+where the enumerative approaches we replace blow up exponentially.
+Together, our solvers are evidence that foundational proof and push-button automation need not be at odds:
 The finite-domain reasoning that underpins compilers, hardware, and cryptography can be carried out inside a proof assistant at scale.
 
-However, none of the mechanized procedures matches the raw speed of the unverified state of the art.
 Was UNSAT certificates the right bet? It might have been,
 since it enabled us to focus on ``what mattered'', which are the high-level algorithms and their correctness proofs.
 

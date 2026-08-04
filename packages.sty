@@ -18,6 +18,21 @@
 %% by targeted breaks.
 \setlength{\emergencystretch}{3em}
 
+%% microtype. cam-thesis.cls loads it bare, which gives protrusion but leaves
+%% font expansion off; it is switched on by the \PassOptionsToPackage in
+%% thesis.tex, which has to run before the class does. Expansion lets TeX scale
+%% glyphs by a fraction of a percent to justify a line, so the
+%% \emergencystretch above -- which pays for a tight line with visibly loose
+%% interword spacing -- has to fire less often. It evens out page colour; it
+%% does not change the page count, and it does not touch the 24 overfull boxes
+%% (those are unbreakable \footnotesize Lean listing lines; see the zi4 note).
+%%
+%% Small caps are set at cap height and read cramped at their natural fit;
+%% 40/1000em of tracking is the conventional remedy. NB this is tracking in
+%% running text, not the letterspaced display headings that classicthesis
+%% wanted and that the heading section below deliberately removes.
+\SetTracking{encoding=*, shape=sc}{40}
+
 %% Allow long URLs (\url, and hyperref-wrapped links) to break at any character
 %% rather than overrun the margin; loaded after the class's hyperref.
 \usepackage{xurl}
@@ -73,8 +88,15 @@
 \usepackage[varqu,varl,scaled=0.95]{zi4}
 % dropcaps:
 % https://tex.stackexchange.com/questions/250474/how-to-use-fancy-dropcaps-with-pdflatex
-\usepackage{Carrickc,Typocaps,lettrine}
-\renewcommand\LettrineFontHook{\Typocapsfamily}
+%% Zallman: decorated initials whose flourish reads as ornament while the
+%% letterform stays unambiguous at this size. Carrickc and GoudyIn are heavier
+%% and go black against Cochineal's colour; Typocaps (the previous choice) is
+%% too plain to be worth the indent it costs.
+\usepackage{Zallman,lettrine}
+\renewcommand\LettrineFontHook{\Zallmanfamily}
+%% Three lines rather than lettrine's default two: at two lines the ornament is
+%% too small to resolve.
+\setcounter{DefaultLines}{3}
 
 %%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%
 %% Page geometry.
