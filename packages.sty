@@ -81,7 +81,7 @@
 %% \areaset measure. We widen it to ~135mm -- classicthesis's own recommended
 %% width for a 12pt oldstyle body.
 %%
-%% The margins are ASYMMETRIC but NOT MIRRORED: 25mm on the left and 55mm on
+%% The margins are ASYMMETRIC but NOT MIRRORED: 20mm on the left and 55mm on
 %% the right of EVERY page, recto and verso alike. This is the point of
 %% `twoside=false' below -- geometry would otherwise swap the two on verso
 %% pages, which is the conventional book arrangement but makes the text block
@@ -95,15 +95,19 @@
 %%   * 55 - 6 (sep) - 5 (slack to the trimmed edge) = 44mm (~125pt) of caption
 %%     column, about 28 characters at \footnotesize. That is a readable
 %%     measure for a caption; the 34mm a symmetric layout could afford was not.
-%%   * The binding edge alternates between the 25mm and the 55mm side, so the
-%%     binding margin is >= 25mm on every page either way.
+%%   * The binding edge alternates between the 20mm and the 55mm side. 20mm is
+%%     the usual stated minimum for a bound thesis, so this is the floor: do
+%%     not take the left margin below it.
 %%
-%% Measure: 210 - 25 - 55 = 130mm, against classicthesis's recommended ~135mm
-%% for a 12pt oldstyle body. Captions no longer sit inside the measure, so the
-%% body column reads wider than the number suggests.
+%% Measure: 210 - 20 - 55 = 135mm, classicthesis's own recommended width for a
+%% 12pt oldstyle body. Captions no longer sit inside the measure, so the body
+%% column reads wider than the number suggests.
+%%
+%% Head and foot at 25mm rather than 30mm: 10mm more text per page, about four
+%% lines, which is the single cheapest thing that can be done about density.
 %%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%
 \usepackage{geometry}
-\geometry{a4paper, twoside=false, left=25mm, right=55mm, top=30mm, bottom=30mm,
+\geometry{a4paper, twoside=false, left=20mm, right=55mm, top=25mm, bottom=25mm,
           marginparwidth=44mm, marginparsep=6mm}
 
 %%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%
@@ -127,18 +131,51 @@
 %% run-in size they are the only thing that distinguishes the head from the
 %% sentence it introduces without resorting to bold.
 %%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%
+%% WIDTH. Several titles are longer than the 135mm measure -- "A Unified
+%% Presentation of Zero, One, Many Width Parametric Bitvector Theory" wants
+%% 168mm at \large, and no sane measure would hold it -- so they wrapped onto a
+%% second line. Headings are therefore allowed to run the full width of the
+%% page, measure plus the margin column, via a negative right-spacing in
+%% \titlespacing below. The margin is empty at a heading (a caption there would
+%% belong to a float, and floats do not start level with a heading), and the
+%% overhang lines the heading up with the chapter number, which already lives
+%% out there.
+%%
+%% The rule under a chapter title deliberately does NOT follow: it is written
+%% as an explicit \rule{\textwidth} rather than \titlerule, which would inherit
+%% the widened title block and run 50mm into the margin.
+\newlength{\cam@titleoverhang}
+\setlength{\cam@titleoverhang}{\marginparsep}
+\addtolength{\cam@titleoverhang}{\marginparwidth}
+%% classicthesis puts \chapter in titlesec's `top' title class, and for that
+%% class titlesec ignores the right-spacing spec -- so the negative overhang
+%% that widens section titles does nothing here, and "Verifying Peephole
+%% Rewriting in SSA Compiler IRs" (145mm at \LARGE) still broke over two lines.
+%% Set the width on the title box directly instead.
+\newcommand{\cam@chaptertitle}[1]{%
+  \parbox[t]{\dimexpr\textwidth+\cam@titleoverhang\relax}{\raggedright\LARGE #1}}
 \titleformat{\chapter}[display]%
   {\relax}%
   {\mbox{}\oldmarginpar{\vspace*{-3\baselineskip}\color{CTsemi}%
                         \chapterNumber\thechapter}}{0pt}%
-  {\raggedright\LARGE}%
-  [\normalsize\vspace*{.8\baselineskip}\titlerule]%
+  {\cam@chaptertitle}%
+  [\normalsize\vspace*{.8\baselineskip}\rule{\textwidth}{0.4pt}]%
 \titleformat{\section}
     {\relax}{\large\thesection}{1em}{\large}
 \titleformat{\subsection}
     {\relax}{\thesubsection}{1em}{\normalsize\itshape}
 \titleformat{\subsubsection}
     {\relax}{\thesubsubsection}{1em}{\normalsize\itshape}
+
+%% Spacing. The negative right-spec is the overhang described above; the
+%% before/after values are tightened from classicthesis's (1.25/1 baselineskip
+%% at section level) because a 12pt body at this leading already separates a
+%% heading from its text perfectly well with less.
+\titlespacing*{\chapter}{0pt}{1\baselineskip}{1\baselineskip}[-\cam@titleoverhang]
+\titlespacing*{\section}{0pt}{1\baselineskip}{0.5\baselineskip}[-\cam@titleoverhang]
+\titlespacing*{\subsection}{0pt}{0.9\baselineskip}{0.4\baselineskip}[-\cam@titleoverhang]
+\titlespacing*{\subsubsection}{0pt}{0.8\baselineskip}{0.3\baselineskip}[-\cam@titleoverhang]
+\titlespacing*{\paragraph}{0pt}{0.8\baselineskip}{1em}
 
 %% Contents entries follow the headings. classicthesis sets chapter lines in
 %% spaced small caps, which would be the only caps left in the document.
@@ -165,6 +202,41 @@
 \refoot[\small\pagemark]{}\rofoot[\small\pagemark]{}
 
 %%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%
+%% Vertical density.
+%%
+%% The page was reading loose. The levers, in rough order of what each buys:
+%%
+%%   * 25mm head/foot instead of 30mm (see geometry above): about four more
+%%     lines a page.
+%%   * \raggedbottom. report's twoside default is \flushbottom, which pads
+%%     every short page out to full depth by stretching the glue around
+%%     headings, floats and displays -- so a page one line short does not end
+%%     one line short, it comes out uniformly airy throughout. \raggedbottom
+%%     leaves the slack at the foot, where nobody sees it.
+%%   * Float separations. LaTeX's defaults suit an article with two figures;
+%%     this document has about thirty, each fencing itself off with 20pt of
+%%     white above and below.
+%%   * List and display skips, and the heading spacing set with \titlespacing
+%%     above.
+%%
+%% NOT changed: \linespread, still 1.08 (~15.5pt on a 12pt body). It is the
+%% biggest remaining lever -- 1.0 would take roughly 7% off the page count --
+%% but the leading is a deliberate reading of the Board of Graduate Studies'
+%% 1.5-spacing rule (see the note in the font section) and is not something to
+%% trim as a side effect of tightening the page.
+%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%
+\raggedbottom
+\setlength{\textfloatsep}{12pt plus 4pt minus 3pt}
+\setlength{\floatsep}{10pt plus 3pt minus 2pt}
+\setlength{\intextsep}{12pt plus 3pt minus 2pt}
+\setlength{\dblfloatsep}{10pt plus 3pt minus 2pt}
+\setlength{\dbltextfloatsep}{12pt plus 4pt minus 3pt}
+\setlength{\abovedisplayskip}{8pt plus 3pt minus 4pt}
+\setlength{\belowdisplayskip}{8pt plus 3pt minus 4pt}
+\setlength{\abovedisplayshortskip}{2pt plus 3pt}
+\setlength{\belowdisplayshortskip}{5pt plus 3pt minus 3pt}
+
+%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%
 %% Contents pages.
 %% The body measure (135mm) is too narrow for this thesis's long section
 %% titles, so ToC entries wrapped onto a second line -- and with the dotted
@@ -183,8 +255,10 @@
 %%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%
 \let\cam@origtoc\tableofcontents
 \renewcommand{\tableofcontents}{%
-  \newgeometry{a4paper, twoside=false, left=25mm, right=25mm, top=30mm,
-               bottom=30mm, marginparwidth=12mm, marginparsep=4mm}%
+  %% Left margin matches the body's 20mm so the text block's left edge does not
+  %% move when you page from the contents into the thesis.
+  \newgeometry{a4paper, twoside=false, left=20mm, right=20mm, top=25mm,
+               bottom=25mm, marginparwidth=12mm, marginparsep=4mm}%
   \setcounter{tocdepth}{2}%
   \cam@origtoc
   \restoregeometry
@@ -197,7 +271,7 @@
 \setlength{\epigraphwidth}{\textwidth}
 \setlength{\epigraphrule}{0pt}       % no rule under the quote
 \setlength{\beforeepigraphskip}{1\baselineskip}
-\setlength{\afterepigraphskip}{2\baselineskip}
+\setlength{\afterepigraphskip}{1.4\baselineskip}
 \renewcommand{\textflush}{flushright}    % ragged-left quote body
 \renewcommand{\sourceflush}{flushright}
 %% Attribution line. Out of the box, epigraph sets the source at the same size
@@ -259,7 +333,9 @@
 %% surrounding text margin, continuation lines align under the item text, and
 %% nested levels stay compact instead of compounding. Applies to itemize,
 %% enumerate and description at every depth.
-\setlist{leftmargin=*, labelsep=0.5em}
+\setlist{leftmargin=*, labelsep=0.5em,
+         topsep=0.4\baselineskip, itemsep=0.25\baselineskip,
+         parsep=0pt, partopsep=0pt}
 %% Top-level itemize costs no horizontal space at all: the bullet is \llap'ed
 %% into the left margin, so item text -- first and continuation lines alike --
 %% sits flush with the surrounding body text. This is what the publications
@@ -565,6 +641,8 @@
 \AtBeginDocument{\setlength{\normalparskip}{\parskip}}
 \tcbset{shadedenv/.style={
     colback={#1},
+    before skip=6pt plus 2pt minus 2pt,
+    after skip=6pt plus 2pt minus 2pt,
     frame hidden,
     enhanced,
     breakable,
