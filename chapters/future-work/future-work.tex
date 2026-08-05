@@ -19,47 +19,42 @@ I also indicate future directions for this work,
 which include extending the verified solvers to support more theories,
 and using the infrastructure of this thesis to bootstrap large-scale formalization efforts in Lean.
 
-% \section{Nonlinear Bitvector Arithmetic via the 2-adic Integers}
-% \label{sec:fw:2adic}
-% 
-% The solvers of \cref{ch:mono-width,ch:multi-width} decide the
-% \emph{linear-bitwise} fragment of the parametric bitvector theory. We have an
-% unpublished result showing that \emph{nonlinear} arithmetic in the parametric
-% bitvector theory is decidable, by a reduction to the first-order theory of
-% the 2-adic integers. On the other hand, our unpublished results also show
-% that integrating \emph{any} bitwise operation into such a theory immediately
-% leads to undecidability.\footnote{%
-% \url{https://pixel-druid.com/articles/non-linear-theory-of-2-adics-does-not-mix-with-bitwise-operations}}
-% This implies that the nonlinear arithmetic fragment of the parametric
-% bitvector theory is (maximally) decidable: to write incomplete solvers for
-% the full theory, one must first build a complete solver for the nonlinear
-% arithmetic fragment, which can then be mixed with bitwise operations via
-% theory combination.
-% 
-% Toward this, we propose implementing a fast cylindrical algebraic
-% decomposition (CAD) solver for the 2-adics. While the decidability of the
-% full first-order theory of the 2-adics has been known in theory since the
-% 1960s~\citep{ax1966diophantine}, that result was not algorithmic. A CAD-style
-% algorithm based on cell decomposition does
-% exist~\citep{quantifier-elimination-padic}, but, to the best of our
-% knowledge, no implementation of it does. We therefore propose to implement
-% such a solver in C++ or Rust, leveraging existing libraries such as
-% FLINT~\citep{hart2013flint} for polynomial manipulation and root finding.
-% This also sets the stage for a verified reimplementation in Lean, extending
-% the reach of the verified solvers of this thesis beyond the linear-bitwise
-% fragment.
-% See also: Solving Satisfiability of Polynomial Formulas By Sample-Cell
-% Projection, https://arxiv.org/pdf/2003.00409
+\section{Nonlinear Bitvector Arithmetic via the 2-adic Integers}
 
-\section{Fullly Mechanized Bitwuzla}
+The parametric solvers of this thesis (\cref{ch:mono-width,ch:multi-width})
+decide the \emph{linear-bitwise} fragment of the parametric bitvector theory.
+We have an unpublished sketch showing that \emph{nonlinear} arithmetic in the
+parametric bitvector theory is decidable, by a reduction to the first-order
+theory of the 2-adic integers, and, conversely, that integrating \emph{any}
+bitwise operation into such a theory immediately leads to
+undecidability.\footnote{%
+\url{https://pixel-druid.com/articles/non-linear-theory-of-2-adics-does-not-mix-with-bitwise-operations}}
+This implies that the nonlinear arithmetic fragment of the parametric
+bitvector theory is (maximally) decidable: to write incomplete solvers for
+the full theory, one must first build a complete solver for the nonlinear
+arithmetic fragment, which can then be mixed with bitwise operations via
+theory combination.
 
+Toward this, we propose implementing a fast cylindrical algebraic
+decomposition (CAD) solver for the 2-adics. While the decidability of the
+full first-order theory of the 2-adics has been known in theory since the
+1960s~\citep{ax1966diophantine}, that result was not algorithmic. A CAD-style
+algorithm based on cell decomposition does
+exist~\citep{quantifier-elimination-padic}, but, to the best of our
+knowledge, no implementation of it does. We therefore propose to implement
+such a solver in C++ or Rust, leveraging existing libraries such as
+FLINT~\citep{hart2013flint} for polynomial manipulation and root finding.
+This also sets the stage for a verified reimplementation in Lean, extending
+the reach of the verified solvers of this thesis beyond the linear-bitwise
+fragment.
+
+\section{Fully Mechanized Bitwuzla}
 
 The key missing piece of the verified solver is support for the theory of arrays.
 Arrays can be implemented in terms of a larger body of theory, called \emph{ackermannization},
 which reduces array reasoning to uninterpreted functions and bitvectors.
-The idea is that in order to... arrays, we do ... uninterpreted functions.
-Uninterpreted functions on a finite domain are captured entirely by their congruece rule,
-$x = y \implies f(x) = f(y)$. So, we creae new atoms called $f_x$ and $f_y$, which stand in for $f(x)$ and $f(y)$, and add the axiom
+Uninterpreted functions on a finite domain are captured entirely by their congruence rule,
+$x = y \implies f(x) = f(y)$. So, we create new atoms called $f_x$ and $f_y$, which stand in for $f(x)$ and $f(y)$, and add the axiom
 $x = y \implies f_x = f_y$. This is a standard technique for adding support for uninterpreted functions to a SAT based theory.
 However, since there are quadratically many pairs of terms,
 doing this eagerly is not feasible.
@@ -79,20 +74,20 @@ machinery is a natural starting point for a mechanization.
 \section{Tensor Bitblasting}
 
 Tensor bitblasting should be possible, since all the parts are there:
-fpsan for floating point level equivalence,
-tensorright for shape level equivalence,
-linear layouts for layout encodings.
-This builds exactly along our strengths: fpsan can be implemented as a bitvector solver,
-and guarantees equivalence-upto-exponential ring, which is what ML practicioners care about.
-tensorright offers a guarnatee similar to our automata based solvers,
+FpSan~\citep{openai2026fpsan} for floating point level equivalence,
+TensorRight~\citep{arora2025tensorright} for shape level equivalence,
+linear layouts~\citep{zhou2026linear} for layout encodings.
+This builds exactly along our strengths: FpSan can be implemented as a bitvector solver,
+and guarantees equivalence-upto-exponential ring, which is what ML practitioners care about.
+TensorRight offers a guarantee similar to our automata based solvers,
 where they compute a safety cutoff for the number of dimensions to be checked for,
 and they then check upto this dimension size. The key innovation will be to find a good BV based encoding for this,
 but it should be possible, using similar masking tricks as our multi-width solver.
 Finally, linear layouts shows how to encode layouts efficiently in terms of bitpatterns,
 under the assumption that the layouts are all going to be powers of 2, which they are in practice.
-This should feed into tensorright, and allow us to implement a tensor bitblaster that
+This should feed into TensorRight, and allow us to implement a tensor bitblaster that
 is fast (since it is powered by SAT), as well as providing a bounded-to-unbounded transfer principle,
-by building on top of tensorright's theory.
+by building on top of TensorRight's theory.
 
 
 \section*{Closing}
@@ -101,4 +96,4 @@ Compilers, hardware, and cryptography rest on finite-domain reasoning, and the
 procedures that discharge it need not be taken on trust.
 They can be implemented, proved correct, and run inside a proof assistant,
 on the problems practitioners actually have.
-With this work we show that the price of foundational trust in not too steep to pay.
+With this work we show that the price of foundational trust is not too steep to pay.

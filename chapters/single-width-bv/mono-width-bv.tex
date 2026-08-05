@@ -8,17 +8,6 @@
 \label{ch:mono-width}
 \epigraph{Anything sufficiently weird must be fishy.}{Cixin Liu, Three Body Problem}
 
-\lettrine{B}{itvectors} underpin automated reasoning about compilers, hardware,
-and cryptography, yet their \emph{widths} are as much a part of the problem as
-their values. Fixed-width solvers must know every width in advance, while a
-great many real-world goals, such as compiler rewrites,
-require us to prove an identity for \emph{all} widths at once.
-This chapter takes the first step toward deciding such \emph{parametric} bitvector goals: it decides
-predicates over a \emph{single} symbolic width, called the \emph{mono-width} fragment,
-$\text{PBV}_1$. It does so by casting them as model-checking problems and mechanizing the
-requisite automata and $k$-induction machinery. \Cref{ch:multi-width} then
-lifts this procedure from one symbolic width to many independent ones at once.
-
 \paragraph*{Attribution.} This chapter is based on \emph{Certified Decision
 Procedures for Width-Independent Bitvector Predicates}~\citep{bhat2025certified},
 published at OOPSLA 2025, joint work with Léo Stefanesco, Chris Hughes, and
@@ -31,6 +20,17 @@ procedure in Lean together with its tactic-preprocessing and reflection
 frontends, and generalized it to decide all predicates of the theory; I also
 implemented the mixed-Boolean-arithmetic solver. Léo Stefanesco contributed an
 alternative solver based on automatic structures.
+
+\lettrine{B}{itvectors} underpin automated reasoning about compilers, hardware,
+and cryptography, yet their \emph{widths} are as much a part of the problem as
+their values. Fixed-width solvers must know every width in advance, while a
+great many real-world goals, such as compiler rewrites,
+require us to prove an identity for \emph{all} widths at once.
+This chapter takes the first step toward deciding such \emph{parametric} bitvector goals: it decides
+predicates over a \emph{single} symbolic width, called the \emph{mono-width} fragment,
+$\text{PBV}_1$. It does so by casting them as model-checking problems and mechanizing the
+requisite automata and $k$-induction machinery. \Cref{ch:multi-width} then
+lifts this procedure from one symbolic width to many independent ones at once.
 
 Bitvectors are foundational for automated reasoning. A few
 interactive theorem provers, such as Lean, have strong support for deciding
@@ -1310,7 +1310,7 @@ test cases.
 \section{Related Work: Automata, Presburger, and Parametric Bitvectors}
 \label{sec:mono:related}
 
-\Cref{sec:intro:trust} placed this thesis among the approaches that bridge
+The introduction (\cref{ch:intro}) placed this thesis among the approaches that bridge
 automated speed and kernel-checked trust; here we compare against the technical
 antecedents specific to width-independent reasoning.
 
@@ -1408,8 +1408,8 @@ like---fall outside it. The boundary is not an artefact of our encoding but of
 the reduction to automata itself, which relies on each operation being realizable
 as a finite-state transduction over the bit positions; multiplication of two
 unknowns is not. Deciding the nonlinear fragment requires a genuinely different
-tool, which we sketch, via a reduction to the first-order theory of the $2$-adic
-integers, in \cref{sec:fw:2adic}.
+tool; we have an unpublished reduction to the first-order theory of the $2$-adic
+integers.
 
 The second is one of trust, and we state it plainly because it qualifies the
 thesis's own claim. The $k$-induction backend is verified, and every answer it
@@ -1418,7 +1418,7 @@ rIC3, an \emph{unverified} model checker, because there the unverified tool is
 substantially faster. Answers obtained through that path are trusted at the level
 of rIC3, not of the Lean kernel. The verified backend remains available for every
 such problem---the trade is one of time, not of reach---but it is a trade, and
-\cref{sec:intro:scope} records it as one.
+we record it here as one.
 
 The third concerns what the procedures leave undone rather than what they get
 wrong. Of the \InstCombineTotalProblems{} peephole rewrites extracted from LLVM's

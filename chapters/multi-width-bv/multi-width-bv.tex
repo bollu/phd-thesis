@@ -8,6 +8,15 @@
 \label{ch:multi-width}
 \epigraph{Listening in wild places, we are audience to conversations in a language not our own}{Braiding Sweetgrass}
 
+\paragraph*{Attribution.} This chapter is based on \emph{Sound and Complete
+Solving for Multi-Width Parametric Bitvectors via Principled
+Reductions}~\citep{bhat2026multiwidth}, conditionally accepted at OOPSLA 2026.
+\emph{My contributions:} I generalized the procedure from the mono-width to the
+multi-width setting, and recognized that encoding symbolic widths as bitmasks yields an
+equisatisfiable reduction from $\text{PBV}_n$ to $\text{PBV}_1$. I developed the
+theoretical extension, mechanized the soundness proof, and implemented the
+reflection and preprocessing frontends.
+
 \lettrine{T}{he} previous chapter decided bitvector predicates in the
 \emph{mono-width} fragment $\text{PBV}_1$: a single symbolic width. That solver
 came first, since it was immediately obvious to me how to build it.
@@ -17,15 +26,6 @@ many symbolic widths, reduces \emph{back} to it. This chapter develops that
 generalization: an equisatisfiable reduction that encodes symbolic widths as
 bitmasks, collapsing the many-width problem, with only linear blowup, into a
 single call to the mono-width machinery of \cref{ch:mono-width}.
-
-\paragraph*{Attribution.} This chapter is based on \emph{Sound and Complete
-Solving for Multi-Width Parametric Bitvectors via Principled
-Reductions}~\citep{bhat2026multiwidth}, conditionally accepted at OOPSLA 2026.
-\emph{My contributions:} I generalized the procedure from the mono-width to the
-multi-width setting, and recognized that encoding symbolic widths as bitmasks yields an
-equisatisfiable reduction from $\text{PBV}_n$ to $\text{PBV}_1$. I developed the
-theoretical extension, mechanized the soundness proof, and implemented the
-reflection and preprocessing frontends.
 
 Fixed-width bitvector solvers (\qfbv{}) are fast and ubiquitous, but the theory
 of \emph{parametric} bitvectors
@@ -125,7 +125,7 @@ without any case splits on widths.
 Instantiating $o = 64$ and checking unsatisfiability proves the identity for
 \emph{all widths $\leq 64$} in seconds.
 
-\begin{figure}[htb]
+\begin{figure}[htbp]
 \footnotesize
 \resizebox{\textwidth}{!}{%
 \begin{tabular}{llll}
@@ -245,7 +245,7 @@ signed and unsigned order predicates.
 For bounded solving, our algorithm allows all operations from SMT-LIB. For unbounded solving,
 our algorithm restricts to operations within our fragment.
 
-\begin{figure}[htb]
+\begin{figure}[htbp]
 \begin{minipage}{0.55\textwidth}
 {\footnotesize
 \resizebox{\textwidth}{!}{%
@@ -341,7 +341,7 @@ In our implementation, this is approximated by a syntactic equality check.
 \subsection{Semantics}
 \label{mwbv:sec:semantics}
 
-\begin{figure}[htb]
+\begin{figure}[htbp]
 \centering
 \small
 \setlength{\tabcolsep}{3pt}
@@ -444,7 +444,7 @@ with ones at the three low-order positions~$0$--$2$.
 
 \subsection{Syntax-Directed Translation to Mono-Width PBV}
 
-\begin{figure}[htb]
+\begin{figure}[htbp]
 \small
 \setlength{\tabcolsep}{3pt}
 \renewcommand{\arraystretch}{1.1}
@@ -715,8 +715,8 @@ operations listed above).
 {
 % \footnotesize
 \vspace{-2em}
-\newcommand\SP{1em}
-\begin{tabular}{p{0.8cm}|p{\SP}p{\SP}p{\SP}p{\SP}p{\SP}p{\SP}}
+\setlength{\tabcolsep}{4pt}
+\begin{tabular}{r|cccccc}
   \rowcolor{black!10!white}
           & $\dots$ & $b_4$ & $b_3$ & $b_2$ & $b_1$ & $b_0$ \\
   $x$           & $\dots$ & 0 & 0 & 0 & 1 & 1 \\
@@ -761,7 +761,7 @@ and $F$ indicates that the two input bitstreams have differed at some position.
 For our running example, since the expression is true, the equality bitstream is all $T$s.
 Now, the question of whether $\Phi$ holds reduces to whether the bitstream for $(x \bitand y) = (y \bitand x)$ is always $T$.
 
-\begin{figure}[t]
+\begin{figure}[tbp]
 %\begin{minipage}[t]{0.3\textwidth}
 \begin{tabular}{lll}
   \begin{tikzpicture}[mwbvautomaton, font=\footnotesize,node distance=2cm, on grid, auto, background rectangle/.style={fill=black!10!white}, show background rectangle, rounded corners=0.3cm]
@@ -815,7 +815,7 @@ We can construct an automaton for the predicate $\Phi$ by composing the automata
 
 
 
-\begin{figure}[t]
+\begin{figure}[tbp]
 \begin{tabular}{ll}
 \begin{tikzpicture}[mwbvautomaton, font=\footnotesize, shorten >=1pt, node distance=2cm, on grid, auto, background rectangle/.style={fill=black!10!white}, show background rectangle, rounded corners=0.3cm]
     % \backgroundrectangle[fill=blue!10!white]{} % optional extra settings
@@ -889,7 +889,7 @@ We encode the width variables $u, v, w$ as mask bitstreams $m_u, m_v, m_w$.
 These bitstreams are such that the first $u$ bits of $m_u$ are $1$s and the rest are $0$s, and similarly for $m_v$ and $m_w$.
 Note that $m_u = 2^u - 1$, and similarly for $m_v, m_w$; each is the mask for its corresponding width.
 
-\begin{figure}[htb]
+\begin{figure}[htbp]
 \begin{tabular}{ll}
 \begin{tikzpicture}[mwbvautomaton, font=\footnotesize, shorten >=1pt, node distance=2cm, on grid, auto, background rectangle/.style={fill=black!10!white}, show background rectangle, rounded corners=0.3cm]
     % \backgroundrectangle[fill=blue!10!white]{} % optional extra settings
@@ -951,7 +951,7 @@ Sign extension can be computed in terms of msb and other automata-expressible op
 As explained, these extend prior work by also requiring width masks to be available as bitstreams,
 which allows one to encode zero and sign extension into the linear-bitwise fragment, which is automata decidable.
 
-\begin{figure}[t]
+\begin{figure}[tbp]
 \newcommand{\addCarry}{\textsf{addCarry}}
 \newcommand{\addOut}{\textsf{addOut}}
 \newcommand{\subBorrow}{\textsf{subBorrow}}
@@ -960,7 +960,7 @@ which allows one to encode zero and sign extension into the linear-bitwise fragm
 \renewcommand{\arraystretch}{1.1}
 \centering
 \resizebox{\textwidth}{!}{%
-\begin{tabular}{@{}p{3.8cm}p{9.5cm}@{}}
+\begin{tabular}{@{}p{3.8cm}p{10.8cm}@{}}
 \toprule
 \textbf{Syntax} & \textbf{Semantics} $\denote{\cdot}[n]$ \\
 \midrule
@@ -1001,8 +1001,8 @@ $\newstuff{\textsf{weq}(v, w)}$, $\newstuff{\textsf{wlt}(v, w)}$
 \rowcolor{black!10!white}
 & $\newstuff{\denote{\textsf{wlt}(v, w)}_\omega[n] \defn \exists i \leq n,\, \denote{v}[i] {>} \denote{w}[i] \land (\forall j < i,\, \denote{v}[j] {=} \denote{w}[j])}$ \\[4pt]
 \midrule
-\multicolumn{2}{@{}l}{\textit{Auxiliary}: $\addOut(x, y, c)[i] \defn x[i] \oplus y[i] \oplus \addCarry(x, y, c)[i{-}1]$, where $\addCarry$ computes the carry bit.} \\
-\multicolumn{2}{@{}l}{\phantom{\textit{Auxiliary}:} $\subBorrow(x, y)[i] \defn \addCarry(x, \lnot y, 1)[i]$ (borrow from subtraction $x - y$).} \\
+\multicolumn{2}{@{}>{\raggedright\arraybackslash}p{\dimexpr 3.8cm+10.8cm+6pt\relax}@{}}{\textit{Auxiliary}: $\addOut(x, y, c)[i] \defn x[i] \oplus y[i] \oplus \addCarry(x, y, c)[i{-}1]$, where $\addCarry$ computes the carry bit.} \\
+\multicolumn{2}{@{}>{\raggedright\arraybackslash}p{\dimexpr 3.8cm+10.8cm+6pt\relax}@{}}{\phantom{\textit{Auxiliary}:} $\subBorrow(x, y)[i] \defn \addCarry(x, \lnot y, 1)[i]$ (borrow from subtraction $x - y$).} \\
 \bottomrule
 \end{tabular}
 }
@@ -1224,7 +1224,7 @@ as we wish to evaluate the solving technique directly, without transformations t
 \section{Evaluation}
 \label{sec:mwbv:evaluation}
 
-\begin{figure}[htb!]
+\begin{figure}[htbp!]
 \newcommand{\myspace}{1.5em}
 \centering
 \vspace{\myspace}
@@ -1523,7 +1523,7 @@ demonstrating that they scale to real-world compiler and hardware verification b
 \section{Related Work: Parametric and Fixed-Width Bitvector Solving}
 \label{sec:multi:related}
 
-\Cref{sec:intro:trust} placed this thesis among the approaches that bridge
+The introduction (\cref{ch:intro}) placed this thesis among the approaches that bridge
 automated speed and kernel-checked trust; here we compare against the technical
 antecedents specific to parametric bitvector solving.
 
@@ -1568,9 +1568,9 @@ first is one of theory: our solvers are sound and complete for the
 \emph{linear-bitwise} fragment of the parametric theory, but nonlinear
 operations---multiplication of two symbolic-width unknowns, and the like---fall
 outside it. This is not a gap we can close by more engineering; deciding the
-nonlinear fragment requires a genuinely different tool, which we sketch, via a
-reduction to the first-order theory of the $2$-adic integers, in
-\cref{sec:fw:2adic}. The second concerns evaluation. We deliberately avoid
+nonlinear fragment requires a genuinely different tool, and we have an
+unpublished reduction to the first-order theory of the $2$-adic integers.
+The second concerns evaluation. We deliberately avoid
 preprocessing such as associativity--commutativity normalization, so as to
 measure the solving technique itself rather than a normal form that might make
 problems trivial; a production tactic would want such preprocessing, and its

@@ -616,7 +616,9 @@ Note that we mechanize all operations except for conversions between floating-po
 
 The circuits reuse the standard four-stage pipeline of a hardware floating-point unit as explained previously: unpack, operate, round, and pack:
 
+\begin{center}
 \chainrow{op}{operation result}{UnpackedFloat e s}
+\end{center}
 \noindent This is the same structure that SymFPU uses to encode floating point into bit-vectors, but what is new is that we mechanize it and prove each stage correct against the SMT-LIB semantics.
 The core structure is that of the operation itself, and the rounder that is applied to its result.
 First, we describe the core datatype, that of an extended unpacked floating point number,
@@ -1499,7 +1501,7 @@ enumeration cannot finish, providing verified results on formats where no proven
 \section{Related Work: Mechanized Floating-Point Arithmetic}
 \label{sec:fp:related}
 
-\Cref{sec:intro:trust} placed this thesis among the approaches that bridge
+The introduction (\cref{ch:intro}) placed this thesis among the approaches that bridge
 automated speed and kernel-checked trust; here we compare against the technical
 antecedents specific to floating-point mechanization and solving.
 

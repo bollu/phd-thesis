@@ -29,18 +29,22 @@ and common-subexpression elimination). Andrés Goens helped mechanize the semant
 of fully homomorphic encryption, and Alex Keizer helped generalize the pure
 semantics to impure side effects.
 
-\lettrine{S}{tatic} single assignment (SSA)~\citep{rastello2022ssa}
-intermediate representations are at the core of modern compilers, thanks to
-the benefits their immediate encoding of use-def relationships brings to
-compiler analyses and transformations. \emph{Peephole
-optimizations}~\citep{mckeeman1965peephole}, which replace instruction
-sequences of bounded length with semantically equivalent optimized ones, are
-so common that 10\% of all IR-transforming code in
-LLVM~\citep{lattner2004llvm} belongs to its InstCombine peephole
-optimizer---more than the size of LLVM's loop optimizer. The most referenced
-tool in LLVM's commit log is the Alive peephole
-verifier~\citep{lopes2021alive2}, which brought automatic SMT-based
-verification into the day-to-day of the LLVM community.
+
+\lettrine{I}{n} our aim to verify compiler optimizations,
+we begin by focusing on the \emph{peephole rewriting} of SSA-based intermediate representations (IRs).
+Static single assignment (SSA)~\citep{rastello2022ssa}
+intermediate representations are at the core of modern compilers, 
+thanks to their encoding of use-def relationships,
+which makes it incredibly easy to implement various compiler analyses and transformations.
+In particular, \emph{Peephole optimizations}~\citep{mckeeman1965peephole}, which replace instruction
+sequences of bounded length with semantically equivalent optimized ones,
+are made much more effective by use of SSA, since it allows a compiler to reason
+about expression trees of variables, rather than just linear sequences of instructions.
+Such optimizations are so ubiquitous that 10\% of all IR-transforming code in
+LLVM~\citep{lattner2004llvm} belongs to its InstCombine peephole optimizer.
+Note that this is much more than the size of LLVM's loop optimizer!
+The most referenced tool in LLVM's commit log is the Alive peephole verifier~\citep{lopes2021alive2},
+which brought automatic SMT-based verification into the day-to-day of the LLVM community.
 
 There is, at the same time, an increasing need for \emph{domain-specific}
 reasoning in modern compilers, fuelling tailored SSA-based IRs as popularized
@@ -54,32 +58,32 @@ rewrites themselves can be stated, composed, and proved correct. In this
 chapter we combine the convenience of automation with the versatility
 of ITPs for verifying peephole rewrites across domain-specific IRs. We
 formalize a core calculus for SSA-based IRs that is generic over the IR and
-covers \emph{regions}---the nested scoping used by many domain-specific IRs in
-the MLIR ecosystem---and mechanize it in Lean, \messa{X}, with a user-friendly
-frontend that translates MLIR syntax into our calculus.
+covers \emph{regions}, which are the nested scoping used by many domain-specific IRs in
+the MLIR ecosystem. Moreover, we mechanize these results in Lean,
+and create a framework that enables us to perform peephole rewrite verification,
+as our framework is coupled with a lifting theorem, that lifts the local correctness of a peephole rewrite
+into a global correctness theorem for the entire program transformation.
+Overall, this builds the foundation for a verified peephole rewriter,
+and reduces the problem to one where we must then reason about the semantics of the IR itself.
+This then naturally leads its way into decision procedures for proving equivalence of bitvector and floating point programs.
 
-The framework's purpose within the thesis is to pay the structural proof burden
-once. Once it has done so, what remains of every rewrite is an obligation over
-finite-domain values, and it is those obligations---not the SSA plumbing around
-them---that the remaining chapters attack.
-
-\section{Motivation: Verifying Optimizations for High-Level IRs}
-\label{sec:mlir:motivation}
-
-Effective domain-specific optimizations are almost impossible when reasoning on traditional LLVM-style compiler IRs.
-These offer a ``universal'' low-level abstraction, originally designed to represent C-style imperative code.
-Such LLVM-style IRs are built around the concepts of load/store/arithmetic/branching, which is ideal when optimizing at the level of scalar arithmetic, instruction scheduling, or applying certain kinds of loop optimizations.
-However, this level of abstraction is unsuitable for reasoning about high-level mathematical abstractions.
-
-Consider a compiler for Fully Homomorphic Encryption (FHE)~\cite{gentry2009fully}, a cryptographic technique that uses algebraic structures to allow an untrusted third party to do computation on encrypted data.
-In such a compiler, we might have a rewrite like $(a + X^{2^n} + 1 \mapsto a)$, which is a simple identity on the corresponding quotient ring.\footnote{We will discuss the underlying mathematical structure in more detail in~\cref{sec:mlir:fully-homomorphic-encryption}}
-Expressed in LLVM, the computation of this simple operation consists of multiple basic blocks forming a loop, each containing memory loads, pointer arithmetic, scalar operations, and branches.
-As a result, the algebraic structure is completely lost and exploiting simple algebraic identities turns into a heroic effort of reasoning about side effects and stateful program behavior.
-State-of-the-art compilers for FHE consequently use domain-specific IRs (often expressed with MLIR~\cite{viand2022heco,heaanmlir}) when generating optimized code for FHE, where algebraic optimizations can take place at an FHE-specific IR that has value-semantics (e.g., is referentially transparent) and is overall closer to the mathematical structure of the problem.
-
+% \section{Motivation: Verifying Optimizations for High-Level IRs}
+% \label{sec:mlir:motivation}
+% 
+% Effective domain-specific optimizations are almost impossible when reasoning on traditional LLVM-style compiler IRs.
+% These offer a ``universal'' low-level abstraction, originally designed to represent C-style imperative code.
+% Such LLVM-style IRs are built around the concepts of load/store/arithmetic/branching, which is ideal when optimizing at the level of scalar arithmetic, instruction scheduling, or applying certain kinds of loop optimizations.
+% However, this level of abstraction is unsuitable for reasoning about high-level mathematical abstractions.
+% 
+% Consider a compiler for Fully Homomorphic Encryption (FHE)~\cite{gentry2009fully}, a cryptographic technique that uses algebraic structures to allow an untrusted third party to do computation on encrypted data.
+% In such a compiler, we might have a rewrite like $(a + X^{2^n} + 1 \mapsto a)$, which is a simple identity on the corresponding quotient ring.\footnote{We will discuss the underlying mathematical structure in more detail in~\cref{sec:mlir:fully-homomorphic-encryption}}
+% Expressed in LLVM, the computation of this simple operation consists of multiple basic blocks forming a loop, each containing memory loads, pointer arithmetic, scalar operations, and branches.
+% As a result, the algebraic structure is completely lost and exploiting simple algebraic identities turns into a heroic effort of reasoning about side effects and stateful program behavior.
+% State-of-the-art compilers for FHE consequently use domain-specific IRs (often expressed with MLIR~\cite{viand2022heco,heaanmlir}) when generating optimized code for FHE, where algebraic optimizations can take place at an FHE-specific IR that has value-semantics (e.g., is referentially transparent) and is overall closer to the mathematical structure of the problem.
+% 
 \subsection{Defining \texorpdfstring{\messa{\operatorname{QuotRing}}}{LeanMLIR(QuotRing)}: Syntax and Semantics}
 
-As an example, we model an IR aimed at FHE that manipulates objects in the algebraic structure $R \equiv (\mathbb{Z}/q\mathbb{Z})[X] / (X^{2^n} + 1)$.
+As an example of our framework, we model an IR aimed at FHE that manipulates objects in the algebraic structure $R \equiv (\mathbb{Z}/q\mathbb{Z})[X] / (X^{2^n} + 1)$.
 To model it, we instantiate an IR \messa{\operatorname{QuotRing}} in our framework.
 It has three simple operations: \texttt{arith\_const} and \texttt{monomial}, to construct values in $R$, and \texttt{add} to add two values of $R$.
 To define the syntax and semantics of \messa{\operatorname{QuotRing}}, we first declare the types and operations in the IR (\cref{fig:mlir:quotring-op-ty}).
@@ -260,7 +264,7 @@ is equivalent to a tuple \texttt{(f $\alpha_1$ $\times$ ... $\times$ f $\alpha_n
 
 \subsection{Semantics of \texorpdfstring{\messa{X}}{LeanMLIR(X)}}
 The core types for programs are \texttt{Expr} and \texttt{Com}, shown in \cref{fig:mlir:iexpr-icom-def}.
-The type \texttt{Expr~$\Gamma$~$\alpha$} describes individual SSA operations; we think of it as a function from values in the context $\Gamma$---also called a \emph{valuation} for that context---to a value in the denotation of type $\alpha$.
+The type \texttt{Expr~$\Gamma$~$\alpha$} describes individual SSA operations; we think of it as a function from values in the context $\Gamma$ (also called a \emph{valuation} for that context), to a value in the denotation of type $\alpha$.
 The type \texttt{Com~$\Gamma$~$\alpha$} has a similar interpretation but represents sequences of operations.
 Each command binds a new value in the current context (the \texttt{var} constructor) until the sequence returns the value of one such variable \texttt{v} (the \texttt{ret} constructor).
 Thus, this encoding of SSA exploits the similarity to the ANF~\cite{appel1998ssa}
@@ -682,14 +686,14 @@ and a loop whose loop body does not depend on the iteration count can be reverse
 Similarly, we prove that $\texttt{if}~true~e~e' = e$, and $\texttt{if}~false~e~e' = e'$.
 
 These do \emph{not} count as peephole rewrites in our framework, as they are universally quantified over the loop body (which is a region).
-This is unsupported --- peephole rewrites in \messa{X} may only have free variables, not free region arguments.
+This is unsupported, as peephole rewrites in \messa{X} may only have free variables, not free region arguments.
 
 Consider the loop optimization that converts iterated addition into a single multiplication.
 Its proof obligation is \LightGrayBlueBox{$(\vdash \lambda x.~x + \delta)^{n}(c) = n\cdot \delta + c$}.
 This transformation is challenging to perform in a low-level IR, since there is no syntactic concept of a loop.
 However, this transformation \emph{is} a valid peephole rewrite in our framework since it uses a \emph{statically} known loop body.
 We showcase how regions permit MLIR (and, consequently, us) to easily encode and reason with commonplace loop transformations.
-The parametricity of our framework allows us to prove theorems that are valid on all IR extensions $\texttt{scf}(X)$.
+See that the parametricity of our framework allows us to prove theorems that are valid on all IR extensions $\texttt{scf}(X)$.
 
 \subsection{Fully Homomorphic Encryption}
 \label{sec:mlir:fully-homomorphic-encryption}
@@ -702,8 +706,7 @@ Contrary to what its naming implies, this IR does \emph{not} model operations on
 Instead, codewords are encoded as elements in a finitely-presented commutative ring, specifically, the ring $R \equiv (\mathbb{Z}/q\mathbb{Z})[x]/(x^{2^n} + 1)$, where $q, n \in \mathbb{N}$ are positive integers ($q$ composite).
 The name ``Poly'' comes from the equivalence class representatives are polynomials, but not all IR operations are invariants of the equivalence class.
 
-The ``Poly'' IR is, in fact, a superset of the \texttt{QuotRing} IR we defined in \cref{sec:mlir:motivation}.
-It consists of the operations \texttt{add}, \texttt{sub}, \texttt{mul}, \texttt{mul\_constant}, \texttt{leading\_term}, \texttt{monomial}, \texttt{monomial\_mul}, \texttt{from\_tensor}, \texttt{to\_tensor}, \texttt{arith.constant} and \texttt{constant}.\footnote{It also has distinct types for integers and naturals, which we unified in \cref{sec:mlir:motivation} for simplicity.}
+It consists of the operations \texttt{add}, \texttt{sub}, \texttt{mul}, \texttt{mul\_constant}, \texttt{leading\_term}, \texttt{monomial}, \texttt{monomial\_mul}, \texttt{from\_tensor}, \texttt{to\_tensor}, \texttt{arith.constant} and \texttt{constant}.\footnote{It also has distinct types for integers and naturals.}
 
 Most of these operations are self-explanatory and derive from the (commutative) ring structure of $R$ or are used to build elements in $R$, like the equivalence classes of constants or monomials.
 Three operations, \texttt{to\_tensor} and \texttt{from\_tensor} and \texttt{leading\_term} do not follow directly from the algebraic properties of the polynomial ring.
@@ -721,13 +724,10 @@ Rewrites like \texttt{mul(p,q)} $\rightarrow$ \texttt{mul(q,p)} follow immediate
 Other rewrites like \texttt{from\_tensor(to\_tensor(p))} $\rightarrow$ \texttt{p}, or even \texttt{add(p,monomial(1,$2^n$))} $\rightarrow$ \texttt{sub(p,1)}, on the other hand, are more specific to this IR and have a higher manual-proof overhead.
 We prove all of these.
 
-We discussed the IR and potential semantics with the authors of the HEIR IR in the context of the upcoming open standard for homomorphic encryption.
-We believe that a framework like the one presented in this chapter will allow standards like these to be defined with formal semantics from the ground up.
-
 \section{Related Work: Verified Compilation and Rewriting}
 \label{sec:mlir:related}
 
-\Cref{sec:intro:trust} placed this thesis among the approaches that bridge
+The introduction (\cref{ch:intro}) placed this thesis among the approaches that bridge
 automated speed and kernel-checked trust; here we compare against the technical
 antecedents specific to verified compilation and rewriting.
 
@@ -768,27 +768,13 @@ Our patterns provide more flexibility since the source and target patterns are a
 Several limitations bound what we prove, and each points to concrete future
 work. First, we model side effects coarsely: rewriting is proved sound only for
 \texttt{EffectKind.pure} operations, and the one genuinely side-effectful
-behaviour we encounter---the immediate undefined behaviour that division and
-remainder may raise---is collapsed together with poison into
-\texttt{Option.none} rather than tracked as a first-class effect. This is sound
-for the rewrites we translate, because we check that either side triggers
-\texttt{ub} exactly when the other does; but separating \texttt{ub} from poison
-as a distinct side effect, and reasoning about rewrites that refine it, remains
-future work. Second, because our semantics denote into total Lean functions,
-the user-supplied semantics of a region must be provably terminating; richer
-denotations---computable coinductive and noncomputable domain-theoretic
-semantics---are a natural next step for modelling non-terminating and
-higher-order regions.
+behaviour we encounter, which is the immediate undefined behaviour of division and remainder may raise,
+is collapsed together with poison, rather than being tracker as a first class effect.
 
-The case studies of \cref{sec:mlir:casestudies} expose the third, and central,
-limitation, which is not one of the framework but of the automation beneath it.
+The case studies of \cref{sec:mlir:casestudies} exposes a limitation of the automation.
 Once \texttt{simp\_peephole} has stripped away the SSA scaffolding, each rewrite
 leaves behind a proof obligation over bitvectors of arbitrary width, and only
 $54$ of the $93$ translated Alive rewrites could be discharged by the automation
-available at the time. The framework discharges the structural part of every one
-of these rewrites; the $39$ that remain fail not because \messa{X} cannot state
-or compose them, but because the residual bitvector goals outrun the general-%
-purpose tactics then available. Closing this automation gap---deciding such
-bitvector goals at scale, rather than proving them by hand---is precisely the
-subject of \cref{ch:mono-width,ch:multi-width}, and the reason the rest of the thesis is
-devoted to verified decision procedures.
+available at the time. Closing this automation gap, and being able to decide such bitvector goals at scale,
+rather than proving them by hand, is precisely the subject we tackle next,
+and the reason the rest of the thesis is devoted to verified decision procedures.
