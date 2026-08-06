@@ -1,11 +1,11 @@
 \chapter{Introduction}
 \label{ch:intro}
-\epigraph{It is a laborious madness and an impoverishing one, the madness of composing vast books---setting out in five hundred pages an idea that can be perfectly related orally in five minutes}{Jorge Luis Borges, Prologue to The Garden of Forking Paths}
+\epigraph{It is a laborious madness and an impoverishing one, the madness of composing vast books, setting out in five hundred pages an idea that can be perfectly related orally in five minutes.}{Jorge Luis Borges, Prologue to The Garden of Forking Paths}
 
 \lettrine{T}{his thesis} asks how an optimizing compiler can be verified.
-A production compiler is a large program: in LLVM~\citep{aho1985compilers,lattner2004llvm}, the peephole rewriter alone is larger than the entire vectorizer!
-The tradition of verified compilation~\citep{leroy2016compcert,kumar2014cakeml} teaches that verifying even a modest compiler end to end is the work of many person-years,
-so there is no hope for one person to verify all of LLVM.
+The tradition of verified compilation~\citep{leroy2016compcert,kumar2014cakeml}
+teaches us that verifying even a modest compiler end to end is the work of many person-years,
+and so, there is no hope for one person to verify all of LLVM.
 I therefore focus on the peephole rewriter~\citep{mckeeman1965peephole},
 whose unit of work is a single, local transformation on a finite window of instructions.
 Each transformation is small enough to state precisely and prove correct,
@@ -14,74 +14,90 @@ as witnessed by the Alive line of work on LLVM's instruction combiner~\citep{lop
 But what the individual rewrite grants in simplicity, the rewriter takes back in volume:
 a production compiler carries thousands of rewrites, and hence thousands of proof obligations.
 
-Can we prove them by hand? We can, and for a while I did,
+Can we prove these rewrites by hand? We can, and for a while I did,
 when I set out to verify an SSA-based peephole rewriter for LLVM's bitvector optimizations.
-Together with collaborators, I formalized a core calculus for SSA-based compiler IRs~\citep{appel1998ssa,rastello2022ssa},
+I formalized a core calculus for SSA-based compiler IRs~\citep{appel1998ssa,rastello2022ssa},
 generic over the user's IR, and proved a generic peephole rewriter correct,
 with case studies ranging from fully homomorphic encryption to LLVM's bitvector rewrites (\cref{ch:lean-mlir}).
 The last of these is where the real difficulty began.
 The framework gave us the structural half of the problem for free:
 manipulating SSA, threading contexts through rewrites, splicing programs back together.
-The arithmetic half it could not give us.
-Each rewrite bottoms out in a bitvector identity;
-the identities are subtle, hand proofs of them are slow and error-prone,
-and at the scale of the thousands of rewrites inside a production compiler, proving them one by one is out of the question.
-It is this tedium that drives the demand for push-button automation.
+The arithmetic half was the hard part, since each rewrite bottomed out in a bitvector identity.
+These identities are subtle, hand proofs of them are slow and error-prone,
+and at the scale of the thousands of rewrites inside a production compiler,
+proving them one by one is out of the question.
+This creates a demand for push-button, \emph{trustworthy} automation.
 
 What style of decision procedure should we bet on?
 I bet on bitblasting, almost by accident, since I had been helping to implement \bvdecide{}~\citep{leanbv},
 Lean's fixed-width bitvector tactic.
 \bvdecide{} carries a bitvector goal all the way down to a SAT instance,
 dispatches it to a state-of-the-art SAT solver,
-and has the resulting certificate rechecked by Lean's kernel, so that no bug in the solver can mint a theorem.
+and has the resulting certificate rechecked by Lean's kernel,
+so that no bug in the solver can mint a theorem.
 The design deliberately mirrors Bitwuzla~\citep{niemetz2023bitwuzla},
-a state-of-the-art SMT solver for fixed-width bitvectors, floating point, and arrays;
-our verified infrastructure thus shares its bones with one of the fastest solvers of today,
-and it is the bedrock on which the rest of this thesis builds.
+a state-of-the-art SMT solver for fixed-width bitvectors, floating point, and arrays.
+In helping reimplement a Bitwuzla style solver in Lean, I was drawn into the circle of ideas around proof complexity:
+monotone circuits, lower bounds, interpolation, Herbrand models, $\dots$,
+and gave me a firmer sense of where the boundary of SAT solving lies,
+and of the role bitblasting plays in the landscape of SMT.
+A fixed-width bitblaster gave us the automation we needed to verify rewrites at a \emph{concrete} bitwidth,
+but this is not enough, since an LLVM rewrite must be correct at \emph{every} register width: \texttt{i8}, \texttt{i32}, and even \texttt{i1729}.
 
-However, the proof obligations a compiler hands us are not bitblastable as they stand.
-An LLVM rewrite must be correct at \emph{every} register width---at \texttt{i8}, at \texttt{i32}, at \texttt{i1729}---whereas a bitblaster wants one fixed width~\citep{niemetz2019towards,bit-precise-parametric-bv}.
-The standard remedy, used for example by Alive, is to enumerate the widths and bitblast each one separately.
+
+The standard remedy, used for example by the Alive2 peephole rewrite verifier,
+is to enumerate the widths and bitblast each one separately.
 We show that this is unnecessary.
-Predicates that must hold at all widths reduce to reachability in a finite automaton,
-which we decide by $k$-induction and language emptiness (\cref{ch:mono-width}).
+For a fragment of bitvector theory, we show that predicates which hold at all widths reduce to reachability in a finite automaton,
+which can be decided by $k$-induction, or by regular language emptiness (\cref{ch:mono-width}).
 Next, by an encoding trick that writes widths as bitmasks,
 any formula over $n$ symbolic widths reduces to an equisatisfiable formula at a single width (\cref{ch:multi-width}),
-trading an exponential number of solver queries for a \emph{single} query
-and carving out a new sound and complete fragment of the multi-width theory.
+trading an exponential number of solver queries for a \emph{single} query and carving out a new sound and complete fragment of the multi-width theory.
 The reach of bitblasting, it turns out, extends all the way to the parametric bitvector theory.
 
-The last, and by far the most intricate, piece missing from a fully verified Bitwuzla was floating point~\citep{ieeefp,fphandbook}.
+Finally, another intricate piece missing from a fully verified Bitwuzla was floating point~\citep{ieeefp,fphandbook}.
 The venerable SymFPU~\citep{symfpu} had shown, in a sequence of papers,
 that bitblasting decisively outcompetes the alternatives for floating-point SMT solving.
 Following its lead, we mechanized the SMT-LIB \qffp{} theory~\citep{smtlibfpa}
 and built verified bitblasting circuits for almost all of its operations,
 proved correct at every combination of exponent and significand width (\cref{ch:floating-point}).
-The width-genericity is no flourish:
-machine learning is pushing small, exotic formats such as E4M3 and E5M2 into production hardware~\citep{fp8fordl},
-and these are precisely the formats on which existing solvers are least tested and most fragile.
+Since machine learning is pushing for small, exotic formats such as E4M3 and E5M2 into production hardware~\citep{fp8fordl},
+and these are precisely the formats on which existing solvers are least tested and most fragile,
+it was important to us that our solver be verified at all widths, not just the common ones.
 
-Why should bitblasting, of all approaches, be the one that pays off?
+
+% At the end of bulding the floating point solver, I learnt of an alternative that practitioners increasingly care about:
+% treat floating-point numbers as if they were reals,
+% and decide a fragment of arithmetic that has all the field operations, along with exponentiation and square root.
+% I adapt algorithms introduced by the Triton team~\citep{openai2026fpsan} into a new solver design
+% for bounded verification of this logic by bitblasting,
+% and sketch it as a counterpoint to the IEEE-semantics approach (\cref{ch:future-work}).
+
+Why should bitblasting, of all approaches, be the one that I rely on?
 I read it as a flavour of the bitter lesson~\citep{sutton2019bitter},
 the observation from AI that search and learning are the only two paradigms that keep rewarding the compute we feed them.
 Automated reasoning has its own incarnation of search in SAT solving,
 which now routinely settles instances with hundreds of millions of variables~\citep{biere2024cadical,kissatSATComp2024},
-and bitblasting~\citep{tseitin1983complexity} is nothing but the craft of encoding richer theories into this engine,
-the same bet that powers the state-of-the-art SMT solvers~\citep{niemetz2023bitwuzla,barbosa2022cvc5}.
-The experiments in this thesis bear the lesson out:
-our width-generic solvers prove more all-width problems than the unverified state of the art,
-and our floating-point bitblaster, while slower than Bitwuzla,
-offers in exchange guarantees that reach down to Lean's kernel.
+and bitblasting~\citep{tseitin1983complexity} is nothing but the craft of encoding richer theories into this engine.
+Moreover, the SAT engine is not a black box: it produces a certificate that can be rechecked by a small kernel,
+which feeds into our trust story for the entire pipeline.
 
 There is a second bet running through this thesis: mechanization.
-The solvers above are not merely implemented; they are written in Lean~\citep{demoura2021lean} and proved correct in its proof language.
-Is this worth the effort? I believe it will only grow in importance.
-We live in times (as of August 2026) in which large language models~\citep{brown2020language,touvron2023llama}
-produce impressive volumes of code that cannot be trusted to get the details right,
-and which regularly fulfil the letter of a specification while betraying its spirit;
-a machine-checked specification, with machine-checked automation to discharge it, is the natural antidote.
+All of the solvers are written in Lean~\citep{demoura2021lean} and proved correct.
+Is this worth the effort? I believe so, and that formal verification will only grow in importance.
+We live in interesting times (as of August 2026), where large language models~\citep{brown2020language,touvron2023llama}
+produce impressive volumes of code, but cannot be trusted to get the details right.
+Moreover, they regularly fulfil the letter of a specification while betraying its spirit.
+A machine-checked specification, with machine-checked automation to discharge it, is the natural antidote.
 The lesson of this thesis is that foundational proof and push-button automation need not be at odds,
 and I hope the reductions developed here lay the groundwork for verification efforts of far greater ambition.
+
+
+Overall, this thesis builds a framework that decouples peephole rewrite verification from structural SSA manipulation,
+and builds width-generic bitvector solvers that prove more problems than the unverified state of the art,
+and builds the first formally verified floating-point bitblaster,
+which offers a new level of assurance for mechanized floating-point reasoning.
+I hope that this thesis provides new ideas for push-button verification for compiler optimization.
 
 \section{Contributions}
 
