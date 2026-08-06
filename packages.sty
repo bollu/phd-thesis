@@ -275,10 +275,10 @@
 %% pages are affected. NB: \@tocrmarg is deliberately left at tocloft's default
 %% -- it reserves the column the flush-right page numbers live in.
 %%
-%% Depth: listed down to subsection, no deeper. cam-thesis.cls sets tocdepth
-%% to 3, which pulls x.y.z.w subsubsections into the contents. Set locally so
-%% only the ToC is pruned -- secnumdepth is untouched, so subsubsections are
-%% still numbered in the body. Drop to {1} for chapters and sections only.
+%% Depth: chapters and sections only. cam-thesis.cls sets tocdepth to 3,
+%% which pulls x.y.z subsections and deeper into the contents. Set locally so
+%% only the ToC is pruned -- secnumdepth is untouched, so subsections are
+%% still numbered in the body.
 %%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%
 \let\cam@origtoc\tableofcontents
 \renewcommand{\tableofcontents}{%
@@ -286,7 +286,7 @@
   %% move when you page from the contents into the thesis.
   \newgeometry{a4paper, twoside=false, left=20mm, right=20mm, top=25mm,
                bottom=25mm, marginparwidth=12mm, marginparsep=4mm}%
-  \setcounter{tocdepth}{2}%
+  \setcounter{tocdepth}{1}%
   \cam@origtoc
   \restoregeometry
 }
@@ -299,8 +299,8 @@
 \setlength{\epigraphrule}{0pt}       % no rule under the quote
 \setlength{\beforeepigraphskip}{1\baselineskip}
 \setlength{\afterepigraphskip}{1.4\baselineskip}
-\renewcommand{\textflush}{flushright}    % ragged-left quote body
-\renewcommand{\sourceflush}{flushright}
+\renewcommand{\textflush}{flushleft}     % ragged-right quote body
+\renewcommand{\sourceflush}{flushleft}
 %% Attribution line. Out of the box, epigraph sets the source at the same size
 %% and weight as the quote and leaves only 1ex above it, so the attribution
 %% reads as one more line of the quotation. Two changes, both in the package's
@@ -421,15 +421,23 @@
 %% in a box, the caption is typeset into a second box \marginparwidth wide, and
 %% the two are set side by side in an \hbox that overhangs into the margin.
 %% Consequences, all of them the point of doing it this way:
-%%   * The float's height is max(body, caption), so LaTeX's ordinary float
-%%     placement keeps captions apart. Overlap is structurally impossible.
 %%   * Captions are top-aligned with their figure for free.
-%%   * A caption too long to fit beside its figure makes the float tall, and
-%%     LaTeX moves it to a page where it fits, rather than overprinting.
+%%   * The caption travels with the float, so it always sits level with the
+%%     figure it describes, wherever LaTeX places it.
+%%
+%% The caption box is zeroed before assembly (see \cam@endfloat), so the
+%% float's height is the BODY's height alone: a caption taller than its
+%% figure hangs on down the margin while body text flows in the main column
+%% beside it, instead of the float reserving a caption-sized blank. The
+%% price is that nothing structurally prevents a long caption from running
+%% past the page bottom, or into the margin caption of another float placed
+%% closely below -- LaTeX will not warn about either, so pages where a
+%% caption clearly outruns its figure deserve a visual check.
 %%
 %% \longcaption is the escape hatch: it is the original \caption, set under the
-%% float at full measure. Use it where a caption is long enough that a 44mm
-%% column would turn the float into a full page.
+%% float at full measure. Use it where a caption is long enough that hanging
+%% it down a 44mm margin column would collide with the page bottom or a
+%% neighbouring float's caption.
 %%
 %% SUBCAPTIONS. \subcaption text is routed into the same margin column, below
 %% the main caption, in subfloat order. The sub-label ((a), (b), ...) is still
@@ -578,10 +586,20 @@
     \fi
     \noindent
     \ifcam@hascap
+      %% The caption box is zeroed (ht = dp = 0) so it hangs in the margin
+      %% from the float's top edge without contributing to the float's
+      %% height: a caption taller than its figure no longer holds blank
+      %% space in the main column, and body text flows on directly below
+      %% the figure, beside the caption's tail. The content still prints at
+      %% the same position -- box dimensions only affect layout around the
+      %% box, not its contents.
+      \setbox\cam@tmpbox=\vtop{\unvbox\cam@capbox}%
+      \ht\cam@tmpbox=0pt
+      \dp\cam@tmpbox=0pt
       %% \hss absorbs the overhang into the margin without an overfull warning.
       \hbox to\textwidth{\vtop{\unvbox\cam@bodybox}%
                          \hskip\marginparsep
-                         \vtop{\unvbox\cam@capbox}\hss}%
+                         \box\cam@tmpbox\hss}%
     \else
       \unvbox\cam@bodybox
     \fi
