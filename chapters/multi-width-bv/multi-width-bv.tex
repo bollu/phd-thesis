@@ -36,7 +36,7 @@ challenging: the only previously existing complete approach for bounded PBV
 (where all widths have a concrete upper bound) is exhaustive enumeration,
 requiring one \qfbv{} solver call for each of the exponentially many width
 assignments. This is a significant bottleneck in tools, such as
-Alive2~\citep{lopes2021alive2} and \hydra{}~\citep{mukherjee2024hydra}, that
+Alive2~\citep{lopes2021alive2} and \hydra{}~\citep{hydra}, that
 formally reason about compiler optimizations.
 
 To address this problem, we first prove that any $\text{PBV}_n$ formula can be
@@ -1121,7 +1121,7 @@ The verified option invokes a $k$-induction solver with cycle breaking built on
 previous work by \citet{bhat2025certified}:
 the solver calls \cadical{} and produces LRAT proof certificates,
 which are checked by Lean's verified certificate checker
-(part of \texttt{bv\_decide}~\cite{boving2025interactive}),
+(part of \texttt{bv\_decide}~\cite{leanbv}),
 yielding a fully verified end-to-end proof.
 The new unverified option invokes the rIC3 model checker~\cite{ric3} as an
 external process; this is typically faster than $k$-induction, and the
@@ -1144,7 +1144,7 @@ for \texttt{bv\_decide}.%
 \footnote{Via \texttt{toBVLogicalExpr}, producing Lean's \texttt{BVLogicalExpr} type.}
 This pipeline is unverified.
 The third stage hands the resulting \qfbv{} problem to \texttt{bv\_decide},
-Lean's verified bitblaster~\cite{boving2025interactive}.
+Lean's verified bitblaster~\cite{leanbv}.
 
 The trust placed in this pipeline therefore rests on
 (1)~correctness of the unverified reduction, and
@@ -1549,7 +1549,7 @@ The sound and complete automata-based procedures of \cref{ch:mono-width}
 decide fragments of the PBV language in the mono-width setting ($\text{PBV}_1$), via reductions
 to automata-based decision procedures for linear integer arithmetic---an approach
 rooted in the classical result that integer arithmetic can be encoded by finite
-automata~\citep{Buchi-presburger}. The multi-width solver above builds on that
+automata~\citep{Büchi1960}. The multi-width solver above builds on that
 automata-based approach, extending it to handle the full PBV language via our
 reduction, and improving its performance on the linear fragment via verified
 automata construction and $k$-induction.

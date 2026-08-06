@@ -311,7 +311,7 @@ and how we mechanize it in Lean.
 \label{sec:fp:spec}
 
 The IEEE 754 standard is written as prose, which leaves room for ambiguity.
-The SMT-LIB floating-point theory~\cite{smtlibfpa}
+The SMT-LIB floating-point theory~\cite{extrealsemantics}
 addresses this by providing a model-theoretic semantics for floating-point arithmetic.
 Operations are defined over extended reals (reals augmented with $\pm\infty$ and $\nan$)
 with rounding specified as a function that maps an extended real
@@ -1227,7 +1227,7 @@ However, they do not check the end-to-end correctness of the solver pipeline,
 where SMT-LIB parsing, preprocessing invocations, and problem creation
 could have bugs, even if the core bitblaster is verified correct.
 Therefore, we check our solver end-to-end against the FPTG SMT-LIB test suite.
-This is the output of Schanda's floating-point test generator~\cite{brain2019building},
+This is the output of Schanda's floating-point test generator~\cite{symfpu},
 which was designed to stress-test floating-point solvers and find bugs in them.
 Each benchmark is a ground \texttt{QF\_FP} problem that binds constant inputs, applies one floating-point
 operation under a given rounding mode, and asserts that the result equals a
@@ -1563,7 +1563,7 @@ that exclude the small formats used in machine learning (\cref{sec:fp:testing}).
 Our work mechanizes and generalizes SymFPU's algorithms, removing some of these restrictions,
 and provides a machine-checked proof of correctness for the bit-blasting encodings.
 
-\citet{brain2019building} describes the design of SymFPU's bit-blasting encodings,
+\citet{symfpu} describes the design of SymFPU's bit-blasting encodings,
 with a focus on the rounding circuit and its correctness argument.
 The correctness argument is informal and relies on exhaustive testing;
 we replace it with a machine-checked proof.

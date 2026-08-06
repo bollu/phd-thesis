@@ -42,7 +42,7 @@ integers of every size, or the normalization lemmas that fixed-width
 bitblasters themselves rely on~\citep{niemetz2024scalable}. Fixed-width
 solvers also face scaling issues as widths grow, struggling beyond width 512
 in domains such as hardware design and
-cryptography~\citep{lopes2018future,mukherjee2024hydra}.
+cryptography~\citep{lopes2018future,hydra}.
 
 To fill this gap, we take up an old observation. Classical algorithms for
 fragments of the width-independent theory can be viewed through the lens of
@@ -1206,10 +1206,10 @@ as well as with survival plots~\cite{brain2017benchmarking}, to characterize per
 
 \noindent \paragraph{Hacker's Delight~(31 problems).}
 For a stock of bit-twiddling algorithms, we take the first two chapters of Hacker's Delight \cite{warren2013hacker},
-we take the problems that have been translated into Lean (by \texttt{lean-mlir}~\cite{bhat2024verifying}).
+we take the problems that have been translated into Lean (by \texttt{lean-mlir}~\cite{leanmlir}).
 
 \noindent \paragraph{Alive~(104 problems).} We take the test suite of Alive \cite{lopes2015provably}, which is a translation validator for LLVM IR.
-We use problems on addition, subtraction, and bitwise operations which have been translated into Lean (by \texttt{lean-mlir}~\cite{bhat2024verifying}),
+We use problems on addition, subtraction, and bitwise operations which have been translated into Lean (by \texttt{lean-mlir}~\cite{leanmlir}),
 and evaluate our algorithms on this dataset.
 \noindent \paragraph{InstCombine~(\InstCombineTotalProblems{} problems).}
 We use \texttt{InstCombine} a dataset of \InstCombineTotalProblems{} bitvector
@@ -1294,7 +1294,7 @@ and manually inspect the failures, using regular expressions to categorize them.
 We find the following categories: (1) Rewrites which ought to hold, but are classified as untrue (447 problems).
 These occur since we translate fixed-width problems into infinite width-problems, and such example use constants such as $7$,
 which should be generalized to e.g. $2^w - 1$; a promising path would be to use
-tools such as Hydra~\citep{mukherjee2024hydra} to automatically do the
+tools such as Hydra~\citep{hydra} to automatically do the
 generalization.
 (2) Rewrites that involve quantification over multiple widths $w_1, \dots, w_k$, rather than a fixed width (1925 problems).
 These rewrites then perform truncation / sign extension of the bitvectors involved.
@@ -1329,7 +1329,7 @@ families of boolean circuits to establish base cases and inductive cases~\citep{
 have been explored in the literature.
 
 \paragraph{Automata-Based Presburger Arithmetic Solvers.}
-The idea that a Presburger formula can be represented by a finite-state automaton is classical \cite{buchi1990weak}.
+The idea that a Presburger formula can be represented by a finite-state automaton is classical \cite{Büchi1960}.
 Moreover, it can be seen that Presburger arithmetic is expressible into WS1S (weak monadic second order logic with one successor),
 which can also be decided via automata.
 %

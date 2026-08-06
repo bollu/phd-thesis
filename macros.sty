@@ -107,6 +107,31 @@
 }
 
 %%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%
+%% Acronyms. \acronym{SMT}{Satisfiability Modulo Theories} prints
+%% "Satisfiability Modulo Theories (SMT)" at its first use and plain "SMT"
+%% at every use after that. \acronym*{...}{...} forces the long form again
+%% (useful when a chapter reintroduces a term long after its first mention).
+%%
+%% First-use tracking is a global flag keyed on the short form, flipped when
+%% the call is TYPESET, so it follows reading order automatically. Two
+%% caveats that follow from that: (1) do not use \acronym in section titles
+%% or captions -- the ToC and List-of-X passes typeset before the body and
+%% would steal the first use; (2) the flag does not persist across LaTeX
+%% runs, so the expansion is stable without any .aux round-trip.
+%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%
+\makeatletter
+\newcommand{\acronym}{\@ifstar\cam@acronym@long\cam@acronym}
+\newcommand{\cam@acronym}[2]{%
+  \ifcsname cam@acr@seen@#1\endcsname
+    #1%
+  \else
+    \cam@acronym@long{#1}{#2}%
+  \fi}
+\newcommand{\cam@acronym@long}[2]{%
+  #2 (#1)\global\@namedef{cam@acr@seen@#1}{}}
+\makeatother
+
+%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%
 %% Tool names.
 %%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%
 \newcommand{\bvdecide}{\texttt{bv\_decide}}

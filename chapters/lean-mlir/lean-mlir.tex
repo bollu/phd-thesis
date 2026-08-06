@@ -48,7 +48,7 @@ which brought automatic SMT-based verification into the day-to-day of the LLVM c
 
 There is, at the same time, an increasing need for \emph{domain-specific}
 reasoning in modern compilers, fuelling tailored SSA-based IRs as popularized
-by the MLIR compiler framework~\citep{lattner2020mlir}. Interactive theorem
+by the MLIR compiler framework~\citep{lattner2021mlir}. Interactive theorem
 provers provide strong guarantees for end-to-end compiler verification, as in
 CompCert~\citep{leroy2016compcert}, but modern compilers and their IRs evolve
 at a rate that makes proof engineering alongside them prohibitively expensive.
@@ -566,7 +566,7 @@ This gives us confidence our semantics correspond to LLVM's.
 \subsubsection{Proving Bitvector Rewrites in our Framework}
 
 Effective automation for bitvector reasoning is necessary to resolve the proof obligations that \messa{X} derives automatically from peephole rewrites expressed as MLIR program snippets.
-While Lean does not yet have extensive automation for bitvectors, thanks to our work we can already use a decision procedure for commutative rings~\cite{DBLP:conf/tphol/GregoireM05} and an extensionality lemma that establishes the equality of bitvectors given equality on an arbitrary bit index.
+While Lean does not yet have extensive automation for bitvectors, thanks to our work we can already use a decision procedure for commutative rings~\cite{gregoire2005proving} and an extensionality lemma that establishes the equality of bitvectors given equality on an arbitrary bit index.
 
 We test the available automation on a dataset of peephole optimizations from Alive's test suite, consisting of theorems about addition, multiplication, division, bit-shifting and conditionals.
 Out of the $435$ tests in Alive's test suite, we translate $93$ tests which are the ones that are supported by the LLVM fragment we model and without preconditions.

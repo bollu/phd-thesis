@@ -58,7 +58,7 @@ The reach of bitblasting, it turns out, extends all the way to the parametric bi
 Finally, another intricate piece missing from a fully verified Bitwuzla was floating point~\citep{ieeefp,fphandbook}.
 The venerable SymFPU~\citep{symfpu} had shown, in a sequence of papers,
 that bitblasting decisively outcompetes the alternatives for floating-point SMT solving.
-Following its lead, we mechanized the SMT-LIB \qffp{} theory~\citep{smtlibfpa}
+Following its lead, we mechanized the SMT-LIB \qffp{} theory~\citep{extrealsemantics}
 and built verified bitblasting circuits for almost all of its operations,
 proved correct at every combination of exponent and significand width (\cref{ch:floating-point}).
 Since machine learning is pushing for small, exotic formats such as E4M3 and E5M2 into production hardware~\citep{fp8fordl},
@@ -103,7 +103,7 @@ I hope that this thesis provides new ideas for push-button verification for comp
 
 \noindent First, we contribute \textbf{A verified framework for peephole rewriting in SSA-based IRs} (\cref{ch:lean-mlir}).
 We formalize a core calculus for SSA-based IRs~\citep{appel1998ssa,rastello2022ssa},
-generic over the user's IR and covering MLIR-style regions~\citep{lattner2020mlir}, mechanize it in
+generic over the user's IR and covering MLIR-style regions~\citep{lattner2021mlir}, mechanize it in
 Lean with an MLIR-syntax frontend, and prove correct a generic peephole
 rewriter as well as dead-code and common-subexpression elimination.
 \publishedat{Published @ ITP~2024~\citep{leanmlir}}
@@ -121,7 +121,7 @@ This translation collapses exponential enumeration into one fixed-width solver c
 \publishedat{Accepted with minor revision @ OOPSLA~2026~\citep{bhat2026multiwidth}}
 
 \noindent Finally, we construct the first \textbf{Mechanized floating-point bitblaster} (\cref{ch:floating-point}).
-We mechanize the SMT-LIB \qffp{} theory~\citep{smtlibfpa} and build verified bitblasting circuits for its operations
+We mechanize the SMT-LIB \qffp{} theory~\citep{extrealsemantics} and build verified bitblasting circuits for its operations
 following SymFPU~\citep{symfpu}, and we evaluate the resulting solver on SMT-COMP~\citep{smtcomp2024} and on new
 small-format (E4M3/E5M2) benchmarks~\citep{fp8fordl}.
 \publishedat{Submitted @ POPL 2027~\citep{bhat2027floatingpoint}}

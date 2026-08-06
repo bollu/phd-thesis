@@ -50,11 +50,6 @@ which showed in a sequence of papers that bitblasting decisively outcompetes the
 we mechanize the SMT-LIB \qffp{} theory and build verified bitblasting circuits for almost all of its operations.
 Moreover, we prove the correctness of these circuits in Lean,
 thereby eliminating various trust issues around nonstandard floating point formats and rounding modes.
-As a counterpoint to the IEEE-semantics approach, we also sketch a solver design,
-adapted from algorithms introduced by the Triton team at OpenAI,
-for bounded verification of the existential theory of the reals plus exponential, trignometric, and square root functions.
-This fragment is interesting, since this is how machine learning practicioners reason about floating point,
-and we hope that our solver design sketch will be a useful starting point for future work in this area.
 
 Overall, our width-generic solvers prove more all-width problems than the unverified state of the art,
 and our floating-point bitblaster, while slower than Bitwuzla,
