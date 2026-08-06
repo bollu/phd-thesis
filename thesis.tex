@@ -81,7 +81,15 @@
 \begin{document}
 
 %% Title page, abstract, declaration, acknowledgements, table of contents:
+%% The frontmatter carries no margin captions and no marginal chapter numbers,
+%% so the wide caption margin of the body would just read as an off-centre
+%% text block -- most visibly on the title page. Set these pages on symmetric
+%% margins (the same numbers as the ToC geometry in packages.sty); the
+%% asymmetric wide-margin layout starts with the introduction.
+\newgeometry{a4paper, twoside=false, left=20mm, right=20mm, top=25mm,
+             bottom=25mm, marginparwidth=12mm, marginparsep=4mm}
 \frontmatter{}
+\restoregeometry
 
 %% Running heads. cam-thesis.cls leaves the body on \pagestyle{plain} -- a bare
 %% outer page number and nothing else. classicthesis has already configured

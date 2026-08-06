@@ -102,31 +102,27 @@ and then describe the reduction to automata, followed by the model checking algo
 \label{sec:swbv:formulas}
 
 \begin{figure}[tb]
-  % \centering
-  \begin{minipage}[t]{.5\textwidth}
-    \begin{align*}
-      \mathsf{E} \eqdef~&\ofNat~(v : \N) \\
-      \mid~&\Var~(x : \V) \\
-      \mid~&\mathsf{E}_1 \boxplus \mathsf{E}_2 \quad (\boxplus \in \{+, -, \bitor, \bitand, \bitxor\}) \\
-      \mid~& {- \mathsf{E}} \;\; \mid {\bitnot \mathsf{E}} \\
-      \mid~& {\mathsf{E} \ll k}
-    \end{align*}
-  \end{minipage}%
-  \begin{minipage}[t]{.5\textwidth}
-    \begin{align*}
-      \mathsf{F} \eqdef~& \mathsf{E}_1 \otimes \mathsf{E}_2 \\
-      &\quad (\otimes \in \{<_u, \leq_u, \leq_s, <_s, =, \neq \}) \\
-      \mid~&{\width~(r : \WidthRel)~(k \in \N)} \\
-      \mid~&\mathsf{F}_1 \land \mathsf{F}_2 \;\; \mid~\mathsf{F}_1 \lor \mathsf{F}_2 \\
-      \mid~&\mathsf{F}_1 \Rightarrow \mathsf{F}_2 \\
-      \mid~&{\neg \mathsf{F}}
-    \end{align*}
-    \begin{align*}
-      \WidthRel \eqdef {<} \mid {\leq} \mid {>} \mid {\geq} \mid {=} \mid
-      {\neq}
-    \end{align*}
-  \end{minipage}
-  \caption{Syntax of bitvector expressions and formulas}
+\centering
+{\footnotesize
+\begin{tabular}{llll}
+$\mathsf{E}$ & $::=$ & $\ofNat~(v : \N)$ & width-independent constant $v$ \\
+    & $\mid$ & $\Var~(x : \V)$ & bitvector variable \\
+    & $\mid$ & $\mathsf{E}_1 \boxplus \mathsf{E}_2$ & binary operation, $\boxplus \in \{+, -, \bitor, \bitand, \bitxor\}$ \\
+    & $\mid$ & $- \mathsf{E}$ & arithmetic negation \\
+    & $\mid$ & $\bitnot \mathsf{E}$ & bitwise complement \\
+    & $\mid$ & $\mathsf{E} \ll k$ & left shift by a constant $k \in \N$ \\[4pt]
+$\mathsf{F}$ & $::=$ & $\mathsf{E}_1 \otimes \mathsf{E}_2$ & comparison, $\otimes \in \{<_u, \leq_u, \leq_s, <_s, =, \neq \}$ \\
+    & $\mid$ & $\width~(r : \WidthRel)~(k \in \N)$ & assertion $w \mathrel{r} k$ on the bitwidth $w$ \\
+    & $\mid$ & $\mathsf{F}_1 \land \mathsf{F}_2$ & conjunction \\
+    & $\mid$ & $\mathsf{F}_1 \lor \mathsf{F}_2$ & disjunction \\
+    & $\mid$ & $\mathsf{F}_1 \Rightarrow \mathsf{F}_2$ & implication \\
+    & $\mid$ & $\neg \mathsf{F}$ & negation \\[4pt]
+$\WidthRel$ & $::=$ & ${<} \mid {\leq} \mid {>} \mid {\geq} \mid {=} \mid {\neq}$ & relations on the bitwidth \\
+\end{tabular}
+}
+  \caption{Syntax of the width-independent bitvector theory: expressions
+  $\mathsf{E}$ over a single symbolic bitwidth $w$, formulas $\mathsf{F}$, and
+  relations $\WidthRel$ for width assertions.}
   \label{fig:swbv:syntax-formula}
 \end{figure}
 
@@ -653,30 +649,34 @@ previously described automata encodings, but instead, chooses to view the
 automata as \emph{transducers}, whose outputs are infinite bitstreams.
 
 \begin{figure}[t]
-\begin{align*}
-&\denote{-}: \mathsf{Term} \times \mathsf{Env} \to (\N \to \B) \quad \mathsf{Env} \equiv \V \to (\N \to \B) \\
-&\denote{\Var(x)}_\rho(i) \equiv
-  \begin{cases}
-  0 & i = 0 \\
-  \rho(x)(i) & \text{otherwise}
-  \end{cases} \\
-&\denote{\ofNat(i)}_\rho(i) \equiv
-  \begin{cases}
-  0 & i = 0 \\
-  \lfloor v / 2^i \rfloor \mod 2  & \text{otherwise}
-  \end{cases} \\
-&\denote{s || t}_\rho(i) \equiv \denote{s}_\rho(i) || \denote{t}_\rho(i) \\
-&\denote{\lnot s}_\rho(i) \equiv
-  \begin{cases}
-    0 & i = 0 \\
-    1 - \denote{s}_\rho(i) & \text{otherwise}
-  \end{cases}  \\
-&\denote{P}_\rho(i) = 1 \iff \\
-&\quad \text{Predicate $P$ holds at bitwidth $i$ for environment $\rho$} \\
-&\denote{s = t}_\rho(i) \equiv \forall j \leq i, \denote{s}_\rho(j) = \denote{t}_\rho(j) \\
-&\denote{P \land Q}_\rho(i) \equiv \denote{P}_\rho(i) \land \denote{Q}_\rho(i) \\
-\end{align*}
-  \caption{Bitstream semantics of the bitvector theory.}
+\centering
+\small
+\setlength{\tabcolsep}{3pt}
+\renewcommand{\arraystretch}{1.2}
+\begin{tabular}{@{}p{12.5cm}@{}}
+\toprule
+\textbf{Bitstream semantics} (relative to an environment~$\rho$) \\
+\midrule
+\textit{Terms}: $\denote{-} : \mathsf{Term} \times \mathsf{Env} \to (\N \to \B)$, \quad where $\mathsf{Env} \equiv \V \to (\N \to \B)$ \\
+\dimtext{every term stream is $0$ at position $i = 0$; the rules below give position $i > 0$} \\[2pt]
+\rowcolor{black!10!white}
+$\denote{\Var(x)}_\rho(i) \defn \rho(x)(i)$ \\
+$\denote{\ofNat(v)}_\rho(i) \defn \lfloor v / 2^i \rfloor \bmod 2$ \\
+\rowcolor{black!10!white}
+$\denote{s \bitor t}_\rho(i) \defn \denote{s}_\rho(i) \bitor \denote{t}_\rho(i)$ \\
+$\denote{\lnot s}_\rho(i) \defn 1 - \denote{s}_\rho(i)$ \\[4pt]
+\midrule
+\textit{Formulas}: $\denote{P}_\rho(i) = 1$ iff $P$ holds at bitwidth $i$ for environment $\rho$ \\[2pt]
+\rowcolor{black!10!white}
+$\denote{s = t}_\rho(i) \defn \forall j \leq i,\; \denote{s}_\rho(j) = \denote{t}_\rho(j)$ \\
+$\denote{P \land Q}_\rho(i) \defn \denote{P}_\rho(i) \land \denote{Q}_\rho(i)$ \\
+\bottomrule
+\end{tabular}
+\caption{Bitstream semantics of the bitvector theory, relative to an
+environment~$\rho$ that maps each variable to a bitstream. Terms are
+interpreted as bitstreams, extending the bitwise and arithmetic operations
+pointwise; a formula is interpreted as the non-increasing bitstream whose
+$i$th bit records whether the formula holds at bitwidth~$i$.}
 \label{fig:swbv:stx-sem-bv-theory}
 \end{figure}
 
@@ -1051,15 +1051,23 @@ This is an interesting fragment, which subsumes both ring properties and bitwise
 and allows for mild mixtures of these properties.
 
 \begin{figure}[htb]
-\begin{align*}
-\mathsf{A} &\equiv \mathsf{Const} ~|~ \mathsf{Var} \\
-\mathsf{B} &\equiv \mathsf{A} ~|~ \mathsf{B} ~\mathsf{\boxplus}~ \mathsf{B} ~|~
-  \bitnot \mathsf{B}, \quad \left(\boxplus \in \{\bitor, \bitand\}\right) \\
-\mathsf{T} &\equiv \mathsf{B} ~|~ \mathsf{T} ~\mathsf{\otimes}~ \mathsf{T},
-  \quad \left(\otimes \in \{+, - \}\right) \\
-\mathsf{P} &\equiv (\mathsf{T} = 0).
-\end{align*}
-\caption{Syntax of the theory decided by the MBA solver. }
+\centering
+{\footnotesize
+\begin{tabular}{llll}
+$\mathsf{A}$ & $::=$ & $\mathsf{Const}$ & bitvector constant \\
+    & $\mid$ & $\mathsf{Var}$ & bitvector variable \\[4pt]
+$\mathsf{B}$ & $::=$ & $\mathsf{A}$ & atom \\
+    & $\mid$ & $\mathsf{B} \boxplus \mathsf{B}$ & bitwise combination, $\boxplus \in \{\bitor, \bitand\}$ \\
+    & $\mid$ & $\bitnot \mathsf{B}$ & bitwise complement \\[4pt]
+$\mathsf{T}$ & $::=$ & $\mathsf{B}$ & boolean term \\
+    & $\mid$ & $\mathsf{T} \otimes \mathsf{T}$ & arithmetic combination, $\otimes \in \{+, -\}$ \\[4pt]
+$\mathsf{P}$ & $::=$ & $(\mathsf{T} = 0)$ & MBA equation \\
+\end{tabular}
+}
+\caption{Syntax of the theory decided by the MBA solver: boolean
+terms~$\mathsf{B}$, built from atoms~$\mathsf{A}$ by purely bitwise
+operations, are combined linearly by arithmetic into terms~$\mathsf{T}$ and
+equated to zero.}
 \label{fig:swbv:mba-syntax}
 \end{figure}
 
