@@ -1221,7 +1221,7 @@ Note that these problems are for fixed bitwidths.
 %
 Thus, we can run \bvdecide{} on these problems. To run our decision procedures on this dataset,
 we treat the fixed width problem as an infinite width problem, and run our decision procedures on them.
-This can introduce spurious counterexamples, such as the optimization $x + y = x \oplus y$, which untrue for bit-width greater than 1.
+This can introduce spurious counterexamples, such as the optimization $x + y = x \oplus y$, which is untrue for bitwidths greater than 1.
 Regardless, we are interested in the performance of our decision procedures to prove real-world rewrites,
 and thus this is a valuable dataset.
 
@@ -1283,7 +1283,7 @@ and solves \InstCombineBvDecideNumSolved{} problems, a large majority.
 $k$-induction solves \InstCombineNormCircuitVerifiedNumSolved{} problems (the largest amongst the symbolic width solvers),
 and the automata solver solves \InstCombineNormPresburgerNumSolved{} problems.
 Interestingly, the automata solver (with preprocessing) is faster than the k-induction solver (with preprocessing) for the LLVM dataset.\footnote{We conjecture that this is because the problems are small and the overhead of invoking a SAT solver is larger than the time it takes to solve the problem.}
-The geomean time for the automata solver is \InstCombineNormPresburgerGeoMean{}, while the geomean time for the k-induction solver is \InstCombineNormCircuitVerifiedGeoMean{}. In contrast, bit-blasting is slower, with a geomean time of \InstCombineBvDecideGeoMean{}.
+The geomean time for the automata solver is \InstCombineNormPresburgerGeoMean{}, while the geomean time for the k-induction solver is \InstCombineNormCircuitVerifiedGeoMean{}. In contrast, bitblasting is slower, with a geomean time of \InstCombineBvDecideGeoMean{}.
 Overall, this shows us that the fragments that our arbitrary-width decision procedures tackle occur in a non-trivial fraction of the real-world problems from the LLVM ecosystem,
 and that our algorithmically complete procedures for this fragment is a useful addition to the Lean ecosystem.
 

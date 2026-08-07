@@ -1,4 +1,4 @@
-\chapter{Mechanizing Floating Point Bitblasting}
+\chapter{Mechanizing Floating-Point Bitblasting}
 \label{ch:floating-point}
 \epigraph{We can be grateful that so useful a work of reference has been created from a project of such awe-inspiring futility}{Robert Poole, Review of Calendrical Calculations}
 
@@ -153,7 +153,7 @@ them explicitly is what lets our circuits cover the small floating-point formats
 E4M3 and E5M2, that machine-learning quantization has made important
 (\cref{sec:fp:surfaced}).
 
-\section{Algorithmic Overview: How to Bitblast a Floating Point Multiply}
+\section{Algorithmic Overview: How to Bitblast a Floating-Point Multiply}
 \label{sec:fp:overview}
 
 Consider proving that floating-point multiplication is commutative:
@@ -171,7 +171,7 @@ while a satisfying assignment is a concrete counterexample.
 Everything therefore hinges on constructing a circuit that computes $x \times y$
 exactly as the IEEE semantics prescribes.
 This section walks through the algorithmic structure of that multiplication circuit.
-Multiplication is a good case study, as it is one of the easy floating point operations,
+Multiplication is a good case study, as it is one of the easy floating-point operations,
 and yet highlights the key steps of the bitblasting pipeline.
 
 \begin{wrapfigure}[25]{r}{0.42\textwidth}
@@ -210,7 +210,7 @@ and yet highlights the key steps of the bitblasting pipeline.
 The SMT-LIB and IEEE semantics define multiplication of floating-point numbers
 by representing them as extended real numbers (reals with infinity and NaN),
 computing the multiplication as real numbers, and then \emph{rounding} the result back to floating-point format,
-by choosing the floating point number that is closest to the real-number result.
+by choosing the floating-point number that is closest to the real-number result.
 This description is declarative: it does not tell us how to compute the result, but rather what the result should be.
 
 In order to implement this multiplication in a bitblasting-based solver,
@@ -219,7 +219,7 @@ To be concrete, we trace a single multiplication:
 $\baseten{1.5} \times \baseten{1.5}$, written in binary as $\basetwo{1.10} \times \basetwo{1.10}$.
 We work in a small format \textbf{E3M2} (a three-bit exponent and a two-bit significand), in which the number $\baseten{1.5}$ is
 written in scientific notation as $\basetwo{1.10} \times 2^0$.
-Recall that in the floating point format E3M2,
+Recall that in the floating-point format E3M2,
 we are allowed to represent numbers of the form $1.m_1m_2 \times 2^e$ where $e$ is a three-bit exponent and $m_i$ are the bits of the significand.\footnote{This discussion suppresses subnormal numbers and the sign bit.}  Thus, we write the number $\baseten{1.5}$ as $\basetwo{1.10} \times 2^0$ in this format, where the significand is $\basetwo{1.10}$ and the exponent is $0$; as a packed bit-pattern (biased exponent followed by significand) it is $\bitpattern{011\,10}$.
 We will now trace the steps of the multiplication algorithm by multiplying $x = y = \baseten{1.5}$,
 via the multiplication bitblasting circuit (summarized in \cref{fig:fp:algo-overview}).
@@ -250,7 +250,7 @@ The highlighted bit $\bluebox{1}$ is an \emph{extra} bit that falls beyond the t
 the rounding circuit uses it to choose the final result.
 See that this still represents the same number: $\basetwo{1.001} \times 2^1 = \basetwo{10.01} \times 2^0 = \baseten{2.25}$.
 What we did achieve was to establish the invariant that $m_z$ is normalized.
-This is used by the rounding circuit to determine the closest floating point numbers to $m_z$,
+This is used by the rounding circuit to determine the closest floating-point numbers to $m_z$,
 since one can ``read off'' the closest representable numbers from the normalized representation.
 
 \noindent\textbf{Round.}
@@ -274,7 +274,7 @@ the final product of the multiplication.
 Since each of the above phases can be expressed as an arithmetic circuit, the entire computation can be encoded into a SAT formula.
 This formula is fed into a SAT solver for proving properties about this computation.
 Overall, we mechanize every one of these steps of the circuit in the Lean proof assistant,
-and establish semantic equivalence with the SMT-LIB specification of floating point semantics,
+and establish semantic equivalence with the SMT-LIB specification of floating-point semantics,
 which was designed to match IEEE 754.
 
 \subsection{Why Is the Multiplication Circuit Correct?}\label{sec:fp:overview-correctness}
@@ -385,16 +385,16 @@ The next three subsections define each of these in turn.
 The packed bit-level representation of floating-point numbers is fixed by the IEEE 754 standard.
 Recall that IEEE 754 states that floating-point numbers are represented by three parts:
 a sign $s$, exponent $e$, and significand $m$ (we write $m$ for the significand, after its historical name, the \textit{mantissa}),
-where the sign is represented by a single bit and the exponent and significand are represented by unsigned integer bit-vectors.
+where the sign is represented by a single bit and the exponent and significand are represented by unsigned integer bitvectors.
 Our \texttt{PackedFloat} datatype
 is a \emph{bit-exact mirror} of this layout:
 \begin{lean4}
 structure PackedFloat (E M : Nat) where
   sign : Bool     ex : BitVec E     m  : BitVec M
 \end{lean4}
-\noindent The floating point specification encodes numbers in scientific notation ($\pm\, 1.m_1 m_2 \cdots m_M \times 2^{e}$):
+\noindent The floating-point specification encodes numbers in scientific notation ($\pm\, 1.m_1 m_2 \cdots m_M \times 2^{e}$):
 the significand field $m$ stores the bits $m_1 m_2 \cdots m_M$, the exponent field $\mathit{ex}$ encodes the exponent $e$ (via a bias, below), and the sign bit stores $\pm$.
-Writing $E$ and $M$ for the lengths of the exponent and significand bit-vectors, a \emph{normal} number denotes:
+Writing $E$ and $M$ for the lengths of the exponent and significand bitvectors, a \emph{normal} number denotes:
 \begin{equation}
 \llbracket (s, \mathit{ex}, m) \rrbracket = (-1)^s\ 2^{\,\mathit{ex} - E_0} \left(1 + \frac{m}{2^M}\right),
 \end{equation}
@@ -440,7 +440,7 @@ To enable this, we instead choose to work over an arbitrary numeric domain \text
 constrained only by the typeclass \texttt{ExtendedNumber}
 which supplies exact arithmetic together with $\pm\infty$ and \nan{}.
 This one interface is instantiated at the extended rationals for our correctness proofs,
-and can be instantiated with the extended reals from Mathlib for future developments, such as floating point numerical analysis.
+and can be instantiated with the extended reals from Mathlib for future developments, such as floating-point numerical analysis.
 
 \begin{lean4}[fontsize=\small]
 -- The numeric domain R: exact arithmetic, extended with $\pm\infty$ and NaN.
@@ -542,7 +542,7 @@ which both simplifies proofs and provides a test oracle for the circuit implemen
 One generic definition thus serves simultaneously as the abstract specification and as the executable test oracle,
 which is exactly the executability we required of the mechanization at the start of this section.
 
-\section{Verified Floating Point Bitblasting Circuits for QF\_FP Operations}
+\section{Verified Floating-Point Bitblasting Circuits for QF\_FP Operations}
 \label{sec:fp:design}
 
 Now that we have seen the abstract specification of the SMT-LIB semantics,
@@ -619,9 +619,9 @@ The circuits reuse the standard four-stage pipeline of a hardware floating-point
 \begin{center}
 \chainrow{op}{operation result}{UnpackedFloat e s}
 \end{center}
-\noindent This is the same structure that SymFPU uses to encode floating point into bit-vectors, but what is new is that we mechanize it and prove each stage correct against the SMT-LIB semantics.
+\noindent This is the same structure that SymFPU uses to encode floating point into bitvectors, but what is new is that we mechanize it and prove each stage correct against the SMT-LIB semantics.
 The core structure is that of the operation itself, and the rounder that is applied to its result.
-First, we describe the core datatype, that of an extended unpacked floating point number,
+First, we describe the core datatype, that of an extended unpacked floating-point number,
 which is the intermediate representation that the operation and the rounder operate on.
 This representation is produced from a packed float by the unpacker, and is consumed by the packer to produce a packed float.
 Next, we describe the rounder first (\cref{sec:fp:rounding}), because it is the most complex stage, and it fixes the contract for the operation implementation.
@@ -632,9 +632,9 @@ Overall, we mechanize and prove correct the entire floating-point pipeline,
 from packed inputs to packed outputs, for all operations as indicated in \cref{tab:fp:supported-ops}.
 
 
-\subsection{Extended Unpacked Floating Point Representation for Circuits}
+\subsection{Extended Unpacked Floating-Point Representation for Circuits}
 
-Recall that our circuits internally operate on (extended) unpacked floating point numbers,
+Recall that our circuits internally operate on (extended) unpacked floating-point numbers,
 which are numbers that are canonically in scientific notation.
 They represent numbers of the form $\pm 1.m_1m_2 \dots m_N \times 2^{k}$, where $k$ is the magnitude and $m_1 m_2 \dots m_N$ is the significand,
 or \nan{} or $\pm\infty$, or $\pm 0$.
@@ -662,14 +662,14 @@ Separating the exceptional states from the numeric payload keeps illegal bit pat
 
 \emph{Unpacking.} To unpack, the packed bitvector is split into its sign, exponent, and significand fields,
 and the real value of the exponent is computed by subtracting the bias.
-This gives us an unpacked floating point number that represents a value of the form $1.m_1 m_2 \dots m_N \times 2^{e}$ for all numbers.
-\emph{Packing.} Not all unpacked floats can be packed back, since the unpacked floating point range is larger than the packed floating point range.
+This gives us an unpacked floating-point number that represents a value of the form $1.m_1 m_2 \dots m_N \times 2^{e}$ for all numbers.
+\emph{Packing.} Not all unpacked floats can be packed back, since the unpacked floating-point range is larger than the packed floating-point range.
 Therefore, we have a predicate \texttt{Packable}\footnote{We prove that \texttt{Packable} characterizes exactly the image of unpacking: a \texttt{Packable} float packs and unpacks back to itself, and conversely, the unpacking of any packed float is \texttt{Packable}.} that checks whether an unpacked float can be packed back into the packed representation.
 
 
 \subsection{Implementing Rounding with Guard and Sticky Bits}\label{sec:fp:rounding}
 
-Now that we know how to unpack and pack extended unpacked floating point numbers, we can describe the rounding stage of the pipeline.
+Now that we know how to unpack and pack extended unpacked floating-point numbers, we can describe the rounding stage of the pipeline.
 The rounder, as input, receives an extended unpacked float of higher precision (the source precision), and must produce a packed float of lower precision (the target precision).
 To round a number accurately, we need two bits of extra precision beyond the target format: a \emph{guard} bit and a \emph{sticky} bit.
 The guard bit is the first bit beyond the target precision, and the sticky bit is the logical OR of all bits beyond the guard bit.
@@ -853,7 +853,7 @@ theorem mul_eq_mul (a b : PackedFloat e s) (rm : RoundingMode)
 \noindent The left-hand side is the SMT-LIB specification (\cref{sec:fp:spec}):
 embed into the extended rationals, multiply exactly, round.
 The right-hand side is the bit-level circuit (\cref{sec:fp:operations}).
-The proof structure mirrors the pipeline of the floating point implementation:
+The proof structure mirrors the pipeline of the floating-point implementation:
 
 \begin{enumerate}
 \item \textbf{Dispatch Special Cases.} A case analysis on the kinds
@@ -873,7 +873,7 @@ that is sufficiently close to the exact result that the rounder is capable of ro
 
 \subsection{Summary of the Verified Circuit Design}
 
-Overall, we mechanize and prove correct most of the SMT-LIB floating point operations
+Overall, we mechanize and prove correct most of the SMT-LIB floating-point operations
 with this approach (\cref{tab:fp:supported-ops}).
 We prove all the field operations and comparisons correct,
 as well as all the relational operations.
@@ -998,7 +998,7 @@ which is less than what one would naively expect from regular algebraic identiti
 Finally, the \textsc{expand} rule performs the lowering the rest of the pipeline depends on,
 where every surface operation is rewritten into an unpacked operation wrapped in $\unpack$ and $\pack$.
 
-\subsection{Ackermannizing Partial Floating Point Relations $\min$ and $\max$}\label{sec:fp:ackermannization}
+\subsection{Ackermannizing Partial Floating-Point Relations $\min$ and $\max$}\label{sec:fp:ackermannization}
 
 SMT-LIB has some relations such as $\min$ and $\max$ that are \emph{partial}.
 That is, they are left unspecified on certain inputs,
@@ -1140,7 +1140,7 @@ we first check that our mechanized SMT-LIB-based circuits agree with Lean's refe
 Eventually, we would like to prove an isomorphism between our mechanized SMT-LIB semantics and Lean's reference model,
 allowing our bitblasting tactics to be used as a drop-in library to reason about Lean's own floating-point types.
 
-For a given floating point format $(E, M)$, we enumerate or sample \texttt{PackedFloat} bit patterns,
+For a given floating-point format $(E, M)$, we enumerate or sample \texttt{PackedFloat} bit patterns,
 run each operation on both our implementation and Lean's model, and check that the
 resulting packed bits are identical (treating any two NaNs as equal).
 The Lean model exposes a subset of the SMT-LIB operations,
@@ -1193,7 +1193,7 @@ E5M2 ($2 < 5$) and E4M3 ($3 < 4$) abort on every operation.
 We therefore test in the E3M4 format, which satisfies the constraint.
 Even there, the division, square-root,
 and round-to-integral circuits still crashed. We traced the division failure to intermediate
-bit-widths in the rounder that were one bit too short and patched SymFPU to prevent it
+bitwidths in the rounder that were one bit too short and patched SymFPU to prevent it
 (widening four intermediate bitvectors), but the other two had
 more involved errors that we chose not to pursue.
 
@@ -1207,7 +1207,7 @@ together with a series of rounder and float-to-bitvector conversion fixes made t
 \footnote{Commit history on \texttt{main}: \url{https://github.com/martin-cs/symfpu/commits/main}.
 Representative fixes in this burst include the FMA extended-format rework \symfpucommit{e203440} and the subnormal square-root fix \symfpucommit{b3b7977} (both March 2025);
 the rounder-precondition fix \symfpucommit{d987ad4} (January 2025) and fixed-position rounder fix \symfpucommit{b213ade} (April 2026);
-and the float-to-bit-vector conversion fixes \symfpucommit{40bdec0} (April 2026) and \symfpucommit{506e5e7} (May 2026).}
+and the float-to-bitvector conversion fixes \symfpucommit{40bdec0} (April 2026) and \symfpucommit{506e5e7} (May 2026).}
 We switched our differential oracle to this reworked version and wrote a small
 enumerator that runs SymFPU's executable backend on every operation, rounding mode, and
 format with $3 \le E \le 8, 1 \le M \le 8$, isolating each configuration in its own
@@ -1247,7 +1247,7 @@ which caused the kernel-free path to produce eight spurious \texttt{sat} results
 Having an independent oracle to check our solver's answers against was crucial for catching this bug,
 which is very easy to miss since it is a property of the solver's frontend,
 which remains unverified, even though the bitblasting is fully verified.
-Overall, this test gives us confidence that our end-to-end solver soundly implements the SMT-LIB floating point theory.
+Overall, this test gives us confidence that our end-to-end solver soundly implements the SMT-LIB floating-point theory.
 
 \section{Case Study: Gaps Discovered by Mechanization}
 \label{sec:fp:surfaced}
@@ -1508,10 +1508,10 @@ antecedents specific to floating-point mechanization and solving.
 Floating point has undergone intense study in the formal methods community,
 both in terms of mechanized semantics and verified solvers.
 Therefore, we do not aim to provide a comprehensive survey of the literature
-(for which we guide the reader to the floating point handbook \cite{fphandbook}).
+(for which we guide the reader to the floating-point handbook \cite{fphandbook}).
 Instead, we highlight the most relevant prior work and contrast it with our contributions.
 
-\paragraph*{Mechanized Floating Point Semantics}
+\paragraph*{Mechanized Floating-Point Semantics}
 One of the earliest mechanized floating-point formalizations is due to \citet{harrison1999machine},
 who formalized IEEE 754 arithmetic in HOL Light,
 covering rounding, basic operations, and key properties such as error bounds.
@@ -1550,20 +1550,20 @@ FLoPS targets the P3109 parametric format family and interactive analysis,
 whereas we mechanize the SMT-LIB semantics of IEEE 754 and connect it to an
 automated, certificate-producing solver.
 
-\paragraph*{Floating Point Bit-Blasting and Solvers}
+\paragraph*{Floating-Point Bitblasting and Solvers}
 The SMT-LIB semantics that we use, due to \citet{extrealsemantics}, forms the basis of the SMT-LIB floating-point theory.
 Their formalization defines operations over extended reals with explicit rounding,
 providing a precise, automatable semantics.
 SymFPU~\cite{symfpu} is the de facto standard library for reducing floating-point
-to bit-vector operations, and is used internally by both cvc5~\cite{barbosa2022cvc5} and
+to bitvector operations, and is used internally by both cvc5~\cite{barbosa2022cvc5} and
 Bitwuzla~\cite{niemetz2023bitwuzla}. SymFPU encodes each floating-point operation as a
-bit-vector circuit, but the encodings are unverified and, as we discovered,
+bitvector circuit, but the encodings are unverified and, as we discovered,
 contain implicit assumptions relating the significand and exponent widths
 that exclude the small formats used in machine learning (\cref{sec:fp:testing}).
 Our work mechanizes and generalizes SymFPU's algorithms, removing some of these restrictions,
-and provides a machine-checked proof of correctness for the bit-blasting encodings.
+and provides a machine-checked proof of correctness for the bitblasting encodings.
 
-\citet{symfpu} describes the design of SymFPU's bit-blasting encodings,
+\citet{symfpu} describes the design of SymFPU's bitblasting encodings,
 with a focus on the rounding circuit and its correctness argument.
 The correctness argument is informal and relies on exhaustive testing;
 we replace it with a machine-checked proof.
@@ -1576,7 +1576,7 @@ bitvector goals that \bvdecide{} discharges.
 enabling quantifier elimination for floating-point constraints in SMT solvers.
 \citet{cbmcfloat} presents mixed abstractions for floating-point arithmetic in the context
 of CBMC~\cite{cbmc}, combining bit-precise and abstract reasoning to verify C programs with floating-point arithmetic.
-Overall, we owe a great deal to the line of research that has developed the SMT-LIB floating-point theory and bit-blasting encodings,
+Overall, we owe a great deal to the line of research that has developed the SMT-LIB floating-point theory and bitblasting encodings,
 and our work mechanizes and verifies these contributions by standing on their shoulders.
 
 \section{Limitations}

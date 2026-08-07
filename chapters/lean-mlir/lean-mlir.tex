@@ -65,7 +65,7 @@ as our framework is coupled with a lifting theorem, that lifts the local correct
 into a global correctness theorem for the entire program transformation.
 Overall, this builds the foundation for a verified peephole rewriter,
 and reduces the problem to one where we must then reason about the semantics of the IR itself.
-This then naturally leads its way into decision procedures for proving equivalence of bitvector and floating point programs.
+This then naturally leads its way into decision procedures for proving equivalence of bitvector and floating-point programs.
 
 % \section{Motivation: Verifying Optimizations for High-Level IRs}
 % \label{sec:mlir:motivation}
@@ -81,6 +81,9 @@ This then naturally leads its way into decision procedures for proving equivalen
 % As a result, the algebraic structure is completely lost and exploiting simple algebraic identities turns into a heroic effort of reasoning about side effects and stateful program behavior.
 % State-of-the-art compilers for FHE consequently use domain-specific IRs (often expressed with MLIR~\cite{viand2022heco,heaanmlir}) when generating optimized code for FHE, where algebraic optimizations can take place at an FHE-specific IR that has value-semantics (e.g., is referentially transparent) and is overall closer to the mathematical structure of the problem.
 % 
+\section{\texorpdfstring{\messa{\operatorname{QuotRing}}}{LeanMLIR(QuotRing)}: A Motivating Example}
+\label{sec:mlir:motivation}
+
 \subsection{Defining \texorpdfstring{\messa{\operatorname{QuotRing}}}{LeanMLIR(QuotRing)}: Syntax and Semantics}
 
 As an example of our framework, we model an IR aimed at FHE that manipulates objects in the algebraic structure $R \equiv (\mathbb{Z}/q\mathbb{Z})[X] / (X^{2^n} + 1)$.

@@ -7,7 +7,7 @@ For example, in the LLVM compiler framework, the peephole rewriter is a conceptu
 that scans for a small window of instructions and replaces them with a more efficient equivalent sequence of instructions.
 However, in terms of the actual implementation, the peephole rewrite is enormous,
 and is about 10\% of the entire LLVM codebase.
-To tame this complexity, we would like to verify the correctess of LLVM, 
+To tame this complexity, we would like to verify the correctness of LLVM,
 since the correctness of any program compiled by LLVM depends on the correctness of the compiler itself.
 Clearly, verifying all of LLVM is not doable by a single person,
 so we choose to focus on the peephole rewriter, which is a large, critical part of LLVM,
@@ -22,9 +22,9 @@ with case studies ranging from fully homomorphic encryption to LLVM's bitvector 
 The calculus supplies the structural half of the problem, i.e., manipulating SSA, for free.
 The arithmetic half remains, since each rewrite bottoms out in a  mathematical identity that must be discharged automatically.
 
-In the scond half of the thesis, we introduce new, formally verified tools for reasoning about bitvectors and floating point numbers,
+In the second half of the thesis, we introduce new, formally verified tools for reasoning about bitvectors and floating-point numbers,
 which discharges the arithmetic half of the problem.
-The decision procedures we build rests on bitblasting.
+The decision procedures we build rest on bitblasting.
 We build on \bvdecide{}, Lean's fixed-width bitblaster,
 which carries a bitvector goal all the way down to a SAT instance, solves it,
 and has the resulting certificate rechecked by Lean's kernel.
@@ -35,7 +35,6 @@ and it is the bedrock of the rest of the thesis.
 Perhaps counterintuitively, the proof obligations a compiler hands us are not immediately bitblastable.
 For example, a rewrite has to be correct at \emph{every} register width, whereas a bitblaster wants one fixed width,
 and the standard remedy (used, for example, by the Alive peephole rewrite verifier) is to enumerate the widths and bitblast each one separately.
-Previous solutions, such as the Alive peephole verifier, have relied on enumerating the widths and bitblasting each one separately.
 We show that this is unnecessary. Predicates that must hold at all widths reduce to reachability in a finite automaton,
 which we decide by $k$-induction and language emptiness.
 Next, by an encoding trick that writes widths as bitmasks,
@@ -45,11 +44,11 @@ and carves out a new sound and complete fragment of the multi-width theory.
 Bitblasting, it turns out, can even reach parametric bitvector theory.
 
 Floating point is one of the more intricate pieces of SMT-LIB theory missing from a fully verified Bitwuzla.
-Following SymFPU, a state of the art floating point bitblaster,
+Following SymFPU, a state-of-the-art floating-point bitblaster,
 which showed in a sequence of papers that bitblasting decisively outcompetes the alternatives for floating-point SMT solving,
 we mechanize the SMT-LIB \qffp{} theory and build verified bitblasting circuits for almost all of its operations.
 Moreover, we prove the correctness of these circuits in Lean,
-thereby eliminating various trust issues around nonstandard floating point formats and rounding modes.
+thereby eliminating various trust issues around nonstandard floating-point formats and rounding modes.
 
 Overall, our width-generic solvers prove more all-width problems than the unverified state of the art,
 and our floating-point bitblaster, while slower than Bitwuzla,
