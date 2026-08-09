@@ -133,13 +133,16 @@ All of these works are collaborative; throughout the thesis, ``we'' refers to my
 and my own contributions are stated at the beginning of each chapter in an attribution note.
 We also draw on ``Interactive Bitvector Reasoning using Verified Bit-Blasting''~\citep{leanbv} (OOPSLA 2025),
 the fixed-width bitvector bitblasting paper on which I am second author,
-and reuse text from it in the exposition of \bvdecide{} in the background chapter (\cref{ch:background}).
+and reuse text from it in the exposition of \bvdecide{} in the bitblasting background chapter (\cref{ch:background-bv}).
 That work is presented as background rather than as a contribution of this thesis.
 
 \paragraph{Plan of This Thesis.}
-We begin by surveying the shared machinery of SAT solving, bitblasting, the Lean proof assistant,
-and the verified \bvdecide{} bitblaster that the later procedures extend (\cref{ch:background}).
+We begin by surveying the Lean proof assistant
+and the SSA compiler IRs whose rewrites supply our motivating problems (\cref{ch:background}).
 We then present the peephole-rewriting framework (\cref{ch:lean-mlir}).
+We next survey the shared machinery of SAT solving, bitblasting,
+and the verified \bvdecide{} bitblaster that the later procedures extend (\cref{ch:background-bv}).
+\sid{Smooth this paragraph: the background survey is now split into two chapters.}
 With this framework in hand, we build solvers for parametric bitvectors,
 first for a single symbolic width (\cref{ch:mono-width}), and then for many symbolic widths at once (\cref{ch:multi-width}).
 We next turn to floating-point formulas and show how to bitblast them in a verified fashion,
