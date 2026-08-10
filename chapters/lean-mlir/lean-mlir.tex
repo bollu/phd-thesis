@@ -347,13 +347,15 @@ structure OpSignature (Ty : Type) where /- (1) Extending signature. -/
 
 class OpDenote [TyDenote Ty] [OpSignature Op Ty] where /- (2) Extending denotation. -/
 denote : (op : Op) → (args : HVector toType (OpSignature.sig op)) →
-@\GreenBox{(regArgs : HVector (fun (ctx, t) => Valuation ctx → toType t) (OpSignature.regSig op))}@ →
+@\GreenBox{(regArgs : HVector (fun (Γ, t) => Valuation Γ → toType t) 
+  (OpSignature.regSig op))}@ →
 (toType (OpSignature.outTy op))
 
 inductive Expr : (Γ : Ctxt Ty) → (ty : Ty) → Type where
 | mk (op : Op)
 @$\cdots$@
-@\GreenBox{(regArgs : HVector (fun (ctx, ty) => Com ctx ty) (OpSignature.regSig op))}@:
+@\GreenBox{(regArgs : HVector (fun (Γ, ty) => Com Γ ty) 
+  (OpSignature.regSig op))}@:
 Expr Γ ty
 
 mutual /- (3) extending expression denotation to recursively invoke regions. -/
