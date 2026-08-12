@@ -54,12 +54,9 @@ Bitblasting, it turns out, can even reach parametric bitvector theory.
 
 Next, Floating point is one of the more intricate pieces of SMT-LIB theory,
 and is important for emerging applications in machine learning workloads.
-SymFPU, a state-of-the-art floating-point bitblaster, showed in a sequence of papers that bitblasting decisively
 outcompetes the alternatives for floating-point SMT solving.
-We follow this approach, and we mechanize the SMT-LIB \qffp{} theory,
+We follow of SymFPU, a state of the art floating point bitblaster, and we mechanize the SMT-LIB \qffp{} theory,
 and build verified bitblasting circuits for almost all of its operations.
-Moreover, our bitblaster is formally verified in Lean,
-thereby eliminating various trust issues around nonstandard floating-point formats and rounding modes.
 
 Overall, our width-generic solvers prove more all-width problems than the unverified state of the art,
 and our floating-point bitblaster, while slower than Bitwuzla,

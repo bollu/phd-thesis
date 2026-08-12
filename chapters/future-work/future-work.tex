@@ -92,6 +92,25 @@ by building on top of TensorRight's theory.
 
 \section*{Closing}
 
+Looking back, it's worth asking why bitblasting, of all approaches, is the one that we heavily rely on.
+I read it as a flavour of the bitter lesson~\citep{sutton2019bitter},
+the observation from AI that search and learning are the only two paradigms that keep rewarding the compute we feed them.
+Automated reasoning has its own incarnation of search in SAT solving,
+which now routinely settles instances with hundreds of millions of variables~\citep{biere2024cadical,kissatSATComp2024},
+and bitblasting~\citep{tseitin1983complexity} is the craft of encoding richer theories into this engine.
+Moreover, the SAT community has figured out how to produce ertificates that can be rechecked by a small kernel,
+which is exactly what we need for foundational trust.
+
+Secondly, it's also worth wondering whether the effort of implementing in Lean~\citep{demoura2021lean} and proving them correct
+is worth it. I believe it is, and that formal verification will only grow in importance.
+We live in interesting times (as of August 2026), where large language models~\citep{brown2020language,touvron2023llama}
+produce impressive volumes of code, but cannot be trusted to get the details right.
+Moreover, they regularly fulfil the letter of a specification while betraying its spirit.
+A machine-checked specification, with machine-checked automation to discharge it, is the natural antidote.
+The lesson of this thesis is that foundational proof and push-button automation need not be at odds,
+and I hope the reductions developed here lay the groundwork for verification efforts of far greater ambition.
+
+
 Compilers, hardware, and cryptography rest on finite-domain reasoning, and the
 procedures that discharge it need not be taken on trust.
 They can be implemented, proved correct, and run inside a proof assistant,
