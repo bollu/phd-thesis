@@ -1,40 +1,49 @@
 \epigraph{Civilization advances by extending the number of important operations which we can perform without thinking about them}{Alfred North Whitehead, An Introduction to Mathematics}
 
-\lettrine{A} compiler, conceptually, is a pretty simple program:
-it translates a program in one language into an equivalent program in another one.
-However, a production-grade compiler is enormously complex.
-For example, in the LLVM compiler framework, the peephole rewriter is a conceptually simple program,
-that scans for a small window of instructions and replaces them with a more efficient equivalent sequence of instructions.
+\lettrine{A}n optimizing compiler needs to both preserve the semantics of source program in the target program,
+and must do so while optimizing the target program to run as efficiently as possible.
+This makes production-grade compilers enormously complex.
+For example, in the LLVM compiler framework, the peephole optimizer,
+which scans for a small window of instructions and replaces them with a more efficient equivalent sequence of instructions,
+is conceptually a simple component.
 However, in terms of the actual implementation, the peephole rewrite is enormous,
 and is about 10\% of the entire LLVM codebase.
-To tame this complexity, we would like to verify the correctness of LLVM,
-since the correctness of any program compiled by LLVM depends on the correctness of the compiler itself.
-Clearly, verifying all of LLVM is not doable by a single person,
-so we choose to focus on the peephole rewriter, which is a large, critical part of LLVM,
-but is crucially modular. Each transformation is small enough to prove correct,
+Moreover, compiler correcntess is critical for overall software correctness,
+since all software written assumes that the compiler is semantics preserving.
+We would like to provide such guarantees for the LLVM compiler framework.
+Verifying all of LLVM is not a well-scoped task.
+In this thesis, we focus on building techniques to automate the verification of the peephole rewriter, of LLVM,
+which is both a large and critical part of LLVM, while also being a modular component with a nice mathematical specification.
+In particular, each rewrite is is small enough to prove correct,
 and the rewriter as a whole is built of thousands of such proof obligations.
-These are far more than can be discharged by hand.
-This volume eventually demands push-button automation for proving the correctness of each rewrite.
+These thousands of obligations is far more than can be discharged by hand,
+and demonstrates the need for push-button automation for proving the correctness of these rewrites.
 
 In this thesis, we first formalize a core calculus for SSA-based compiler intermediate representations,
-generic over the user's IR, and prove a generic peephole rewriter correct,
-with case studies ranging from fully homomorphic encryption to LLVM's bitvector rewrites.
-The calculus supplies the structural half of the problem, i.e., manipulating SSA, for free.
-The arithmetic half remains, since each rewrite bottoms out in a  mathematical identity that must be discharged automatically.
+and prove a generic peephole rewriter correct.
+This demonstrates a framework for verifying SSA-based peephole rewriting in a proof assistant.
+This core calculus also proves a lifting theorem,
+which says that proving a rewrite correct in isolation is sufficient to prove it correct in the context of a whole program.
+Overall, this discharges the structural half of the problem of verifying a peephole rewriter.
+However, the other half, of actually proving the rewrite correct, still remains.
+We initially worked on these proofs manually, and rapidly came to the conclusion that effective proof automation
+is necessary to make this approach scalable to the thousands of rewrites in LLVM.
 
-In the second half of the thesis, we introduce new, formally verified tools for reasoning about bitvectors and floating-point numbers,
-which discharges the arithmetic half of the problem.
-The decision procedures we build rest on bitblasting.
-We build on \bvdecide{}, Lean's fixed-width bitblaster,
-which carries a bitvector goal all the way down to a SAT instance, solves it,
-and has the resulting certificate rechecked by Lean's kernel.
-Its design deliberately mirrors Bitwuzla,
-a state-of-the-art solver for fixed-width bitvectors, floating point, and arrays,
-and it is the bedrock of the rest of the thesis.
+In the second half of the thesis, we introduce new, formally verified decision procedures for proving such rewrites correct.
+Our new decision procedures can prove the correctness of parametric bitvectors and floating point,
+while not compromising on trustworthiness, since the decision procedures are mechanized in a proof assistant.
+Algorithmically, our decision procedures are based on bitblasting,
+which relies on translating problems from a given theory into propositional logic,
+and then solving the resulting propositional formula using a SAT solver.
+We build on \bvdecide{}, Lean's formally verified fixed-width bitblasting infrastructure for our verification pipeline.
 
-Perhaps counterintuitively, the proof obligations a compiler hands us are not immediately bitblastable.
-For example, a rewrite has to be correct at \emph{every} register width, whereas a bitblaster wants one fixed width,
-and the standard remedy (used, for example, by the Alive peephole rewrite verifier) is to enumerate the widths and bitblast each one separately.
+%Perhaps counterintuitively, the proof obligations a compiler hands us are not immediately bitblastable.
+%For example, a rewrite has to be correct at \emph{every} register width, whereas a bitblaster wants one fixed width,
+%and the standard remedy (used, for example, by the Alive peephole rewrite verifier) is to enumerate the widths and bitblast each one separately.
+In more detail, parametric bitvectors are a generalization of fixed-width bitvectors, where the width is a symbolic variable rather than a concrete number.
+This is necessary for verifying compiler rewrites, since a rewrite must be correct at every width.
+Until now, the standard technique, due to the unavailability of good decision procedures for PBV,
+has been to enumerate the widths and bitblast each one separately.
 We show that this is unnecessary. Predicates that must hold at all widths reduce to reachability in a finite automaton,
 which we decide by $k$-induction and language emptiness.
 Next, by an encoding trick that writes widths as bitmasks,
@@ -43,15 +52,17 @@ This trades an exponential number of solver queries for a \emph{single} query,
 and carves out a new sound and complete fragment of the multi-width theory.
 Bitblasting, it turns out, can even reach parametric bitvector theory.
 
-Floating point is one of the more intricate pieces of SMT-LIB theory missing from a fully verified Bitwuzla.
-Following SymFPU, a state-of-the-art floating-point bitblaster,
-which showed in a sequence of papers that bitblasting decisively outcompetes the alternatives for floating-point SMT solving,
-we mechanize the SMT-LIB \qffp{} theory and build verified bitblasting circuits for almost all of its operations.
-Moreover, we prove the correctness of these circuits in Lean,
+Next, Floating point is one of the more intricate pieces of SMT-LIB theory,
+and is important for emerging applications in machine learning workloads.
+SymFPU, a state-of-the-art floating-point bitblaster, showed in a sequence of papers that bitblasting decisively
+outcompetes the alternatives for floating-point SMT solving.
+We follow this approach, and we mechanize the SMT-LIB \qffp{} theory,
+and build verified bitblasting circuits for almost all of its operations.
+Moreover, our bitblaster is formally verified in Lean,
 thereby eliminating various trust issues around nonstandard floating-point formats and rounding modes.
 
 Overall, our width-generic solvers prove more all-width problems than the unverified state of the art,
 and our floating-point bitblaster, while slower than Bitwuzla,
 offers in exchange end-to-end guarantees down to Lean's kernel.
-Foundational proof and push-button automation need not be at odds,
-and we hope the reductions developed here lay the groundwork for verification efforts of far greater ambition.
+We hope that through our efforts, we demonstrate that foundational proof and push-button automation need not be at odds,
+and that the reductions developed here lay the groundwork for new decision procedures in compiler verification.

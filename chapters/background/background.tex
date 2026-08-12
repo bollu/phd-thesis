@@ -1,4 +1,4 @@
-\chapter{Background: Compiler Verification}
+\chapter{A Quick Primer On Compiler Verification}
 \label{ch:background}
 \epigraph{A description of Zaira as it is today should contain all Zaira’s
 past. The city, however, does not tell its past, but contains it like the lines
@@ -7,52 +7,27 @@ the banisters of the steps, the antennae of the lightning rods, the poles of
 the flags, every segment marked in turn with scratches, indentations,
 scrolls}{Italo Calvino, Invisible Cities}
 
-\sid{Write an opening paragraph and chapter roadmap. Old roadmap clause to
-reuse: ``the Lean 4 proof assistant \ldots{} and the SSA compiler IRs whose
-rewrites supply our motivating problems.''}
 
-\section{The Lean 4 Proof Assistant}
-\label{sec:bg:lean}
+% Two further mechanisms matter for this thesis. First, \emph{proof by
+% reflection}~\citep{gonthier2010introduction}: the typeclass
+% \texttt{Decidable} associates to a proposition a program that decides it, and
+% the \texttt{decide} tactic proves a proposition by running that program and
+% appealing to its soundness proof. Reflection replaces a potentially enormous
+% proof term by a computation. When kernel reduction is too slow for that
+% computation, Lean offers the \texttt{ofReduceBool} axiom: the decision
+% procedure is compiled to native code and its Boolean result is trusted. This
+% extends the trusted code base from the kernel to the Lean compiler---a
+% trade-off we revisit when discussing Lean's verified bitblaster \bvdecide{}
+% (\cref{ch:background-bv}).
+% Second, Lean's runtime uses
+% reference counting and implements the \emph{functional but in-place} (FBIP)
+% optimization~\citep{Ullrich2019}: a purely functional update to an object
+% whose reference count is $1$ is performed by in-place mutation. Arrays and
+% hash maps (which are built on arrays) therefore retain their usual imperative
+% performance characteristics inside pure code, provided only a single reference
+% to them is kept live.
 
-Lean 4~\citep{demoura2021lean} is a dependently typed interactive theorem
-prover (ITP) that doubles as a general-purpose, purely functional programming
-language. Proofs are terms of the dependent type theory, checked by a small
-trusted kernel; the surrounding elaborator, tactic framework, and even large
-parts of the compiler are themselves written in Lean and need not be trusted.
-The kernel can also \emph{evaluate} terms, and has special support for the
-natural numbers: numbers up to 63 bits are represented as machine integers,
-and larger ones fall back to GMP~\citep{granlund1996gnu}, a high-performance
-arbitrary-precision arithmetic library. Computations on \texttt{Nat} are
-therefore fast both in compiled code and during kernel type checking, a fact
-that Lean's bitvector library exploits directly (\cref{sec:bg:bitvec}). Lean's
-mathematical library Mathlib~\citep{mathlib} supplies the algebraic hierarchy
-(e.g.\ commutative rings) together with tactics such as \texttt{ring} and
-\texttt{omega}, a decision procedure for linear integer arithmetic with
-support for modular reasoning.
-
-Two further mechanisms matter for this thesis. First, \emph{proof by
-reflection}~\citep{gonthier2010introduction}: the typeclass
-\texttt{Decidable} associates to a proposition a program that decides it, and
-the \texttt{decide} tactic proves a proposition by running that program and
-appealing to its soundness proof. Reflection replaces a potentially enormous
-proof term by a computation. When kernel reduction is too slow for that
-computation, Lean offers the \texttt{ofReduceBool} axiom: the decision
-procedure is compiled to native code and its Boolean result is trusted. This
-extends the trusted code base from the kernel to the Lean compiler---a
-trade-off we revisit when discussing \bvdecide{} (\cref{sec:bg:bvdecide}).
-Second, Lean's runtime uses
-reference counting and implements the \emph{functional but in-place} (FBIP)
-optimization~\citep{Ullrich2019}: a purely functional update to an object
-whose reference count is $1$ is performed by in-place mutation. Arrays and
-hash maps (which are built on arrays) therefore retain their usual imperative
-performance characteristics inside pure code, provided only a single reference
-to them is kept live.
-
-\sid{Write a section (or paragraphs) surveying compiler verification broadly:
-CompCert, translation validation, and the Alive line of SMT-based peephole
-verifiers, before narrowing to SSA and MLIR below.}
-
-\section{SSA and MLIR}
+\section{The SSA Compiler Intermediate Representation}
 \label{sec:bg:ssa}
 
 The bitvector problems this thesis attacks arise from compiler intermediate
@@ -64,16 +39,13 @@ relationships immediate and thereby simplifies analyses and transformations.
 short instruction sequences by semantically equivalent cheaper ones, are the
 workhorse transformation on SSA IRs; roughly 10\% of all IR-transforming code
 in LLVM~\citep{lattner2004llvm} belongs to its InstCombine peephole
-optimizer, and the SMT-based peephole verifiers of the Alive
-line~\citep{lopes2015provably,lopes2021alive2} are the tools most referenced
-in LLVM's commit log. Crucially, peephole rewriting on SSA operates along the
+optimizer. Crucially, peephole rewriting on SSA operates along the
 \emph{def-use chain} rather than on syntactically contiguous instructions: the
 rewrite
 $(y = x + 1;\ z = y - 1) \mapsto (z = x)$ applies to any program containing
 $(y = x + 1;\ \ldots;\ z = y - 1)$, regardless of the interleaved
-instructions---unlike classical straight-line peephole rewriting over
-assembly, as previously mechanized in the context of
-CompCert~\citep{leroy2016compcert,mullen2016verified}.
+instructions---unlike the classical straight-line peephole rewriting over
+assembly mechanized by Peek~\citep{mullen2016verified}.
 
 The MLIR compiler framework~\citep{lattner2021mlir} lowers the cost of
 instantiating \emph{domain-specific} SSA IRs. An MLIR \emph{dialect} packages
@@ -96,3 +68,67 @@ a user-defined dialect, with a verified peephole rewriter whose local rewrite
 proofs lift to whole-program semantic preservation, and proof automation that
 reduces each rewrite obligation to a clean mathematical goal
 (\cref{ch:lean-mlir}).
+
+\section{The MLIR Compiler Framework}
+
+\section{Approaches to Verifying MLIR-Style Compilers}
+\label{sec:bg:compiler-verification}
+
+How does one come to trust a compiler? The most ambitious answer is to verify
+it once and for all: write the compiler inside a proof assistant and prove,
+pass by pass, that every translation preserves the semantics of its input.
+CompCert~\citep{leroy2009formally,leroy2016compcert} is the landmark result of
+this school---a moderately optimizing C compiler, programmed and proved in
+Coq, whose correctness theorem stretches from the parsed C program down to
+assembly---and CakeML~\citep{kumar2014cakeml} plays the same role for an ML
+dialect in HOL4. The guarantee is as strong as guarantees get; the price is
+proof engineering that must move in lockstep with the compiler. Even pinning
+down the semantics of an industrial IR is a research programme of its own:
+Vellvm~\citep{zhao2012formalizing,zhao2013formal} and K-LLVM~\citep{li2020k}
+each mechanize substantial fragments of LLVM, and neither covers the compiler
+that consumes it. Production compilers, meanwhile, grow by thousands of
+commits a month; verified reimplementations cannot chase them.
+
+\emph{Translation validation}~\citep{pnueli1998translation} lowers the
+ambition and, in exchange, keeps pace: instead of verifying the compiler,
+verify each of its runs, by checking after the fact that the emitted program
+refines the source program. The compiler remains an untrusted black box; only
+the checker need be sound, and the checker only ever looks at pairs of
+concrete programs.
+
+The Alive line of tools brought this style, powered by SMT solvers, into the
+day-to-day of the LLVM community. Alive~\citep{lopes2015provably} offers a
+DSL in which an InstCombine rewrite is stated once and discharged
+automatically---or refuted with a counterexample---and
+Alive2~\citep{lopes2021alive2} validates runs of the existing LLVM
+optimizer wholesale; it is the most referenced tool in LLVM's commit log.
+Alive-tv~\citep{DBLP:conf/cav/BangNCJL22} extends the approach to MLIR's
+tensor dialects. Push-button convenience, however, has a cost in trust: the
+SMT solver, and the encoding of IR semantics into SMT, both join the trusted
+base. AliveInLean~\citep{lee2019aliveinlean} verifies the encoding, but the
+solver remains an oracle. Moreover, the theory being decided is that of
+\emph{fixed-width} bitvectors, while an InstCombine rewrite must be correct at
+every register width; Alive checks a handful of widths and hopes the rest
+behave alike.
+
+Between these poles sits \emph{mechanized rewriting}: prove a rewriting
+\emph{engine} correct once, inside a proof assistant, and then prove each
+rewrite against the real semantics of the IR, with no solver and no width
+bound in the trusted base. Peek~\citep{mullen2016verified} did this for
+assembly peepholes inside CompCert. The bet this thesis makes is that the two
+ends of the spectrum can be joined: an interactive theorem prover supplies the
+trusted foundation and the rewriting framework (\cref{ch:lean-mlir}), and
+verified decision procedures supply the push-button automation that makes the
+framework usable at scale
+(\cref{ch:mono-width,ch:multi-width,ch:floating-point}). To state rewrites in
+the first place, we need the vocabulary of the IRs they live in, which we now
+recall.
+
+
+\section{The Lean Proof Assistant}
+
+In this thesis, we mechanize our results in the Lean proof assistant.
+Lean~\citep{demoura2021lean} is a dependently typed interactive theorem
+prover (ITP) that doubles as a general-purpose, purely functional programming
+language. We mechanize our compiler verification framework,
+as well as the decision procedures that power it, in Lean.

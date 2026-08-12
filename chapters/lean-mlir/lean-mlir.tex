@@ -30,28 +30,21 @@ of fully homomorphic encryption, and Alex Keizer helped generalize the pure
 semantics to impure side effects.
 
 
-\lettrine{I}{n} our aim to verify compiler optimizations,
-we begin by focusing on the \emph{peephole rewriting} of SSA-based intermediate representations (IRs).
-Static single assignment (SSA)~\citep{rastello2022ssa}
-intermediate representations are at the core of modern compilers, 
-thanks to their encoding of use-def relationships,
-which makes it incredibly easy to implement various compiler analyses and transformations.
-In particular, \emph{Peephole optimizations}~\citep{mckeeman1965peephole}, which replace instruction
-sequences of bounded length with semantically equivalent optimized ones,
-are made much more effective by use of SSA, since it allows a compiler to reason
-about expression trees of variables, rather than just linear sequences of instructions.
-Such optimizations are so ubiquitous that 10\% of all IR-transforming code in
-LLVM~\citep{lattner2004llvm} belongs to its InstCombine peephole optimizer.
-Note that this is much more than the size of LLVM's loop optimizer!
-The most referenced tool in LLVM's commit log is the Alive peephole verifier~\citep{lopes2021alive2},
-which brought automatic SMT-based verification into the day-to-day of the LLVM community.
-
-There is, at the same time, an increasing need for \emph{domain-specific}
-reasoning in modern compilers, fuelling tailored SSA-based IRs as popularized
-by the MLIR compiler framework~\citep{lattner2021mlir}. Interactive theorem
-provers provide strong guarantees for end-to-end compiler verification, as in
-CompCert~\citep{leroy2016compcert}, but modern compilers and their IRs evolve
-at a rate that makes proof engineering alongside them prohibitively expensive.
+\lettrine{I}{n} our aim to verify compiler optimizations, we begin by
+focusing on the \emph{peephole rewriting} of SSA-based intermediate
+representations (IRs)---the workhorse transformation of modern compilers,
+whose vocabulary we fixed in the background (\cref{sec:bg:ssa}). Recall that
+LLVM's InstCombine peephole optimizer alone accounts for roughly 10\% of the
+compiler's IR-transforming code---much more than its loop optimizer!---and
+that the Alive verifier~\citep{lopes2021alive2} made SMT-based validation of
+such rewrites part of the LLVM community's daily routine. There is, at the
+same time, an increasing need for \emph{domain-specific} reasoning in modern
+compilers, fuelling tailored SSA-based IRs as popularized by the MLIR compiler
+framework~\citep{lattner2021mlir}, and neither end of the verification
+spectrum surveyed earlier (\cref{sec:bg:compiler-verification}) serves these
+IRs well: CompCert-style end-to-end verification cannot keep pace with IRs
+that are still evolving, while Alive-style validation is push-button but
+bound to one fixed IR and an unverified toolchain.
 This is where the thesis begins: before we can automate the finite-domain
 obligations that rewrites leave behind, we need a framework in which the
 rewrites themselves can be stated, composed, and proved correct. In this
@@ -732,19 +725,18 @@ We prove all of these.
 \section{Related Work: Verified Compilation and Rewriting}
 \label{sec:mlir:related}
 
-The introduction (\cref{ch:intro}) placed this thesis among the approaches that bridge
-automated speed and kernel-checked trust; here we compare against the technical
-antecedents specific to verified compilation and rewriting.
+The broad landscape of compiler verification---CompCert and CakeML,
+translation validation, and the Alive line of SMT-based peephole
+verifiers---was surveyed in the background
+(\cref{sec:bg:compiler-verification}); here we compare against the technical
+antecedents specific to our framework.
 
-The semantics of LLVM, the spiritual ancestor of MLIR, have been well-studied.
-Both Vellvm~\cite{zhao2012formalizing} and K-LLVM~\cite{li2020k} formalized a large portion of LLVM, including reasoning about SSA transformations explicitly~\cite{zhao2013formal}.
-Alive~\cite{lopes2015provably} and Alive~2~\cite{lopes2021alive2} provide push-button verification for a subset of LLVM by leveraging SMT solvers.
-Alive-tv does the same for a set of concrete IRs for tensor operations in MLIR~\cite{DBLP:conf/cav/BangNCJL22}.
-AliveInLean \cite{lee2019aliveinlean} proves the correctness of the translation from the Alive DSL into SMT expressions,
-as well as the correctness of their encoding of program refinement as an SMT expression.
-In contrast, our work focuses on building a framework for describing full programs (rather than rewrite snippets),
-and formally defines and proves the correctness of peephole rewriting within a larger program context.
-The semantics and correctness of compiling compositionally have been explored by multiple authors, like Pilsener~\cite{neis2015pilsner} or many variants of CompCert~\cite{leroy2016compcert}:
+In contrast to the Alive family of
+tools~\citep{lopes2015provably,lopes2021alive2,lee2019aliveinlean}, our work
+builds a framework for describing full programs (rather than rewrite
+snippets), and formally defines and proves the correctness of peephole
+rewriting within a larger program context.
+The semantics and correctness of compiling compositionally have been explored by multiple authors, like Pilsner~\cite{neis2015pilsner} or many variants of CompCert~\cite{leroy2016compcert}:
 like compositional CompCert~\cite{stewart2015compositional}, CompCertX~\cite{wang2019abstract}, SepCompCert~\cite{kang2016lightweight}, CompCertM~\cite{song2019compcertm}, and CompCertO~\cite{koenig2021compcerto}.
 A great summary of the approaches to this problem (including the ones mentioned above), with their differences and similarities, is given by Patterson et al~\cite{patterson2019next}.
 All of these use fixed languages but are reasonable ways of giving semantics to relevant IRs in \messa{X}.
@@ -754,7 +746,7 @@ Like theirs, our semantics is also denotational and can be executed.
 We currently only model a restricted set of side effects, whereas interaction trees shine when modeling more complex side effects such as memory or non-terminating behavior.
 An approach like this would thus be a great candidate for the semantics of a lower-level IR such as LLVM within MLIR.
 Similarly, the work of DimSum~\cite{sammler2023dimsum} deals with the boundaries between languages in the context of linking.
-This addresses also important part aspect we don't model yet: what occurs at the boundaries of IRs, when mixing them.
+This addresses an important aspect we don't model yet: what occurs at the boundaries of IRs, when mixing them.
 
 There is a longer line of work studying SSA and its relationship to functional programming. Our work is inspired by and builds on the ideas from~\cite{kelsey1995correspondence,appel1998ssa,barthe2014formal}.
 Complex compiler optimizations have also been studied formally and verified, like~\cite{courant2021verified} which implements verified polyhedral optimization.
