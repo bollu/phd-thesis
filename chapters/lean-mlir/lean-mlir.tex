@@ -558,66 +558,23 @@ We also introduce a new notion of monadic evaluation of \texttt{Lets}, which ret
 With the above at hand, the overall rewriter construction and proof strategy remains unchanged,
 with the additional constraint of performing rewriting only on those operations marked as \texttt{EffectKind.pure},
 and the surrounding monadic ceremony required to show that a pure rewrite indeed does not change the state of pure variables in various lemmas.
-
-The rewriter is now complete, so let us summarize the relationship between the
-calculus of \cref{sec:mlir:framework} and the rewriter we have actually built:
-\begin{itemize}
-  \item The denotation of a program descends into regions, but the
-    \emph{matcher} does not. When \texttt{rewritePeephole} compares an operation
-    in the pattern against one in the target, it compares their region arguments
-    for syntactic equality and stops there. A rewrite whose correctness depends
-    on what a region computes will therefore fail to fire, though it will never
-    fire wrongly.
-  \item A peephole rewrite may quantify over free variables but not over free
-    \emph{region} arguments. This is why the loop transformations of
-    \cref{sec:mlir:structured-control-flow}---dead loop deletion, loop fusion,
-    loop reversal---are proved as theorems about the denotation of
-    \messa{\texttt{scf}}, yet are not peephole rewrites that our rewriter can
-    apply. Only a loop with a statically known body, such as the conversion of
-    iterated addition into multiplication, falls back inside the fragment.
-  \item Regions denote bounded computations only. Lean offered no reasoning
-    principle for non-well-founded recursion when this framework was built, so
-    \texttt{scf.for} is a bounded iteration and unbounded loops are out of
-    scope. This is a limit of the instantiation rather than of the calculus: the
-    proof strategy never inspects the denotation, and Lean's subsequent support
-    for domain-theoretic reasoning would lift the restriction.
-  \item \texttt{rewritePeephole} takes a \texttt{fuel} argument bounding how many
-    rewrites it attempts. We prove that whatever it does preserves semantics; we
-    do not prove that it reaches a fixed point, nor that any particular rewrite
-    is ever applied. Correctness here is a safety property, not a completeness
-    one.
-\end{itemize}
-With the rewriter and its boundaries in view, we turn to the evidence that it
-works.
+With the full rewriter in hand, we turn to the evidence that it works.
 
 \section{Case Studies}
 \label{sec:mlir:casestudies}
 
-A framework for verified rewriting is worth its complexity only if it can be
-pointed at the IRs people actually write, and only if rewriting in them is
-pleasant enough to do. We mechanize three IRs drawn from the MLIR ecosystem to
+A framework for verified rewriting is worth it if it can be used to encode the semantics of IRs that people actually write,
+and only if rewriting in them is pleasant enough to do. We mechanize three IRs drawn from the MLIR ecosystem to
 ask exactly that:
+
 \begin{description}
   \item[RQ1 (Semantics).] Can we give formal semantics, inside \messa{X}, to
-    rich IRs as they exist in the MLIR ecosystem---not model languages built to
-    be easy to formalize, but IRs with poison values, with nested regions, and
-    with values drawn from nontrivial algebraic structures?
+    rich IRs as they exist in the MLIR ecosystem?
   \item[RQ2 (Rewriting).] Once such an IR is defined, can we conveniently
-    perform peephole rewriting in it: state rewrites in the syntax a compiler
-    engineer already uses, and be left with a proof obligation in the IR's own
-    semantics rather than in the framework's encoding?
+    perform peephole rewriting in it?
 \end{description}
-Each case study answers both. \messa{\operatorname{LLVM}}
-(\cref{sec:mlir:bitvectors}) is the arithmetic fragment of a production IR,
-poison and all, against which we replay Alive's test suite.
-\messa{\texttt{scf}} (\cref{sec:mlir:structured-control-flow}) is structured
-control flow, the feature that most distinguishes MLIR-style IRs from LLVM, and
-the one that exercises regions. The Poly IR
-(\cref{sec:mlir:fully-homomorphic-encryption}) is a real and still-evolving MLIR
-IR for homomorphic encryption whose values are cosets of an ideal. Together they
-span what MLIR IRs are made of: machine words, control flow, and mathematics.
-Where the answer to RQ2 runs out is recorded separately (\cref{sec:mlir:cost}),
-and it is what carries this thesis into the chapters that follow.
+
+Each case study encodes an IR and answers the two questions against thsese IRs. 
 
 \subsection{Reasoning About Bitvectors of Arbitrary Width}
 \label{sec:mlir:bitvectors}
@@ -747,20 +704,12 @@ This anticipates our techniques in the next chapters,
 where we build proof automation to automatically dispatch such bitvector equivalences
 via parametric bitvector theory solvers.
 
-\paragraph{What LLVM shows: poison-aware semantics, and rewrites proved at every width.}
-On RQ1, we give semantics to the arithmetic fragment of a production IR rather
-than a model language: sixteen scalar operators, all \texttt{icmp} flags, and
-LLVM's poison values, with the semantics cross-checked against \texttt{opt} by
-exhaustive enumeration. We do not model everything---the \texttt{nsw} and
-\texttt{nuw} flags are absent, and immediate undefined behaviour is collapsed
-together with poison---but what we model is the real thing.
-On RQ2, rewrites are stated in the MLIR syntax an LLVM engineer already writes,
+On RQ1, we give semantics to the arithmetic fragment of a production IR,
+and Lean's bitvector library is expressive enough to model the semantics of LLVM's arithmetic operations.
+On RQ2, rewrites are stated in the MLIR syntax that is familiar to compiler engineers,
 and \texttt{simp\_peephole} hands back a goal about \texttt{BitVec w} with no
-trace of SSA in it. What we then get from that goal is better than what Alive
-gets: an Alive proof holds at the width it was run at, ours holds at every width
-at once. What we do not get is a proof without effort, and
-\cref{sec:mlir:cost} is where we account for that.
-Next, we show how the framework supports control flow reasoning via regions.
+trace of SSA in it. So, we can conclude that our framework is suitable for reasoning about LLVM-style IRs
+and peephole rewrites in them.
 
 
 \subsection{Structured Control Flow}
@@ -834,27 +783,17 @@ This transformation is challenging to perform in a low-level IR, since there is 
 However, this transformation \emph{is} a valid peephole rewrite in our framework since it uses a \emph{statically} known loop body.
 We showcase how regions permit MLIR (and, consequently, us) to easily encode and reason with commonplace loop transformations.
 
-\paragraph{What \texttt{scf} shows: region semantics come cheaply, region rewrites do not.}
-On RQ1, this is the feature that most separates MLIR-style IRs from LLVM, and
-regions carry it: \texttt{if} and bounded \texttt{for} get denotations through
-\texttt{mathlib}'s theory of iterated functions, and because
-\messa{\texttt{scf}(X)} is a construction \emph{over} an arbitrary user IR $X$
-rather than a modification of it, the semantics and the loop theorems hold
-uniformly for every $X$. Nothing in the core calculus changed and no metatheory
-was reproved.
-On RQ2, this is the one case where the answer is partly negative, and it is
-worth being clear about. The loop theorems quantify over the loop body, a loop
-body is a region, and our rewrites may not quantify over regions; so dead loop
-deletion, fusion, and reversal are theorems a user applies by hand, not rewrites
-the rewriter fires. Only loops with a statically known body, such as iterated
-addition becoming multiplication, fall inside the peephole fragment.
-Parametricity bought us the semantics; it did not widen what can be rewritten.
+On RQ1, our definitions are robust enough to enable encoding these structured control flow operations,
+and common transformations over them.
+On RQ2, our answer is negative. Since, The loop theorems quantify over the loop body which is a region,
+and our definition of a rewrite does not allow region quantification.
 
 \subsection{Fully Homomorphic Encryption}
 \label{sec:mlir:fully-homomorphic-encryption}
 
 One of our motivations for \messa{X} is to enable specifying formal semantics for high-level, mathematical IRs.
-These IRs require access to complex mathematical objects that are available in proof assistants, and verifying rewrites on such IRs is out of practical reach for today's SMT solvers.
+These IRs require access to complex mathematical objects that are available in proof assistants, 
+and verifying rewrites on such IRs is out of practical reach for today's SMT solvers.
 As a case study, we formalize the complete ``Poly'' IR.\footnote{as of commit \href{https://github.com/google/heir/tree/2db7701de976f0277f7d3b8be9c65315c647cf79/include/Dialect/Poly}{2db7701de}}
 This IR is a work in progress and is in flux, as it is part of the discussion of an upcoming open standard for homomorphic encryption, developed in collaboration by Intel and Google.\footnote{\url{https://homomorphicencryption.org/}}
 Contrary to what its naming implies, this IR does \emph{not} model operations on polynomials.\footnote{In the same way that rationals $\mathbb{Q}$ are not pairs of integers $\mathbb{Z} \times \mathbb{Z}$.}
@@ -879,26 +818,11 @@ Rewrites like \texttt{mul(p,q)} $\rightarrow$ \texttt{mul(q,p)} follow immediate
 Other rewrites like \texttt{from\_tensor(to\_tensor(p))} $\rightarrow$ \texttt{p}, or even \texttt{add(p,monomial(1,$2^n$))} $\rightarrow$ \texttt{sub(p,1)}, on the other hand, are more specific to this IR and have a higher manual-proof overhead.
 We prove all of these.
 
-\paragraph{What Poly shows: mathematical semantics, and rewrites \texttt{mathlib} closes.}
-On RQ1, this is an IR we did not design and could not simplify: a live MLIR IR
-whose values are cosets of an ideal, whose operations include three that depend
-on a non-canonical choice of coset representative, and which was in flux while
-we formalized it. Its semantics are written directly against \texttt{mathlib}'s
-commutative algebra, which is what makes them expressible at all.
-On RQ2, both kinds of rewrite go through: the ring identities such as
-\texttt{mul(p,q)} $\rightarrow$ \texttt{mul(q,p)} fall out of commutativity,
-and the representative-dependent ones such as
-\texttt{from\_tensor(to\_tensor(p))} $\rightarrow$ \texttt{p} take real but
-finite work. This is the clearest evidence for RQ2's premise, because here the
-proof obligation \texttt{simp\_peephole} leaves behind is one no SMT solver
-could have been handed at all; the convenience comes entirely from landing in a
-proof assistant's library.
-
-Taking the three together settles RQ1: the same calculus, fixed before any of
-them was written, gave semantics to a production IR with poison, to structured
-control flow over an arbitrary IR, and to an evolving IR over a quotient ring.
-RQ2 is answered too, but with a boundary, and the boundary is the subject of the
-next section.
+On RQ1, this is an IR that's pretty far from the usual IRs in MLIR,
+but was easy to express and mechanize in \messa{X}.
+On RQ2, the rewriters go through, but the proof obligations are more involved than in the previous case studies.
+If we focused more intensely on FHE, then we would develop more proof automation for polynomial rings and their quotients,
+but we do not do so in this thesis.
 
 \section{Discussion}
 \label{sec:mlir:discussion}
