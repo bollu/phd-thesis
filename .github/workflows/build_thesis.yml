@@ -7,7 +7,7 @@ permissions: write-all
 on: [push, pull_request]
 
 jobs:
-  build-texlive-latest:
+  build-texlive-2025:
     runs-on: ubuntu-latest
 
     steps:
@@ -28,14 +28,22 @@ jobs:
         make .latexminted_config
 
     # -shell-escape (required by minted) is baked into $pdflatex in .latexmkrc.
+    #
+    # TeX Live is pinned to 2025 to match the local toolchain. On TeX Live
+    # latest the kernel applies its "First Aid for cleveref.sty", after which
+    # the \declaretheorem chain in packages.sty dies with "Command \c@lemma
+    # already defined"; the same file compiles clean on 2025. Unpin only after
+    # checking that a newer release builds both documents.
     - name: Compile thesis
-      uses: xu-cheng/latex-action@master
+      uses: xu-cheng/latex-action@v4
       with:
+        texlive_version: 2025
         root_file: thesis.tex
 
     - name: Compile submission
-      uses: xu-cheng/latex-action@master
+      uses: xu-cheng/latex-action@v4
       with:
+        texlive_version: 2025
         root_file: thesis-submission.tex
 
     - name: Upload PDFs
