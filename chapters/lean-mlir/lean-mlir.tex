@@ -636,31 +636,27 @@ Having placed the framework against its neighbours, we now put it to work.
 \section{Case Studies}
 \label{sec:mlir:casestudies}
 
-We mechanize three IRs drawn from the MLIR ecosystem. They are chosen to
-investigate the following questions:
-\begin{enumerate}
-  \item Can \messa{X} reproduce the reasoning that Alive already automates for
-    LLVM's integer arithmetic, and can it then go beyond Alive, to rewrites
-    proved once for \emph{every} bitwidth rather than one width at a time?
-  \item Does the parametricity of the framework pay? Concretely, can control
-    flow be added to an IR that was not designed for it, without reproving the
-    metatheory?
-  \item Can we reach a domain that is out of practical reach for SMT solvers
-    altogether, where the values a program manipulates live in a quotient ring?
-  \item Is the framework economical to build on, in the sense that a user's IR
-    and its optimizations cost far less than the framework itself did?
-\end{enumerate}
-The bitvector case study (\cref{sec:mlir:bitvectors}) answers (1), structured
-control flow (\cref{sec:mlir:structured-control-flow}) answers (2), and fully
-homomorphic encryption (\cref{sec:mlir:fully-homomorphic-encryption}) answers
-(3). Question (4) is answered by all three together, and by a line count: the
-core of our framework---the definitions of \texttt{Expr}, \texttt{Com}, and
-\texttt{PeepholeRewrite}, the lemmas about them, and the peephole rewriting
-theorem---is $\approx 2.2k$ LoC, against which the three case studies together
-come to $\approx 5.6k$ LoC, and DCE costs $\approx 400$ LoC
-(\cref{sec:mlir:dce}). The case studies are thus substantially larger than the
-framework they exercise, which is the evidence we can offer that it scales to
-realistic verification work.
+A framework generic over the IR is only worth its complexity if it is genuinely
+generic, and only worth using if instantiating it is cheaper than starting over.
+We mechanize three IRs drawn from the MLIR ecosystem to ask exactly that:
+\begin{description}
+  \item[RQ1 (Generality).] Does one framework, fixed in advance, carry IRs that
+    make incompatible demands of it---a low-level IR needing bitvector reasoning
+    at every width, an IR needing control flow it was never designed for, and an
+    IR whose values are cosets of an ideal?
+  \item[RQ2 (Cost).] What does instantiating the framework cost, and where does
+    the residual cost sit once it is instantiated?
+\end{description}
+Each case study closes out part of RQ1: the three are chosen because a framework
+could plausibly succeed at any one of them by accident and fail the others.
+Bitvectors (\cref{sec:mlir:bitvectors}) test whether we can match a mature
+push-button tool on its home ground; structured control flow
+(\cref{sec:mlir:structured-control-flow}) tests whether the framework's
+parametricity survives contact with a feature added after the fact; and fully
+homomorphic encryption (\cref{sec:mlir:fully-homomorphic-encryption}) tests
+whether we can reach a domain no SMT solver can be pointed at. RQ2 is settled
+once all three are in hand (\cref{sec:mlir:cost}), and its answer is what
+carries the thesis into the chapters that follow.
 
 \subsection{Reasoning About Bitvectors of Arbitrary Width}
 \label{sec:mlir:bitvectors}
@@ -731,13 +727,10 @@ Of these, $54$ are proved automatically.
 The rest are not, and where the automation struggles we prove an additional $6$
 by hand, choosing those an SMT solver takes a long time to prove even at a
 single fixed bitwidth such as $64$.
-This answers the first of our questions in both directions. We do reproduce
-Alive-style reasoning, and our proofs hold at arbitrary universally quantified
-bitwidth rather than one width at a time, save for theorems that are only true
-at a particular width.\footnote{e.g., \texttt{a + b = a xor b} is true only at bitwidth 1.}
-But $54$ out of $93$ is also the honest measure of how far the automation of the
-day could carry us, and it is the number that motivates the remainder of this
-thesis. As an example, let us consider the following rewrites:
+Our proofs hold at arbitrary universally quantified bitwidth rather than one
+width at a time, save for theorems that are only true at a particular
+width.\footnote{e.g., \texttt{a + b = a xor b} is true only at bitwidth 1.}
+As an example, let us consider the following rewrites:
 
 \vspace{1mm}
 \begin{minipage}{0.4\textwidth}
@@ -792,6 +785,15 @@ where the proof follows by reasoning about the addition as a state machine.
 This anticipates our techniques in the next chapters,
 where we build proof automation to automatically dispatch such bitvector equivalences
 via parametric bitvector theory solvers.
+
+\paragraph{RQ1: meeting Alive on its own ground.}
+The framework meets a mature push-button tool on its home ground and, on the
+fragment we model, improves on it in the way that matters for a compiler: an
+Alive proof holds at the width it was run at, whereas ours holds at all of them
+at once. The qualification is that we model a fragment---no \texttt{nsw} or
+\texttt{nuw} flags, no preconditions---and that $54$ of $93$ is where the
+automation of the day stopped. That shortfall is not evidence against
+generality; it is evidence about cost, and RQ2 is where we account for it.
 Next, we show how the framework supports control flow reasoning via regions.
 
 
@@ -865,7 +867,17 @@ Its proof obligation is \LightGrayBlueBox{$(\vdash \lambda x.~x + \delta)^{n}(c)
 This transformation is challenging to perform in a low-level IR, since there is no syntactic concept of a loop.
 However, this transformation \emph{is} a valid peephole rewrite in our framework since it uses a \emph{statically} known loop body.
 We showcase how regions permit MLIR (and, consequently, us) to easily encode and reason with commonplace loop transformations.
-See that the parametricity of our framework allows us to prove theorems that are valid on all IR extensions $\texttt{scf}(X)$.
+
+\paragraph{RQ1: parametricity after the fact.}
+Control flow was not designed into any of the IRs we had; it was added
+afterwards, to an arbitrary user IR $X$, by defining \messa{\texttt{scf}(X)} as
+a construction \emph{over} $X$ rather than a modification of it. Nothing in the
+core calculus changed, no metatheory was reproved, and the loop theorems we get
+hold uniformly for every extension $\texttt{scf}(X)$ rather than for one IR at a
+time. The qualification is the one recorded earlier: because these theorems
+quantify over the loop body, and a loop body is a region, they are theorems the
+user applies rather than rewrites the rewriter fires. Parametricity delivered
+the semantics and the proofs; it did not extend the peephole fragment.
 
 \subsection{Fully Homomorphic Encryption}
 \label{sec:mlir:fully-homomorphic-encryption}
@@ -895,12 +907,51 @@ This allows us to define the semantics and prototype both the IR and rewrites in
 Rewrites like \texttt{mul(p,q)} $\rightarrow$ \texttt{mul(q,p)} follow immediately from the fact that $R$ is a commutative ring.
 Other rewrites like \texttt{from\_tensor(to\_tensor(p))} $\rightarrow$ \texttt{p}, or even \texttt{add(p,monomial(1,$2^n$))} $\rightarrow$ \texttt{sub(p,1)}, on the other hand, are more specific to this IR and have a higher manual-proof overhead.
 We prove all of these.
-This settles the third question. A domain whose values are cosets of an ideal,
-where the interesting rewrites are ring identities and the uninteresting ones
-depend on a non-canonical choice of coset representative, is not a domain an
-SMT solver can be pointed at; it is a domain where the ambient library of a
-proof assistant does the work, and \messa{X} is what connects that library to
-an IR.
+
+\paragraph{RQ1: past the reach of SMT.}
+This is the case that a bitvector-shaped framework could not have absorbed by
+accident. The values are cosets of an ideal, the easy rewrites are ring
+identities discharged by \texttt{mathlib}'s commutative algebra, and the hard
+ones (\texttt{from\_tensor(to\_tensor(p))} $\rightarrow$ \texttt{p}, or
+\texttt{leading\_term}) turn on a non-canonical choice of coset representative
+that has no first-order encoding to hand an SMT solver. We prove both kinds.
+Taking the three studies together, RQ1 is answered affirmatively: the same
+calculus, unchanged, carried a low-level IR reasoned about at all widths, an
+extension adding control flow to an arbitrary IR, and an IR living in a quotient
+ring---and the framework was fixed before any of them was written.
+
+\subsection{The Cost of Instantiation}
+\label{sec:mlir:cost}
+
+RQ2 asks what instantiating \messa{X} costs, and where the cost goes afterwards.
+
+The first half is answered by counting. The core of the framework---the
+definitions of \texttt{Expr}, \texttt{Com}, and \texttt{PeepholeRewrite}, the
+lemmas about them, and the peephole rewriting theorem---is $\approx 2.2k$ LoC,
+written once. Against that, the three case studies together come to $\approx
+5.6k$ LoC, and the two whole-program optimizations cost little: DCE is
+$\approx 400$ LoC (\cref{sec:mlir:dce}), CSE comparably. The framework is thus
+substantially smaller than what has been built on it, which is the shape one
+wants: the fixed cost is paid once, and each new IR pays only for its own syntax
+and semantics. A user supplies three typeclass instances and a denotation, and
+inherits a verified rewriter, DCE, CSE, an MLIR parser, and the automation that
+strips all of it back out of the goal.
+
+The second half is the more consequential finding, and it is not a happy one.
+Once instantiation is paid for, essentially none of the remaining cost is
+structural. \texttt{simp\_peephole} reduces a rewrite to a statement in the
+user's own semantics, and what is then left is a mathematical obligation that
+the framework can neither help with nor get out of the way of. For
+\messa{\operatorname{QuotRing}} that obligation is a ring identity and
+\texttt{mathlib} closes it. For \messa{\operatorname{LLVM}} it is a bitvector
+identity at universally quantified width, and there the automation of the day
+closed $54$ of $93$; the other $39$ were left to hand proof, and we completed
+only $6$ of them, chosen for being the ones an SMT solver struggles with even at
+a single fixed width. The cost of verified peephole rewriting, in other words,
+has moved. It is no longer in defining IRs or in proving the rewriter correct.
+It is entirely in deciding the semantic obligations that fall out the far end,
+and for the domain that matters most to a compiler---bitvectors at every
+width---no adequate decision procedure existed.
 
 \section{Discussion}
 \label{sec:mlir:discussion}
@@ -925,15 +976,12 @@ testing up to bitwidth $8$, and on collapsing immediate undefined behaviour
 together with poison into a single \texttt{Option.none}, which is sound only
 under a side condition we check by hand for each division and remainder rewrite.
 Separating undefined behaviour from poison, and reasoning about rewrites that
-refine one into the other, remains open. Against that, the framework did carry
-three genuinely different IRs, at a cost in Lean code that is dominated by the
-case studies rather than by the framework itself.
+refine one into the other, remains open.
 
-The sharpest limit, though, is not structural but automatic. Once
-\texttt{simp\_peephole} has stripped the SSA scaffolding away, what is left is a
-proof obligation over bitvectors of universally quantified width, and only $54$
-of the $93$ translated Alive rewrites could be discharged by the automation
-available to us. The structural half of verified peephole rewriting is
-discharged by this chapter; the semantic half is a question about deciding
-bitvector goals at scale, rather than proving them by hand. That is the subject
-of the rest of this thesis.
+That caveat aside, the answer to RQ2 is what carries this thesis forward. The
+cost of verified peephole rewriting has not gone away; it has moved, out of the
+framework and into the semantic obligations the framework hands back. The
+structural half of the problem is discharged by this chapter. The other half is
+a question about \emph{deciding} bitvector goals at universally quantified
+width, rather than proving them one by one, and that is the subject of the rest
+of this thesis.
