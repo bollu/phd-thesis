@@ -1,4 +1,25 @@
-# Sid's PhD Thesis
+# Sid's PhD Thesis ![Compile thesis](../../workflows/Compile%20thesis/badge.svg)
+
+Download:
+[Thesis (with comments)](../../releases/latest/download/thesis.pdf) |
+[Submission (without comments)](../../releases/latest/download/thesis-submission.pdf)
+
+
+## Build it yourself
+
+Requires TeX Live 2025 (or any distribution with `latexmk` and minted 3),
+Python 3, and `latexminted`'s cwd-config support:
+
+```sh
+bash ./tools/create_latexminted_config.sh   # once, writes ~/.latexminted_config
+make          # thesis.pdf
+make submission  # thesis-submission.pdf
+make both     # both of the above
+```
+
+`make` regenerates `.latexminted_config` (the SHA256 of the custom Lean 4
+lexer under `tools/lexers/`) before compiling; if a code listing suddenly fails
+to highlight, `make clean` refreshes those hashes.
 
 
 --------

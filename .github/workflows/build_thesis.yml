@@ -1,0 +1,71 @@
+name: Compile thesis
+
+# Provide permissions to read and write the repo, create releases.
+# https://docs.github.com/en/actions/using-workflows/workflow-syntax-for-github-actions#permissions
+permissions: write-all
+
+on: [push, pull_request]
+
+jobs:
+  build-texlive-latest:
+    runs-on: ubuntu-latest
+
+    steps:
+    # The submodules under papers/ are private repositories reachable only over
+    # SSH (see .gitmodules); the thesis build never reads them, so skip them.
+    - uses: actions/checkout@v5
+      with:
+        submodules: false
+
+    # .latexminted_config is gitignored and has to be regenerated here: the
+    # script writes $HOME/.latexminted_config (which sets enable_cwd_config),
+    # and the make target writes ./.latexminted_config with the SHA256 of the
+    # custom lexers under tools/lexers/. latex-action bind-mounts /home/runner
+    # and forwards HOME, so latexminted inside the container sees both.
+    - name: Create .latexminted_config file
+      run: |
+        bash ./tools/create_latexminted_config.sh
+        make .latexminted_config
+
+    # -shell-escape (required by minted) is baked into $pdflatex in .latexmkrc.
+    - name: Compile thesis
+      uses: xu-cheng/latex-action@master
+      with:
+        root_file: thesis.tex
+
+    - name: Compile submission
+      uses: xu-cheng/latex-action@master
+      with:
+        root_file: thesis-submission.tex
+
+    - name: Upload PDFs
+      uses: actions/upload-artifact@v4
+      with:
+        name: thesis-pdfs
+        path: |
+          thesis.pdf
+          thesis-submission.pdf
+
+    # A failed thesis build is unreadable from the step log alone; keep the
+    # .log files so the failure can be diagnosed without a local rebuild.
+    - name: Upload logs on failure
+      if: failure()
+      uses: actions/upload-artifact@v4
+      with:
+        name: latex-logs
+        path: |
+          thesis.log
+          thesis-submission.log
+        if-no-files-found: ignore
+
+    - name: Release
+      if: ${{ github.event_name == 'push' && github.ref == 'refs/heads/master' }}
+      uses: softprops/action-gh-release@v2
+      env:
+        GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+      with:
+        name: Release ${{ github.run_number }}
+        tag_name: release-${{ github.run_number }}
+        files: |
+          thesis.pdf
+          thesis-submission.pdf
