@@ -1,69 +1,7 @@
-# cam-thesis
-
-![builder](https://github.com/cambridge/thesis/workflows/builder/badge.svg?branch=master&event=push)
-
->   _a LaTeX thesis template for Cambridge PhD students_
+# Sid's PhD Thesis
 
 
-
-## Quick start
-
-1. Clone this repository.
-1. Start adding contents of your thesis into [`thesis.tex`](./thesis.tex).
-1. Build the `PDF` by running the following in the command line:
-
-    ```
-    make
-    ```
-
-1. Open `thesis.pdf`.
-
-Pro tip: you can use one of the samples in the [`Samples`](./Samples) directory.
-
-
-
-## How will the thesis look like?
-
-Your thesis document will look something like this:
-
->   [Plain (PDF)](https://cam-thesis.s3-eu-west-1.amazonaws.com/pdf/thesis.pdf)
-
-If you use the _clean_ sample, which can be found in [`./Samples/clean`](Samples/clean), it will look like this:
-
->   [Sample Clean (PDF)](https://cam-thesis.s3-eu-west-1.amazonaws.com/pdf/clean.pdf)
-
-The template also supports DVI and PS formats. All three formats can be generated
-with the provided `Makefile`.
-
-
-
-## Producing `PDF`, `DVI` and `PS` documents
-
-
-### Build your thesis
-
-To build the `PDF` version of your thesis, run:
-
-    make
-
-This build procedure uses `pdflatex` and will produce `thesis.pdf`.
-
-To produce `DVI` and `PS` versions of your document, you should run:
-
-    make thesis.ps
-
-This will use the `latex` and `dvips` commands to build the document
-and will produce `thesis.dvi` and `thesis.ps` documents.
-
-
-### Clean unwanted files
-
-To clean unwanted clutter (all LaTeX auto-generated files), run:
-
-    make clean
-
--------------------------------------------------------------------------------
-
+--------
 
 
 # Usage details
@@ -159,19 +97,6 @@ It also supports some custom options.
 -------------------------------------------------------------------------------
 
 
-
-# Troubleshooting
-
-
-## _Q1_: I found a bug in the template. Where do I report bugs?
-
-You can report issues through
-[our GitHub repository](https://github.com/cambridge/thesis/issues).
-
-You can also mail
-[the maintainers](https://github.com/cambridge/thesis/contributors) directly.
-
-
 ## _Q2_: Where can I find the thesis formatting guidelines this class is based on?
 
 The University of Cambridge submission guidelines:
@@ -191,36 +116,6 @@ The Computer Laboratory guidelines for technical reports:
 > [https://www.cl.cam.ac.uk/techreports/submission.html](https://www.cl.cam.ac.uk/techreports/submission.html)
 
 
-## _Q3_: Can I use my own Makefile?
-
-By all means. Previously we used the horrendously complex `Makefile` at
-
-> [http://code.google.com/p/latex-makefile/](http://code.google.com/p/latex-makefile/)
-
-
-## _Q4_: But what if I don't want the template files in my thesis directory?
-
-Put the files and folders listed below into a directory where LaTeX can find them (for more
-info see __[1]__):
-
-    cam-thesis.cls
-    CollegeShields/
-
-> __[1]__ You can put these files either into the standard LaTeX directory for
-> classes __[2]__, or a directory listed in your `TEXINPUTS` environment variable.
->
-> __[2]__ The location of the standard LaTeX class directory depends on which LaTeX
-> installation and operating system you use. For example, for TeX Live on Fedora
-> 14 it is `/usr/share/texmf/tex/latex/base`.
->
-> In any case, after this, LaTeX will still not be able find your class. You
-> will have to rebuild the package index. This procedure also depends on your
-> installation specifics, but for TeX Live you have to run the `texhash` command.
->
-> For more comprehensive information refer to
-> [LaTeX Wikibooks](http://en.wikibooks.org/wiki/LaTeX/Packages/Installing_Extra_Packages).
-
-
 ## _Q5_: Where can I find newer versions of the University of Cambridge logo?
 
 The university updates its logo every now and then. You can find up-to-date
@@ -228,20 +123,6 @@ logos on [this page](https://www.cam.ac.uk/brand-resources/about-the-logo/logo-d
 (subject to change without notice).
 
 Download and exchange the new logos with `CUni.eps` and/or `CUni.pdf`.
-
-
-## _Q6_: My college's shield/coat of arms/crest is not a vector-based image. Why u no include it?
-
-If you find a distributable vector-based image of your college's shield you can report it as an issue or mail it to contributors directly (refer to question __Q1__ above).
-
-
-## _Q7_: Where can I find extra fonts (like Adobe Sabon, Adobe Utopia etc.)?
-
-The Computer Laboratory provides [some](https://web.archive.org/web/20150908001116/http://www.cl.cam.ac.uk/local/sys/unix/applications/tex/#clfonts).
-
-After you've installed the fonts, add somewhere in the preamble (before `\begin{document}`) the following command:
-
-    \renewcommand\rmdefault{psb}
 
 
 ## _Q8_: How should I count the number of words in my thesis?
