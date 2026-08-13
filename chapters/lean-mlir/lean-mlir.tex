@@ -584,6 +584,42 @@ calculus of \cref{sec:mlir:framework} and the rewriter we have actually built:
     one.
 \end{itemize}
 
+\section{Related Work: Verified Compilation and Rewriting}
+\label{sec:mlir:related}
+
+The broad landscape of compiler verification was surveyed in the background.
+Here we compare against the technical details of related work.
+
+In contrast to the Alive family of
+tools~\citep{lopes2015provably,lopes2021alive2,lee2019aliveinlean}, our work
+builds a framework for describing full programs (rather than rewrite
+snippets), and formally defines and proves the correctness of peephole
+rewriting within a larger program context.
+The semantics and correctness of compiling compositionally have been explored by multiple authors, like Pilsner~\cite{neis2015pilsner} or many variants of CompCert~\cite{leroy2016compcert}:
+like compositional CompCert~\cite{stewart2015compositional}, CompCertX~\cite{wang2019abstract}, SepCompCert~\cite{kang2016lightweight}, CompCertM~\cite{song2019compcertm}, and CompCertO~\cite{koenig2021compcerto}.
+A great summary of the approaches to this problem (including the ones mentioned above), with their differences and similarities, is given by Patterson et al~\cite{patterson2019next}.
+All of these use fixed languages but are reasonable ways of giving semantics to relevant IRs in \messa{X}.
+
+The authors of~\cite{zakowski2021modular} introduce a more modular approach to LLVM's semantics, based on interaction trees~\cite{xia2019interaction}.
+Like theirs, our semantics is also denotational and can be executed.
+We currently only model a restricted set of side effects, whereas interaction trees shine when modeling more complex side effects such as memory or non-terminating behavior.
+An approach like this would thus be a great candidate for the semantics of a lower-level IR such as LLVM within MLIR.
+Similarly, the work of DimSum~\cite{sammler2023dimsum} deals with the boundaries between languages in the context of linking.
+This addresses an important aspect we don't model yet: what occurs at the boundaries of IRs, when mixing them.
+
+There is a longer line of work studying SSA and its relationship to functional programming. Our work is inspired by and builds on the ideas from~\cite{kelsey1995correspondence,appel1998ssa,barthe2014formal}.
+Complex compiler optimizations have also been studied formally and verified, like~\cite{courant2021verified} which implements verified polyhedral optimization.
+We focus on the simpler and more ubiquitous peephole rewrites.
+
+Our work differs from prior work on formalizing peephole rewrites by providing a framework for reasoning about SSA peephole rewrites.
+The closest similar work, Peek~\cite{mullen2016verified} defines peephole rewriting over an assembly instruction set.
+Their rewriter expects instructions to be adjacent to one another.
+Furthermore, their rewriter restricts source and target patterns to be of the same length, filling in the different lengths with \texttt{nop} instructions.
+Their patterns permit side effects, which we disallow since we are interested in higher-level, pure rewrites.
+Our patterns provide more flexibility since the source and target patterns are arbitrary programs, and are matched on sub-DAGs instead of a linear sequence.
+
+% \section{Limitations} \label{sec:mlir:limitations} Several limitations bound what we prove, and each points to concrete future work. First, we model side effects coarsely: rewriting is proved sound only for \texttt{EffectKind.pure} operations, and the one genuinely side-effectful behaviour we encounter, which is the immediate undefined behaviour of division and remainder may raise, is collapsed together with poison, rather than being tracker as a first class effect. The case studies of \cref{sec:mlir:casestudies} exposes a limitation of the automation. Once \texttt{simp\_peephole} has stripped away the SSA scaffolding, each rewrite leaves behind a proof obligation over bitvectors of arbitrary width, and only $54$ of the $93$ translated Alive rewrites could be discharged by the automation available at the time. Closing this automation gap, and being able to decide such bitvector goals at scale, rather than proving them by hand, is precisely the subject we tackle next, and the reason the rest of the thesis is devoted to verified decision procedures.
+
 \section{Case Studies}
 \label{sec:mlir:casestudies}
 
@@ -811,39 +847,3 @@ This allows us to define the semantics and prototype both the IR and rewrites in
 Rewrites like \texttt{mul(p,q)} $\rightarrow$ \texttt{mul(q,p)} follow immediately from the fact that $R$ is a commutative ring.
 Other rewrites like \texttt{from\_tensor(to\_tensor(p))} $\rightarrow$ \texttt{p}, or even \texttt{add(p,monomial(1,$2^n$))} $\rightarrow$ \texttt{sub(p,1)}, on the other hand, are more specific to this IR and have a higher manual-proof overhead.
 We prove all of these.
-
-\section{Related Work: Verified Compilation and Rewriting}
-\label{sec:mlir:related}
-
-The broad landscape of compiler verification was surveyed in the background.
-Hre we compare against the technical details of related work.
-
-In contrast to the Alive family of
-tools~\citep{lopes2015provably,lopes2021alive2,lee2019aliveinlean}, our work
-builds a framework for describing full programs (rather than rewrite
-snippets), and formally defines and proves the correctness of peephole
-rewriting within a larger program context.
-The semantics and correctness of compiling compositionally have been explored by multiple authors, like Pilsner~\cite{neis2015pilsner} or many variants of CompCert~\cite{leroy2016compcert}:
-like compositional CompCert~\cite{stewart2015compositional}, CompCertX~\cite{wang2019abstract}, SepCompCert~\cite{kang2016lightweight}, CompCertM~\cite{song2019compcertm}, and CompCertO~\cite{koenig2021compcerto}.
-A great summary of the approaches to this problem (including the ones mentioned above), with their differences and similarities, is given by Patterson et al~\cite{patterson2019next}.
-All of these use fixed languages but are reasonable ways of giving semantics to relevant IRs in \messa{X}.
-
-The authors of~\cite{zakowski2021modular} introduce a more modular approach to LLVM's semantics, based on interaction trees~\cite{xia2019interaction}.
-Like theirs, our semantics is also denotational and can be executed.
-We currently only model a restricted set of side effects, whereas interaction trees shine when modeling more complex side effects such as memory or non-terminating behavior.
-An approach like this would thus be a great candidate for the semantics of a lower-level IR such as LLVM within MLIR.
-Similarly, the work of DimSum~\cite{sammler2023dimsum} deals with the boundaries between languages in the context of linking.
-This addresses an important aspect we don't model yet: what occurs at the boundaries of IRs, when mixing them.
-
-There is a longer line of work studying SSA and its relationship to functional programming. Our work is inspired by and builds on the ideas from~\cite{kelsey1995correspondence,appel1998ssa,barthe2014formal}.
-Complex compiler optimizations have also been studied formally and verified, like~\cite{courant2021verified} which implements verified polyhedral optimization.
-We focus on the simpler and more ubiquitous peephole rewrites.
-
-Our work differs from prior work on formalizing peephole rewrites by providing a framework for reasoning about SSA peephole rewrites.
-The closest similar work, Peek~\cite{mullen2016verified} defines peephole rewriting over an assembly instruction set.
-Their rewriter expects instructions to be adjacent to one another.
-Furthermore, their rewriter restricts source and target patterns to be of the same length, filling in the different lengths with \texttt{nop} instructions.
-Their patterns permit side effects, which we disallow since we are interested in higher-level, pure rewrites.
-Our patterns provide more flexibility since the source and target patterns are arbitrary programs, and are matched on sub-DAGs instead of a linear sequence.
-
-% \section{Limitations} \label{sec:mlir:limitations} Several limitations bound what we prove, and each points to concrete future work. First, we model side effects coarsely: rewriting is proved sound only for \texttt{EffectKind.pure} operations, and the one genuinely side-effectful behaviour we encounter, which is the immediate undefined behaviour of division and remainder may raise, is collapsed together with poison, rather than being tracker as a first class effect. The case studies of \cref{sec:mlir:casestudies} exposes a limitation of the automation. Once \texttt{simp\_peephole} has stripped away the SSA scaffolding, each rewrite leaves behind a proof obligation over bitvectors of arbitrary width, and only $54$ of the $93$ translated Alive rewrites could be discharged by the automation available at the time. Closing this automation gap, and being able to decide such bitvector goals at scale, rather than proving them by hand, is precisely the subject we tackle next, and the reason the rest of the thesis is devoted to verified decision procedures.
