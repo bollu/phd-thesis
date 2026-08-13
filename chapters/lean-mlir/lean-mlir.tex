@@ -32,42 +32,36 @@ semantics to impure side effects.
 
 \lettrine{P}{eephole} rewriting is the workhorse of the modern compiler.
 LLVM's InstCombine alone accounts for roughly 10\% of the compiler's
-IR-transforming code---much more than its loop optimizer!---and the Alive
-verifier~\citep{lopes2021alive2} made SMT-based validation of such rewrites
-part of the LLVM community's daily routine. How, then, should we verify a
-peephole rewriter? The two answers on offer each give up something we need.
+IR-transforming code, which is much more than its loop optimizer!
+Tools such as the Alive verifier~\citep{lopes2021alive2} made SMT-based validation of such rewrites
+part of the LLVM community's daily routine. How, then, should we formally verify a
+peephole rewriter? 
 CompCert-style end-to-end verification fixes the language up front, and so
-cannot keep pace with IRs that are still evolving---which is precisely the
-situation in the MLIR ecosystem~\citep{lattner2021mlir}, where every domain
-grows an IR of its own. Alive-style translation validation is push-button, but
-it is bound to one fixed IR and rests on an unverified toolchain. This chapter
-takes a third route, combining the convenience of Alive-style automation with
+cannot keep pace with IRs that are still evolving.
+Alive-style translation validation is push-button, but it is bound to one fixed IR and trusts unverified SMT solvers.
+This chapter takes a third route, combining the convenience of Alive-style automation with
 machine-checked proof in an interactive theorem prover. I formalize a core
 calculus for SSA-based IRs that is generic over the IR and covers
 \emph{regions}, the nested scoping from which MLIR-style IRs are built, and
 mechanize it in Lean. The central result is a lifting theorem: a rewrite proved
-correct in isolation is correct wherever the rewriter fires it inside a whole
+correct in isolation is correct wherever rewrite is applied inside a whole
 program.
 
-Around this theorem I build a framework in which a user defines an IR by giving
-three typeclass instances---the signature of each operation, and the
-denotations of the IR's types and operations into Lean---and receives a
-verified peephole rewriter in return. The encoding is intrinsically well-typed,
-so a rewritten program is well-typed by construction; the same machinery proves
-dead code elimination and common subexpression elimination correct; rewriting
-stays sound when islands of pure operations sit inside a side-effectful IR; and
-a proof automation tactic strips the framework away, leaving the proof engineer
-a goal stated purely in the semantics of the IR. Three case studies stress the
-framework: LLVM's integer arithmetic, structured control flow, and an IR for
+Around this theorem, I build a framework in which a user defines an IR and its rewrites,
+and receives a verified peephole rewriter in return.
+The encoding is intrinsically well-typed, so a rewritten program is well-typed by construction.
+Proof automation is built that strips the framework away, leaving the proof engineer
+a goal stated purely in the semantics of the IR.
+We demonstrate the framework with three case studies:
+LLVM's integer arithmetic, structured control flow, and an IR for
 fully homomorphic encryption whose values inhabit a quotient ring that is out
-of practical reach for today's SMT solvers. The framework core is roughly 2.2k
-lines of Lean and the case studies together roughly 5.6k. The first case study
-is also where the boundary of this chapter shows: once the framework overhead
-is stripped away, each of the 93 Alive rewrites we translate leaves behind a
+of practical reach for today's SMT solvers. 
+Overall, once the framework overhead is stripped away,
+each of the 93 bitvector rewrites leaves behind a
 proof obligation over bitvectors of universally quantified width, and only 54
 of them close automatically. The structural half of verified peephole rewriting
-is discharged here; closing that automation gap is the semantic half, and it is
-what the rest of this thesis is about.
+is discharged in this chapter.
+The automation gap is closed in the rest of the thesis.
 
 % \section{Motivation: Verifying Optimizations for High-Level IRs}
 % \label{sec:mlir:motivation}
@@ -124,9 +118,7 @@ weaker is \emph{refinement}, written $p \sqsubseteq q$, which holds when $q$ is
 at least as defined as $p$; this is what LLVM's undefined behaviour and poison
 values force upon us, and it is the relation the LLVM case study
 (\cref{sec:mlir:bitvectors}) works with. Equality is the special case where the
-refinement holds in both directions. The exposition up to
-\cref{sec:mlir:effects} uses equality throughout, purely to keep the development
-readable; nothing in the framework depends on that choice.
+refinement holds in both directions. 
 
 \section{\texorpdfstring{\messa{\operatorname{QuotRing}}}{LeanMLIR(QuotRing)}: A Motivating Example}
 \label{sec:mlir:motivation}
@@ -911,14 +903,13 @@ next section.
 \section{Discussion}
 \label{sec:mlir:discussion}
 
-We set out to verify peephole rewriting without fixing the IR in advance, and
-what we have is a core calculus for SSA-based IRs, generic over the IR and
-covering regions, with a mechanized lifting theorem: a rewrite proved correct in
-isolation stays correct wherever the rewriter fires it inside a whole program.
-The same encoding carries dead code elimination and common subexpression
-elimination, and survives the move from a purely functional setting to one where
-islands of pure operations sit inside a side-effectful IR. Around it sits enough
-engineering: an MLIR parser, elaborators into intrinsically well-typed terms,
+We set out to verify peephole rewriting without fixing the IR in advance.
+We now have a core calculus for SSA-based IRs, generic over the IR,
+with a mechanized lifting theorem: a rewrite proved correct in isolation stays correct wherever the rewriter fires it inside a whole program.
+The same encoding also lets us easily implement verified dead code elimination and common subexpression
+elimination.
+Moreover, it enables rewriting in a setting where islands of pure operations sit inside a side-effectful IR.
+Around it, we engineer an MLIR parser, elaborators into intrinsically well-typed terms,
 and the \texttt{simp\_peephole} automation, that a user writes rewrites in MLIR
 syntax and is handed back a goal stated in the semantics of their own IR.
 
@@ -966,7 +957,7 @@ higher-level, pure rewrites. Our patterns are arbitrary programs matched on
 sub-DAGs rather than on a linear sequence, which is what makes RQ2 a question
 about convenience rather than about expressiveness.
 
-Overal, against Alive, we gain generality over IRs and proofs that hold at every width.
+Overal, against Alive, we gain generality over IRs and proof obligations that are quantified over all register widths.
 However, so far, we have not gained a way to discharge the proof obligations that rewriting leaves behind.
 Alive uses existig SMT solvers, which makes it fast, unverified, and fixed to a single width.
 In the rest of this thesis, we will instead begin by using Lean's verified bitblaster, \bvdecide{},
