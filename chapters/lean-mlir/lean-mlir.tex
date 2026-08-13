@@ -623,9 +623,31 @@ Our patterns provide more flexibility since the source and target patterns are a
 \section{Case Studies}
 \label{sec:mlir:casestudies}
 
-We mechanize three IRs based on ones found in the MLIR ecosystem as case studies for \messa{X} and show how they benefit from the different aspects of our framework.
-Note that the core of our framework (definitions of \texttt{Expr}, \texttt{Com}, \texttt{PeepholeRewrite}, lemmas about these objects, and the peephole rewriting theorem) is $\approx 2.2k$ LoC.
-The case studies based on our framework together are $\approx 5.6k$ LoC, which stresses the framework to ensure that it scales to realistic formal verification examples.
+We mechanize three IRs drawn from the MLIR ecosystem. They are chosen to
+investigate the following questions:
+\begin{enumerate}
+  \item Can \messa{X} reproduce the reasoning that Alive already automates for
+    LLVM's integer arithmetic, and can it then go beyond Alive, to rewrites
+    proved once for \emph{every} bitwidth rather than one width at a time?
+  \item Does the parametricity of the framework pay? Concretely, can control
+    flow be added to an IR that was not designed for it, without reproving the
+    metatheory?
+  \item Can we reach a domain that is out of practical reach for SMT solvers
+    altogether, where the values a program manipulates live in a quotient ring?
+  \item Is the framework economical to build on, in the sense that a user's IR
+    and its optimizations cost far less than the framework itself did?
+\end{enumerate}
+The bitvector case study (\cref{sec:mlir:bitvectors}) answers (1), structured
+control flow (\cref{sec:mlir:structured-control-flow}) answers (2), and fully
+homomorphic encryption (\cref{sec:mlir:fully-homomorphic-encryption}) answers
+(3). Question (4) is answered by all three together, and by a line count: the
+core of our framework---the definitions of \texttt{Expr}, \texttt{Com}, and
+\texttt{PeepholeRewrite}, the lemmas about them, and the peephole rewriting
+theorem---is $\approx 2.2k$ LoC, against which the three case studies together
+come to $\approx 5.6k$ LoC, and DCE costs $\approx 400$ LoC
+(\cref{sec:mlir:dce}). The case studies are thus substantially larger than the
+framework they exercise, which is the evidence we can offer that it scales to
+realistic verification work.
 
 \subsection{Reasoning About Bitvectors of Arbitrary Width}
 \label{sec:mlir:bitvectors}
