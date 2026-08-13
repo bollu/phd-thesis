@@ -555,6 +555,35 @@ With the above at hand, the overall rewriter construction and proof strategy rem
 with the additional constraint of performing rewriting only on those operations marked as \texttt{EffectKind.pure},
 and the surrounding monadic ceremony required to show that a pure rewrite indeed does not change the state of pure variables in various lemmas.
 
+The rewriter is now complete, so let us summarize the relationship between the
+calculus of \cref{sec:mlir:framework} and the rewriter we have actually built:
+\begin{itemize}
+  \item The denotation of a program descends into regions, but the
+    \emph{matcher} does not. When \texttt{rewritePeephole} compares an operation
+    in the pattern against one in the target, it compares their region arguments
+    for syntactic equality and stops there. A rewrite whose correctness depends
+    on what a region computes will therefore fail to fire, though it will never
+    fire wrongly.
+  \item A peephole rewrite may quantify over free variables but not over free
+    \emph{region} arguments. This is why the loop transformations of
+    \cref{sec:mlir:structured-control-flow}---dead loop deletion, loop fusion,
+    loop reversal---are proved as theorems about the denotation of
+    \messa{\texttt{scf}}, yet are not peephole rewrites that our rewriter can
+    apply. Only a loop with a statically known body, such as the conversion of
+    iterated addition into multiplication, falls back inside the fragment.
+  \item Regions denote bounded computations only. Lean offered no reasoning
+    principle for non-well-founded recursion when this framework was built, so
+    \texttt{scf.for} is a bounded iteration and unbounded loops are out of
+    scope. This is a limit of the instantiation rather than of the calculus: the
+    proof strategy never inspects the denotation, and Lean's subsequent support
+    for domain-theoretic reasoning would lift the restriction.
+  \item \texttt{rewritePeephole} takes a \texttt{fuel} argument bounding how many
+    rewrites it attempts. We prove that whatever it does preserves semantics; we
+    do not prove that it reaches a fixed point, nor that any particular rewrite
+    is ever applied. Correctness here is a safety property, not a completeness
+    one.
+\end{itemize}
+
 \section{Case Studies}
 \label{sec:mlir:casestudies}
 
