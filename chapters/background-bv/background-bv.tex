@@ -74,10 +74,13 @@ with a satisfying assignment, which can be validated by evaluating the formula.
 An UNSAT answer, by contrast, asserts that \emph{no} assignment exists, and
 naively requires trusting the solver's entire implementation. Modern SAT
 solvers therefore emit \emph{UNSAT certificates}: step-by-step derivations of
-the empty clause (a contradiction) from the input CNF. The LRAT
-format~\citep{cruz2017efficient} annotates each derivation step with hints
-identifying the clauses it depends on, which makes certificates checkable by a
-simple and efficient program that is small enough to verify formally. The
+the empty clause (a contradiction) from the input CNF. The de facto standard
+here is the DRAT format~\citep{heule2016drat}, in which each step records only
+the clause derived, leaving the checker to rediscover why that step is sound.
+The LRAT format~\citep{cruz2017efficient} instead annotates each derivation
+step with hints identifying the clauses it depends on, which makes certificates
+checkable by a simple and efficient program that is small enough to verify
+formally. The
 state-of-the-art solver \cadical{}~\citep{biere2024cadical} can emit LRAT
 certificates directly. Checking certificates removes the SAT solver from the
 trusted code base: a buggy solver can at worst produce a certificate that the
@@ -103,7 +106,7 @@ The low-level definition of \texttt{BitVec w} is a natural number $n$ together
 with a proof $\texttt{isLt} : n < 2^w$. This representation---rather than the
 alternative of a vector of Booleans---permits an efficient implementation of
 all operations, both arithmetic and bitwise, because it inherits the kernel's
-fast \texttt{Nat} arithmetic (\cref{sec:bg:lean}). The representation is
+fast \texttt{Nat} arithmetic. The representation is
 \emph{signless}: a bitvector carries no notion of being signed or unsigned;
 instead, individual \emph{operations} interpret it as one or the other. This
 matches the semantics of SMT-LIB and of compiler IRs such as LLVM.
@@ -162,7 +165,7 @@ whose UNSAT answers are re-checked against LRAT certificates
 (\cref{sec:bg:smt}). Because realistic UNSAT proofs are far too large for
 kernel type checking, the bitblaster and certificate checker do not produce
 proof terms; instead they run as compiled code via proof by reflection, using
-the \texttt{ofReduceBool} axiom (\cref{sec:bg:lean}). The user thus trusts the
+the \texttt{ofReduceBool} axiom. The user thus trusts the
 Lean compiler in addition to the kernel---a much smaller leap of faith than
 trusting a full SMT solver, and one already made by anyone using Lean as a
 programming language.
@@ -222,7 +225,8 @@ itself. The AIG additionally carries a verified hash map from declarations to
 indices, enabling structural sharing; its well-formedness invariant states
 that it only maps declarations to the index at which they actually occur. The
 construction is heavily inspired by AIGNET~\citep{davis2013verified}. Thanks
-to FBIP (\cref{sec:bg:lean}), keeping a single live copy of the AIG means the
+to Lean's functional-but-in-place (FBIP) reuse of uniquely-referenced values,
+keeping a single live copy of the AIG means the
 array and hash map are mutated in place, so the purely functional code has
 imperative performance. The gate constructor is a \emph{smart constructor}
 that applies verified versions of the level-1 local

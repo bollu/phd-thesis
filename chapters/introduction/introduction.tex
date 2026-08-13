@@ -35,7 +35,8 @@ dispatches it to a SAT solver,
 and has the resulting certificate rechecked by Lean's kernel.
 This design stands on the shoulders of the progress of the last two decades
 both in SAT solving, which now scales to hundreds of millions of variables~\citep{biere2024cadical,kissatSATComp2024},
-and in UNSAT certificates, where the LRAT format~\citep{lrat} was developed to
+and in UNSAT certificates, where the DRAT format~\citep{heule2016drat} and its
+hint-carrying refinement LRAT~\citep{cruz2017efficient} were developed to
 let SAT solvers express all of their tricks while still enabling fast verification of the result.
 % The design of UNSAT cerificates is very interesting, since there is a tension between the solver's desire to express its reasoning in a compact way,
 % and the verifier's desire to check the reasoning in a simple way.
