@@ -3,7 +3,7 @@
 \epigraph{It is a laborious madness and an impoverishing one, the madness of composing vast books, setting out in five hundred pages an idea that can be perfectly related orally in five minutes.}{Jorge Luis Borges, Prologue to The Garden of Forking Paths}
 
 \lettrine{T}he tradition of verified compilation~\citep{leroy2016compcert,kumar2014cakeml}
-teaches us that verifying even a modest compiler end to end is the work of many person-years.
+teaches that verifying even a modest compiler end to end is the work of many person-years.
 Consequently, I focus on enabling automated formal verification of the peephole rewriter~\citep{mckeeman1965peephole},
 a large, critical, but modular component of a production compiler,
 whose unit of work is a single, local transformation on a finite window of instructions.
@@ -13,51 +13,54 @@ For example, the Alive line of work on LLVM's instruction combiner~\citep{lopes2
 translates LLVM rewrites into SMT and discharges them automatically.
 However, this makes the full SMT solver part of the trusted base,
 and the Alive approach only checks a handful of widths for each rewrite,
-both of which are gaps we aim to close in this thesis.
+both of which are gaps I aim to close in this thesis.
+The question this thesis asks is:
+\emph{given a peephole rewrite, how do I prove it correct at every width, with no SMT solver in the trusted base?}
 
 Toward this, I first formalized a core calculus for SSA-based compiler IRs~\citep{appel1998ssa,rastello2022ssa},
 generic over the user's IR, and proved a generic peephole rewriter correct,
 with case studies ranging from fully homomorphic encryption to LLVM's bitvector rewrites (\cref{ch:lean-mlir}).
 
 Next, when building push-button automation to enable peephole rewrite verification at scale,
-we wish to balance the competing concerns of \emph{performance} and \emph{trustworthiness}.
-Subtle algorithms can be fast, but are hard to verify and change when the solver is updated.
-On the other hand, simple algorithms are easy to verify, but can be far too slow to be useful.
-I settled on bitblasting, an approach that enables both performance and trustworthiness,
+I had to balance the competing concerns of \emph{performance} and \emph{trustworthiness}:
+\begin{enumerate}
+\item Subtle algorithms can be fast, but they are hard to verify, and hard to change when the solver is updated.
+\item Simple algorithms are easy to verify, but they can be far too slow to be useful.
+\end{enumerate}
+\noindent I settled on bitblasting, an approach that enables both performance and trustworthiness,
 since one can reduce a problem in a rich theory to propositional logic, and then dispatch it to a state-of-the-art SAT solver.
-For example, Lean's fixed-width bitvector tactic, \bvdecide{} 
+For example, Lean's fixed-width bitvector tactic, \bvdecide{},
 starts with a bitvector goal, performs bitblasting to produce an equivalent SAT problem,
 dispatches it to a state-of-the-art SAT solver,
 and has the resulting certificate rechecked by Lean's kernel.
-This design  stands on the shoulders of the incredible progess in the last two decades
+This design stands on the shoulders of the progress of the last two decades
 both in SAT solving, which now scales to hundreds of millions of variables~\citep{biere2024cadical,kissatSATComp2024},
-as well as in UNSAT certificates, where the LRAT format~\citep{lrat} was developed to
-enable SAT solvers to express all of their tricks, while still enabling fast verification of the result.
+and in UNSAT certificates, where the LRAT format~\citep{lrat} was developed to
+let SAT solvers express all of their tricks while still enabling fast verification of the result.
 % The design of UNSAT cerificates is very interesting, since there is a tension between the solver's desire to express its reasoning in a compact way,
 % and the verifier's desire to check the reasoning in a simple way.
-Toward this, I helped implemet bitblasting in \bvdecide{}, which mirrors the state of the art SMT-solver Bitwuzla~\citep{niemetz2023bitwuzla}.
-This provides push-button automation we needed to verify rewrites at a \emph{concrete} bitwidth (e.g. \texttt{i64}).
+Toward this, I helped implement bitblasting in \bvdecide{}, which mirrors the state-of-the-art SMT solver Bitwuzla~\citep{niemetz2023bitwuzla}.
+This provides the push-button automation I needed to verify rewrites at a \emph{concrete} bitwidth (e.g. \texttt{i64}).
 While this is a significant step forward, it is not enough.
 An LLVM rewrite must be correct at \emph{every} register width: \texttt{i8}, \texttt{i32}, and even \texttt{i1729}.
-The standard remedy against this, used for example by the Alive2 peephole rewrite verifier,
+The standard remedy, used for example by the Alive2 peephole rewrite verifier,
 is to enumerate the widths and bitblast each one separately.
 
-
-In this thesis, we show that such exhaustive enumeration is unnecessary.
-For a fragment of bitvector theory, we show that predicates which hold at all widths reduce to reachability in a finite automaton,
+In this thesis, I show that such exhaustive enumeration is unnecessary.
+For a fragment of bitvector theory, predicates which hold at all widths reduce to reachability in a finite automaton,
 which can be decided by $k$-induction, or by regular language emptiness (\cref{ch:mono-width}).
 Next, by an encoding trick that writes widths as bitmasks,
 any formula over $n$ symbolic widths reduces to an equisatisfiable formula at a single width (\cref{ch:multi-width}),
 trading an exponential number of solver queries for a \emph{single} query and carving out a new sound and complete fragment of the multi-width theory.
 % The reach of bitblasting, it turns out, extends all the way to the parametric bitvector theory.
 
-Finally, we also wished to support floating-point reasoning, which is important for emerging applications in machine learning workloads.
-Since machine learning is pushing for small, exotic formats such as E4M3 and E5M2 into production hardware~\citep{fp8fordl},
+Finally, I also wanted to support floating-point reasoning, which is important for emerging applications in machine learning workloads.
+Since machine learning is pushing small, exotic formats such as E4M3 and E5M2 into production hardware~\citep{fp8fordl},
 and these are precisely the formats on which existing solvers are least tested and most fragile,
-it was important to us that our solver be verified at all widths, not just the common ones.
-SymFPU, a state-of-the-art floating-point bitblaster, showed in a sequence of papers that bitblasting decisively
+it was important to me that our solver be verified at all widths, not just the common ones.
+The SymFPU line of work showed, in a sequence of papers, that bitblasting decisively
 outcompetes the alternatives for floating-point SMT solving.
-We follow this approach, and we mechanize the SMT-LIB \qffp{} theory,
+I follow this approach: I mechanize the SMT-LIB \qffp{} theory,
 and build verified bitblasting circuits for almost all of its operations.
 Moreover, our bitblaster is formally verified in Lean,
 thereby eliminating various trust issues around nonstandard floating-point formats and rounding modes.
@@ -71,45 +74,47 @@ thereby eliminating various trust issues around nonstandard floating-point forma
 
 
 In summary, this thesis builds a framework that decouples peephole rewrite verification from structural SSA manipulation,
-and builds width-generic bitvector solvers that prove more problems than the unverified state of the art,
-and builds the first formally verified floating-point bitblaster,
-which offers a new level of assurance for mechanized floating-point reasoning.
+width-generic bitvector solvers that prove more problems than the unverified state of the art,
+and the first formally verified floating-point bitblaster,
+which is slower than Bitwuzla and offers in exchange guarantees that reach down to Lean's kernel.
 I hope that this thesis provides new ideas for push-button verification for compiler optimization.
 
 \section{Contributions}
 
-\noindent First, we contribute \textbf{A verified framework for peephole rewriting in SSA-based IRs} (\cref{ch:lean-mlir}).
-We formalize a core calculus for SSA-based IRs~\citep{appel1998ssa,rastello2022ssa},
+\noindent First, I contribute \textbf{A verified framework for peephole rewriting in SSA-based IRs} (\cref{ch:lean-mlir}).
+I formalize a core calculus for SSA-based IRs~\citep{appel1998ssa,rastello2022ssa},
 generic over the user's IR and covering MLIR-style regions~\citep{lattner2021mlir}, mechanize it in
 Lean with an MLIR-syntax frontend, and prove correct a generic peephole
 rewriter as well as dead-code and common-subexpression elimination.
 \publishedat{Published @ ITP~2024~\citep{leanmlir}}
 
-\noindent Second, we develop \textbf{Certified decision procedures for width-independent bitvector predicates} (\cref{ch:mono-width}).
-We mechanize key model-checking algorithms, such as $k$-induction, automata reachability, emptiness, and
+\noindent Second, I develop \textbf{Certified decision procedures for width-independent bitvector predicates} (\cref{ch:mono-width}).
+I mechanize key model-checking algorithms, such as $k$-induction, automata reachability, emptiness, and
 minimization, and use them to build scalable, certified tactics for
 bitvector predicates that hold at \emph{all} widths, plus a specialized
 solver for mixed Boolean-arithmetic~\citep{liu2021mba,reichenwallner2022efficient}.
 \publishedat{Published @ OOPSLA~2025~\citep{bhat2025certified}}
 
-\noindent Third, we lift the mono-width restriction and obtain \textbf{Sound and complete solving for multi-width parametric bitvectors} (\cref{ch:multi-width}).
-We prove that multi-width formulas over $n$ symbolic widths reduce, with linear blowup, to an equisatisfiable mono-width formula by encoding widths as bitmasks.
+\noindent Third, I lift the mono-width restriction and obtain \textbf{Sound and complete solving for multi-width parametric bitvectors} (\cref{ch:multi-width}).
+I prove that multi-width formulas over $n$ symbolic widths reduce, with linear blowup, to an equisatisfiable mono-width formula by encoding widths as bitmasks.
 This translation collapses exponential enumeration into one fixed-width solver call and yields a new decidable fragment subsuming the prior state of the art.
 \publishedat{Accepted @ OOPSLA~2026~\citep{bhat2026multiwidth}}
 
-\noindent Finally, we construct the first \textbf{Mechanized floating-point bitblaster} (\cref{ch:floating-point}).
-We mechanize the SMT-LIB \qffp{} theory~\citep{extrealsemantics} and build verified bitblasting circuits for its operations
-following SymFPU~\citep{symfpu}, and we evaluate the resulting solver on SMT-COMP~\citep{smtcomp2024} and on new
+\noindent Finally, I construct the first \textbf{Mechanized floating-point bitblaster} (\cref{ch:floating-point}).
+I mechanize the SMT-LIB \qffp{} theory~\citep{extrealsemantics} and build verified bitblasting circuits for its operations
+following SymFPU~\citep{symfpu}, and I evaluate the resulting solver on SMT-COMP~\citep{smtcomp2024} and on new
 small-format (E4M3/E5M2) benchmarks~\citep{fp8fordl}.
-\publishedat{Submitted @ POPL 2027~\citep{bhat2027floatingpoint}}
+\publishedat{Submitted @ POPL~2027~\citep{bhat2027floatingpoint}}
 
 \paragraph{Publications and Attribution.}
 Each contribution above is based on the publication whose venue is named beside it,
 and the corresponding chapter reuses text from that paper.
-All of these works are collaborative; throughout the thesis, ``we'' refers to myself and my coauthors,
-and my own contributions are stated at the beginning of each chapter in an attribution note.
-We also draw on ``Interactive Bitvector Reasoning using Verified Bit-Blasting''~\citep{leanbv} (OOPSLA 2025),
-the fixed-width bitvector bitblasting paper on which I am second author,
+All of these works are collaborative.
+I nevertheless write ``I'' throughout this thesis, for readability;
+this is not a claim of sole authorship,
+and each of these chapters opens with an attribution note that states which parts of the work are mine.
+I also draw on ``Interactive Bitvector Reasoning using Verified Bit-Blasting''~\citep{leanbv} (OOPSLA~2025),
+the fixed-width bitvector bitblasting paper on which I am the second author,
 and reuse text from it in the exposition of \bvdecide{} in the bitblasting background chapter (\cref{ch:background-bv}).
 That work is presented as background rather than as a contribution of this thesis.
 

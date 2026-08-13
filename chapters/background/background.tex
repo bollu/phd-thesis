@@ -1,11 +1,11 @@
-\chapter{A Quick Primer On Compiler Verification}
+\chapter{A Quick Primer on Compiler Verification}
 \label{ch:background}
 \epigraph{A description of Zaira as it is today should contain all Zaira’s
 past. The city, however, does not tell its past, but contains it like the lines
 of a hand, written in the corners of the streets, the gratings of the windows,
 the banisters of the steps, the antennae of the lightning rods, the poles of
 the flags, every segment marked in turn with scratches, indentations,
-scrolls}{Italo Calvino, Invisible Cities}
+scrolls.}{Italo Calvino, Invisible Cities}
 
 
 % Two further mechanisms matter for this thesis. First, \emph{proof by
@@ -27,11 +27,19 @@ scrolls}{Italo Calvino, Invisible Cities}
 % performance characteristics inside pure code, provided only a single reference
 % to them is kept live.
 
+\section{The Lean Proof Assistant}
+
+Everything in this thesis is mechanized in the Lean proof assistant.
+Lean~\citep{demoura2021lean} is a dependently typed interactive theorem
+prover (ITP) that doubles as a general-purpose, purely functional programming
+language. I mechanize the compiler verification framework of this thesis,
+as well as the decision procedures that power it, in Lean.
+
 \section{The SSA Compiler Intermediate Representation}
 \label{sec:bg:ssa}
 
 The bitvector problems this thesis attacks arise from compiler intermediate
-representations, so we recall the relevant vocabulary. Static single
+representations, so I recall the relevant vocabulary. Static single
 assignment (SSA) form~\citep{rastello2022ssa} is the dominant style of
 compiler IR: every variable is assigned exactly once, which makes def-use
 relationships immediate and thereby simplifies analyses and transformations.
@@ -46,6 +54,8 @@ $(y = x + 1;\ z = y - 1) \mapsto (z = x)$ applies to any program containing
 $(y = x + 1;\ \ldots;\ z = y - 1)$, regardless of the interleaved
 instructions---unlike the classical straight-line peephole rewriting over
 assembly mechanized by Peek~\citep{mullen2016verified}.
+
+\section{The MLIR Compiler Framework}
 
 The MLIR compiler framework~\citep{lattner2021mlir} lowers the cost of
 instantiating \emph{domain-specific} SSA IRs. An MLIR \emph{dialect} packages
@@ -62,16 +72,14 @@ loops and memory once lowered to LLVM. MLIR additionally introduces
 structured control flow (loops, conditionals) without unstructured branches,
 simplifying termination and semantics arguments.
 
-Building on this vocabulary, we develop Lean-MLIR~\citep{leanmlir}, a
+Building on this vocabulary, I develop Lean-MLIR~\citep{leanmlir}, a
 framework for intrinsically well-typed SSA with regions in Lean, generic over
 a user-defined dialect, with a verified peephole rewriter whose local rewrite
 proofs lift to whole-program semantic preservation, and proof automation that
 reduces each rewrite obligation to a clean mathematical goal
 (\cref{ch:lean-mlir}).
 
-\section{The MLIR Compiler Framework}
-
-\section{Approaches to Verifying MLIR-Style Compilers}
+\section{Approaches to Verifying Compilers}
 \label{sec:bg:compiler-verification}
 
 How does one come to trust a compiler? The most ambitious answer is to verify
@@ -120,15 +128,4 @@ ends of the spectrum can be joined: an interactive theorem prover supplies the
 trusted foundation and the rewriting framework (\cref{ch:lean-mlir}), and
 verified decision procedures supply the push-button automation that makes the
 framework usable at scale
-(\cref{ch:mono-width,ch:multi-width,ch:floating-point}). To state rewrites in
-the first place, we need the vocabulary of the IRs they live in, which we now
-recall.
-
-
-\section{The Lean Proof Assistant}
-
-In this thesis, we mechanize our results in the Lean proof assistant.
-Lean~\citep{demoura2021lean} is a dependently typed interactive theorem
-prover (ITP) that doubles as a general-purpose, purely functional programming
-language. We mechanize our compiler verification framework,
-as well as the decision procedures that power it, in Lean.
+(\cref{ch:mono-width,ch:multi-width,ch:floating-point}).
