@@ -9,17 +9,16 @@ which reduces whole-program semantic preservation to a single local rewrite obli
 The second half builds the decision procedures that discharge those obligations,
 and shows that such procedures can be mechanized and still be fast enough to be usable on real problems.
 Each of our solvers is implemented in Lean, and all of them are proof producing in some fashion.
-They are evaluated against the unverified state of the art, and none of them matches its raw speed.
-Our floating-point bitblaster trails Bitwuzla by a geometric-mean factor of $\SmtlibRandSpeedupBitwuzlaOverOurs\times$,
-and the fixed-width bitvector engine it is built on is itself within roughly an order of magnitude of Bitwuzla's.
-What that price buys is an end-to-end correctness guarantee that reaches down to Lean's kernel.
+%They are evaluated against the unverified state of the art, and none of them matches its raw speed.
+%Our floating-point bitblaster trails Bitwuzla by a geometric-mean factor of $\SmtlibRandSpeedupBitwuzlaOverOurs\times$,
+%and the fixed-width bitvector engine it is built on is itself within roughly an order of magnitude of Bitwuzla's.
+%What that price buys is an end-to-end correctness guarantee that reaches down to Lean's kernel.
 Together, our solvers are evidence that the finite-domain reasoning that underpins compilers,
 hardware, and cryptography can be carried out inside a proof assistant, at scale.
 
 Were UNSAT certificates the right bet? I believe they were.
 Certificates let me spend the effort where it mattered, on the high-level algorithms and their
-correctness proofs, and pay for foundational trust in solver speed rather than in the size of
-the trusted base.
+correctness proofs, and pay for foundational trust in solver speed rather than in the size of the trusted base.
 
 Many open problems remain. Below I describe the three frontiers I find most exciting:
 nonlinear arithmetic over parametric bitvectors, a fully mechanized Bitwuzla, and tensor bitblasting.
@@ -40,25 +39,21 @@ the full theory, one must first build a complete solver for the nonlinear
 arithmetic fragment, which can then be mixed with bitwise operations via
 theory combination.
 
-Toward this, I propose implementing a fast cylindrical algebraic
-decomposition (CAD) solver for the 2-adics. While the decidability of the
-full first-order theory of the 2-adics has been known in theory since the
+Toward this, I propose implementing a cylindrical algebraic decomposition (CAD) solver for the 2-adics.
+While the decidability of the full first-order theory of the 2-adics has been known in theory since the
 1960s~\citep{ax1966diophantine}, that result was not algorithmic. A CAD-style
-algorithm based on cell decomposition does
-exist~\citep{quantifier-elimination-padic}, but, to the best of my
-knowledge, no implementation of it does. I therefore propose to implement
-such a solver in C++ or Rust, leveraging existing libraries such as
-FLINT~\citep{hart2013flint} for polynomial manipulation and root finding.
-This also sets the stage for a verified reimplementation in Lean, extending
-the reach of the verified solvers of this thesis beyond the linear-bitwise
-fragment.
+algorithm based on cell decomposition does exist~\citep{quantifier-elimination-padic},
+but, to the best of my knowledge, has never been implementation. I therefore propose to implement
+such a solver, leveraging existing libraries such as FLINT~\citep{hart2013flint} for polynomial manipulation and root finding.
+This also sets the stage for a fully verified reimplementation in Lean, extending
+the reach of the verified solvers of this thesis beyond the linear-bitwise fragment.
 
 \section{Fully Mechanized Bitwuzla}
 
 The key missing piece of the verified solver is support for the theory of arrays.
 Arrays can be implemented in terms of a larger body of theory, called \emph{ackermannization},
 which reduces array reasoning to uninterpreted functions and bitvectors.
-Uninterpreted functions on a finite domain are captured entirely by their congruence rule,
+Uninterpreted functions are captured entirely by their congruence rule,
 $x = y \implies f(x) = f(y)$. So, one creates new atoms called $f_x$ and $f_y$, which stand in for $f(x)$ and $f(y)$, and adds the axiom
 $x = y \implies f_x = f_y$. This is a standard technique for adding support for uninterpreted functions to a SAT based theory.
 However, since there are quadratically many pairs of terms,
@@ -78,27 +73,26 @@ machinery is a natural starting point for a mechanization.
 
 \section{Tensor Bitblasting}
 
-Tensor bitblasting should be possible, because the three ingredients it needs now all exist,
-separately. FpSan~\citep{openai2026fpsan} gives floating-point level equivalence, and
-guarantees equivalence upto an exponential ring, which is what ML practitioners care about;
-it can be implemented as a bitvector solver.
-TensorRight~\citep{arora2025tensorright} gives shape level equivalence, by computing a
-safety cutoff on the number of dimensions that must be checked, and then checking upto that
-cutoff---a bounded-to-unbounded transfer principle of exactly the kind our automata based
-solvers provide.
+Tensor bitblasting should be possible, because the three ingredients it needs now all exist.
+FpSan~\citep{openai2026fpsan} gives floating-point level equivalence, and guarantees equivalence upto an exponential ring,
+which is what ML practitioners care about. It can be implemented as a bitvector solver, and I have a prototypical implementation of it in Lean.
+TensorRight~\citep{arora2025tensorright} is an algorithm for shape level equivalence,
+by computing a safety cutoff on the number of dimensions that must be checked, and then checking upto that cutoff.
+This is a bounded-to-unbounded transfer principle, with a very similar flavour to that ouf our automata-based solvers.
 Linear layouts~\citep{zhou2026linear} encode layouts efficiently in terms of bitpatterns,
-under the assumption that the layouts are all going to be powers of 2, which they are in practice.
+under the assumption that the layouts are all going to be powers of 2. This provides convient encodings of tensor shapes,
+and makes them amenable to bitblasting. The three ingredients are therefore in place, and the only missing piece is a way to combine them.
 
-What is missing is the encoding that joins them: a bitvector formulation of TensorRight's
-cutoff argument, into which the linear-layout bitpatterns can be fed.
-I expect the masking trick of our multi-width solver (\cref{ch:multi-width}) to apply here,
-since a symbolic dimension plays much the same role as a symbolic width.
+I expect the masking trick of our multi-width solver (\cref{ch:multi-width})
+can be adapted to tensor shapes, since a symbolic dimension plays much the same role as a symbolic width,
+and FpSan can be used to reduce the floating-point reasoning to bitvectors.
 The payoff would be a tensor bitblaster that is fast, because it is powered by SAT,
-and that transfers from bounded to unbounded checks, because it is built on TensorRight's theory.
+and that transfers from bounded to unbounded checks, because it is built on TensorRight's theory,
+and is trustworthy, because it can be implemented via bitblasting in a proof assistant.
 
 \section*{Closing}
 
-Looking back, it's worth asking why bitblasting, of all approaches, is the one I rely on so heavily.
+Looking back, it's worth asking why bitblasting works in practice.
 I read it as a flavour of the bitter lesson~\citep{sutton2019bitter},
 the observation from AI that search and learning are the only two paradigms that keep rewarding the compute we feed them.
 Automated reasoning has its own incarnation of search in SAT solving,
@@ -111,12 +105,12 @@ It is also worth wondering whether the effort of implementing these procedures i
 and proving them correct is worth it. I believe it is, and that formal verification will only grow in importance.
 These are interesting times (as of August 2026): large language models~\citep{brown2020language,touvron2023llama}
 produce impressive volumes of code, but cannot be trusted to get the details right.
-Moreover, they regularly fulfil the letter of a specification while betraying its spirit.
-A machine-checked specification, with machine-checked automation to discharge it, is the natural antidote.
+A machine-checked specification, with machine-checked automation to discharge it is the clear path forward.
 
-Compilers, hardware, and cryptography rest on finite-domain reasoning, and the
-procedures that discharge it need not be taken on trust.
+A large body of an optimizing compiler rests on peephole rewriting,
+and the correctness of each rewrite is a small but crucial piece of the overall correctness argument.
+The procedures that prove these rewrites en masse need not be taken on trust.
 They can be implemented, proved correct, and run inside a proof assistant,
 on the problems practitioners actually have.
-Foundational proof and push-button automation need not be at odds,
+Overall, foundational proof and push-button automation need not be at odds,
 and the price of foundational trust is not too steep to pay.

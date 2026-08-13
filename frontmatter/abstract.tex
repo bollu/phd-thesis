@@ -2,40 +2,32 @@
 
 \lettrine{A}n optimizing compiler must preserve the semantics of the source program in the target program,
 and must do so while optimizing the target program to run as efficiently as possible.
-This makes production-grade compilers complex.
+This makes implenting production-grade compilers complex, and proving them correct even more so.
 For example, in the LLVM compiler framework, the peephole optimizer,
 which scans for a small window of instructions and replaces them with a more efficient equivalent sequence of instructions,
 is conceptually a simple component.
 However, in terms of the actual implementation, the peephole rewrite is enormous,
 and is about 10\% of the entire LLVM codebase.
-Moreover, compiler correctness is critical for overall software correctness,
-since all software written assumes that the compiler is semantics preserving.
-I would like to provide such guarantees for the LLVM compiler framework.
-Verifying all of LLVM is not a well-scoped task.
-In this thesis, I focus on building techniques to automate the verification of the peephole rewriter of LLVM,
-which is both a large and critical part of LLVM, while also being a modular component with a nice mathematical specification.
-In particular, each rewrite is small enough to prove correct,
-and the rewriter as a whole is built of thousands of such proof obligations.
-These thousands of obligations are far more than can be discharged by hand,
-and demonstrate the need for push-button automation for proving the correctness of these rewrites.
+Moreover, proving this correct requires one to prove the correctness of each individual rewrite,
+along with a proof that the rewriter as a whole is correct.
+In this thesis, I focus on building techniques to allow us to prove such peephole rewrites correct in a proof assistant.
 
-In this thesis, I first formalize a core calculus for SSA-based compiler intermediate representations,
+Toward verified peephole rewriting, I first formalize a core calculus for SSA-based compiler intermediate representations,
 and prove a generic peephole rewriter correct.
 This demonstrates a framework for verifying SSA-based peephole rewriting in a proof assistant.
 I also prove a lifting theorem,
 which says that proving a rewrite correct in isolation is sufficient to prove it correct in the context of a whole program.
 Overall, this discharges the structural half of the problem of verifying a peephole rewriter.
 However, the other half, of actually proving the rewrite correct, still remains.
-I initially worked on these proofs manually, and rapidly came to the conclusion that effective proof automation
-is necessary to make this approach scalable to the thousands of rewrites in LLVM.
+Effective proof automation is necessary to make this approach scalable to the thousands of rewrites in LLVM.
 
-In the second half of the thesis, I introduce new, formally verified decision procedures for proving such rewrites correct.
+In the second half of the thesis, I introduce new, formally verified decision procedures for proving such rewrites correct automatically.
 Our new decision procedures can prove the correctness of parametric bitvectors and floating point,
 while not compromising on trustworthiness, since the decision procedures are mechanized in a proof assistant.
 Algorithmically, our decision procedures are based on bitblasting,
 which relies on translating problems from a given theory into propositional logic,
 and then solving the resulting propositional formula using a SAT solver.
-For the verification pipeline I build on \bvdecide{}, Lean's formally verified fixed-width bitblasting infrastructure.
+For the verification pipeline, I build on \bvdecide{}, Lean's formally verified fixed-width bitblasting infrastructure.
 
 %Perhaps counterintuitively, the proof obligations a compiler hands us are not immediately bitblastable.
 %For example, a rewrite has to be correct at \emph{every} register width, whereas a bitblaster wants one fixed width,
@@ -46,7 +38,7 @@ This is necessary for verifying compiler rewrites, since a rewrite must be corre
 Until now, the standard technique, due to the unavailability of good decision procedures for parametric bitvectors,
 has been to enumerate the widths and bitblast each one separately.
 I show that this is unnecessary. Predicates that must hold at all widths reduce to reachability in a finite automaton,
-which I decide by $k$-induction and language emptiness.
+which is decided by $k$-induction and regular language emptiness.
 Next, by an encoding trick that writes widths as bitmasks,
 any formula over $n$ symbolic widths reduces to an equisatisfiable single-width one.
 This trades an exponential number of solver queries for a \emph{single} query,
@@ -64,4 +56,4 @@ In summary, our width-generic solvers solve more all-width problems than the unv
 and our floating-point bitblaster, while slower than Bitwuzla,
 offers in exchange end-to-end guarantees down to Lean's kernel.
 I hope to demonstrate that foundational proof and push-button automation need not be at odds,
-and that the reductions developed here lay the groundwork for new decision procedures in compiler verification.
+and that the reductions developed here lay the groundwork for effective verification of peephole rewriting at scale.

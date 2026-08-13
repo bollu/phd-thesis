@@ -27,22 +27,16 @@ scrolls.}{Italo Calvino, Invisible Cities}
 % performance characteristics inside pure code, provided only a single reference
 % to them is kept live.
 
-\section{The Lean Proof Assistant}
-
-Everything in this thesis is mechanized in the Lean proof assistant.
-Lean~\citep{demoura2021lean} is a dependently typed interactive theorem
-prover (ITP) that doubles as a general-purpose, purely functional programming
-language. I mechanize the compiler verification framework of this thesis,
-as well as the decision procedures that power it, in Lean.
 
 \section{The SSA Compiler Intermediate Representation}
 \label{sec:bg:ssa}
 
 The bitvector problems this thesis attacks arise from compiler intermediate
-representations, so I recall the relevant vocabulary. Static single
+representations, so we recall the relevant vocabulary. Static single
 assignment (SSA) form~\citep{rastello2022ssa} is the dominant style of
-compiler IR: every variable is assigned exactly once, which makes def-use
-relationships immediate and thereby simplifies analyses and transformations.
+compiler IR for imperative programs.
+In this style of compiler IR, every variable is assigned exactly once,
+which makes def-use relationships immediate and thereby simplifies analyses and transformations.
 \emph{Peephole optimizations}~\citep{mckeeman1965peephole}, which replace
 short instruction sequences by semantically equivalent cheaper ones, are the
 workhorse transformation on SSA IRs; roughly 10\% of all IR-transforming code
@@ -52,8 +46,9 @@ optimizer. Crucially, peephole rewriting on SSA operates along the
 rewrite
 $(y = x + 1;\ z = y - 1) \mapsto (z = x)$ applies to any program containing
 $(y = x + 1;\ \ldots;\ z = y - 1)$, regardless of the interleaved
-instructions---unlike the classical straight-line peephole rewriting over
-assembly mechanized by Peek~\citep{mullen2016verified}.
+instructions. This is unlike the classical straight-line peephole rewriting over
+assembly mechanized by Peek~\citep{mullen2016verified}, where registers
+can be overwritten between the two instructions and so the rewrite is not applicable.
 
 \section{The MLIR Compiler Framework}
 
@@ -62,22 +57,29 @@ instantiating \emph{domain-specific} SSA IRs. An MLIR \emph{dialect} packages
 a set of operations and types at a chosen abstraction level, and dialects for
 machine learning, quantum computing, and fully homomorphic encryption
 (FHE)~\citep{gentry2009fully,viand2022heco} coexist in one infrastructure.
-High-level dialects often have \emph{value semantics} (referential
-transparency), enabling local, side-effect-free algebraic reasoning that is
-simply unavailable at the level of LLVM-style load/store/branch code: an FHE
-rewrite such as $a + X^{2^n} + 1 \mapsto a$ is a one-line quotient-ring
-identity in a polynomial dialect, but a heroic exercise in reasoning about
-loops and memory once lowered to LLVM. MLIR additionally introduces
-\emph{regions}, which let operations contain nested code and so express
+High-level dialects often have \emph{value semantics} (referential transparency),
+enabling local, side-effect-free algebraic reasoning that is simply unavailable at the level of LLVM-style load/store/branch code.
+For example, a such as $a + X^{2^n} + 1 \mapsto a$ is a one-line quotient-ring
+identity, but a heroic exercise in reasoning about loops and memory once lowered to LLVM.
+MLIR additionally introduces \emph{regions}, which let operations contain nested code and so express
 structured control flow (loops, conditionals) without unstructured branches,
 simplifying termination and semantics arguments.
 
-Building on this vocabulary, I develop Lean-MLIR~\citep{leanmlir}, a
+To reason formally about this vocabulary, I develop Lean-MLIR~\citep{leanmlir}, a
 framework for intrinsically well-typed SSA with regions in Lean, generic over
 a user-defined dialect, with a verified peephole rewriter whose local rewrite
 proofs lift to whole-program semantic preservation, and proof automation that
 reduces each rewrite obligation to a clean mathematical goal
 (\cref{ch:lean-mlir}).
+
+\section{The Lean Proof Assistant}
+
+Everything in this thesis is mechanized in the Lean proof assistant.
+Lean~\citep{demoura2021lean} is a dependently typed interactive theorem
+prover (ITP) that doubles as a general-purpose, purely functional programming
+language. I mechanize the compiler verification framework of this thesis,
+as well as the decision procedures that power it, in Lean.
+
 
 \section{Approaches to Verifying Compilers}
 \label{sec:bg:compiler-verification}
@@ -86,46 +88,44 @@ How does one come to trust a compiler? The most ambitious answer is to verify
 it once and for all: write the compiler inside a proof assistant and prove,
 pass by pass, that every translation preserves the semantics of its input.
 CompCert~\citep{leroy2009formally,leroy2016compcert} is the landmark result of
-this school---a moderately optimizing C compiler, programmed and proved in
-Coq, whose correctness theorem stretches from the parsed C program down to
-assembly---and CakeML~\citep{kumar2014cakeml} plays the same role for an ML
-dialect in HOL4. The guarantee is as strong as guarantees get; the price is
+this school. They mechanize a moderately optimizing C compiler, programmed and proved in
+Rocq, whose correctness theorem stretches from the parsed C program down to
+assembly. Secondly, CakeML~\citep{kumar2014cakeml} plays the same role for an ML
+dialect in HOL4. The price to pay for such strong guarantees is that
 proof engineering that must move in lockstep with the compiler. Even pinning
-down the semantics of an industrial IR is a research programme of its own:
-Vellvm~\citep{zhao2012formalizing,zhao2013formal} and K-LLVM~\citep{li2020k}
-each mechanize substantial fragments of LLVM, and neither covers the compiler
-that consumes it. Production compilers, meanwhile, grow by thousands of
-commits a month; verified reimplementations cannot chase them.
+down the semantics of an industrial IR is a research programme of its own.
+Vellvm~\citep{zhao2012formalizing,zhao2013formal} mechanizes substantial fragments of LLVM,
+and neither really mechanize the InstCombine peephole optimizer, 
+which is the largest single component of LLVM that consumes these semantics.
+Production compilers, meanwhile, grow by thousands of commits a month,
+and verified re-implementations cannot keep up.
 
-\emph{Translation validation}~\citep{pnueli1998translation} lowers the
-ambition and, in exchange, keeps pace: instead of verifying the compiler,
-verify each of its runs, by checking after the fact that the emitted program
-refines the source program. The compiler remains an untrusted black box; only
-the checker need be sound, and the checker only ever looks at pairs of
-concrete programs.
+Instead, \emph{translation validation}~\citep{pnueli1998translation} lowers the
+ambition and, in exchange, keeps pace with compiler development.
+Instead of verifying the compiler, verify each of its runs,
+by checking after the fact that the emitted program refines the source program.
+The compiler remains an untrusted black box.
+Only the checker need be sound, and the checker just looks at pairs of concrete programs.
 
 The Alive line of tools brought this style, powered by SMT solvers, into the
-day-to-day of the LLVM community. Alive~\citep{lopes2015provably} offers a
+day-to-day usage of the LLVM community. Alive~\citep{lopes2015provably, lopes2021alive2} offers a
 DSL in which an InstCombine rewrite is stated once and discharged
-automatically---or refuted with a counterexample---and
-Alive2~\citep{lopes2021alive2} validates runs of the existing LLVM
-optimizer wholesale; it is the most referenced tool in LLVM's commit log.
+automatically (or refuted with a counterexample). it is the most referenced tool in LLVM's commit log.
 Alive-tv~\citep{DBLP:conf/cav/BangNCJL22} extends the approach to MLIR's
-tensor dialects. Push-button convenience, however, has a cost in trust: the
+tensor dialects. Push-button convenience, however, has a cost in trust, since the
 SMT solver, and the encoding of IR semantics into SMT, both join the trusted
-base. AliveInLean~\citep{lee2019aliveinlean} verifies the encoding, but the
-solver remains an oracle. Moreover, the theory being decided is that of
+base. AliveInLean~\citep{lee2019aliveinlean} verifies the semantics encoding, but the
+solver still remains an oracle. Moreover, the theory being decided is that of
 \emph{fixed-width} bitvectors, while an InstCombine rewrite must be correct at
-every register width; Alive checks a handful of widths and hopes the rest
-behave alike.
+every register width. Alive checks a handful of widths and hopes that this is sufficient.
 
-Between these poles sits \emph{mechanized rewriting}: prove a rewriting
+Between these extremes sits \emph{mechanized rewriting}, where we prove a rewriting
 \emph{engine} correct once, inside a proof assistant, and then prove each
-rewrite against the real semantics of the IR, with no solver and no width
-bound in the trusted base. Peek~\citep{mullen2016verified} did this for
-assembly peepholes inside CompCert. The bet this thesis makes is that the two
-ends of the spectrum can be joined: an interactive theorem prover supplies the
+rewrite against the real semantics of the IR, with no solver and no width bound in the trusted base.
+Peek~\citep{mullen2016verified} did this for assembly peepholes inside CompCert.
+This thesis pushes forth the view that this is the sweet spot,
+where an interactive theorem prover supplies the
 trusted foundation and the rewriting framework (\cref{ch:lean-mlir}), and
 verified decision procedures supply the push-button automation that makes the
-framework usable at scale
-(\cref{ch:mono-width,ch:multi-width,ch:floating-point}).
+framework usable at scale (\cref{ch:mono-width,ch:multi-width,ch:floating-point}).
+

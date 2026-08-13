@@ -15,7 +15,7 @@ However, this makes the full SMT solver part of the trusted base,
 and the Alive approach only checks a handful of widths for each rewrite,
 both of which are gaps I aim to close in this thesis.
 The question this thesis asks is:
-\emph{given a peephole rewrite, how do I prove it correct at every width, with no SMT solver in the trusted base?}
+\emph{given a peephole rewrite, how do I prove it correct, with no SMT solver in the trusted base?}
 
 Toward this, I first formalized a core calculus for SSA-based compiler IRs~\citep{appel1998ssa,rastello2022ssa},
 generic over the user's IR, and proved a generic peephole rewriter correct,
@@ -23,15 +23,15 @@ with case studies ranging from fully homomorphic encryption to LLVM's bitvector 
 
 Next, when building push-button automation to enable peephole rewrite verification at scale,
 I had to balance the competing concerns of \emph{performance} and \emph{trustworthiness}:
-\begin{enumerate}
-\item Subtle algorithms can be fast, but they are hard to verify, and hard to change when the solver is updated.
-\item Simple algorithms are easy to verify, but they can be far too slow to be useful.
-\end{enumerate}
+Subtle algorithms can be fast, but they are hard to verify, and hard to change when the solver is updated.
+Simple algorithms are easy to verify, but they can be far too slow to be useful.
+
 \noindent I settled on bitblasting, an approach that enables both performance and trustworthiness,
-since one can reduce a problem in a rich theory to propositional logic, and then dispatch it to a state-of-the-art SAT solver.
+since one can reduce a problem in a rich theory to propositional logic,
+and then dispatch it to a state-of-the-art SAT solver.
 For example, Lean's fixed-width bitvector tactic, \bvdecide{},
 starts with a bitvector goal, performs bitblasting to produce an equivalent SAT problem,
-dispatches it to a state-of-the-art SAT solver,
+dispatches it to a SAT solver,
 and has the resulting certificate rechecked by Lean's kernel.
 This design stands on the shoulders of the progress of the last two decades
 both in SAT solving, which now scales to hundreds of millions of variables~\citep{biere2024cadical,kissatSATComp2024},
@@ -110,12 +110,10 @@ small-format (E4M3/E5M2) benchmarks~\citep{fp8fordl}.
 Each contribution above is based on the publication whose venue is named beside it,
 and the corresponding chapter reuses text from that paper.
 All of these works are collaborative.
-I nevertheless write ``I'' throughout this thesis, for readability;
-this is not a claim of sole authorship,
-and each of these chapters opens with an attribution note that states which parts of the work are mine.
+I nevertheless write ``I'' throughout this thesis, for readability.
+Each of these chapters opens with an attribution note that states which parts of the work are mine.
 I also draw on ``Interactive Bitvector Reasoning using Verified Bit-Blasting''~\citep{leanbv} (OOPSLA~2025),
-the fixed-width bitvector bitblasting paper on which I am the second author,
-and reuse text from it in the exposition of \bvdecide{} in the bitblasting background chapter (\cref{ch:background-bv}).
+the fixed-width bitvector bitblasting paper on which I am the second author.
 That work is presented as background rather than as a contribution of this thesis.
 
 % \paragraph{Plan of This Thesis.}
