@@ -22,8 +22,8 @@
 Rewriting in SSA Compiler IRs}~\citep{leanmlir}, published at ITP 2024, joint
 work with Alex Keizer, Chris Hughes, Andrés Goens, and Tobias Grosser.
 \emph{My contributions:} I designed the overall framework and implemented its
-dialects; I completed the peephole-rewriting correctness proof---whose initial
-version was given by Chris Hughes---and generalized it to the full framework,
+dialects. I completed the peephole-rewriting correctness proof, whose initial
+version was given by Chris Hughes, and generalized it to the full framework,
 covering regions and generic operations, and proved the global rewrites (dead-code
 and common-subexpression elimination). Andrés Goens helped mechanize the semantics
 of fully homomorphic encryption, and Alex Keizer helped generalize the pure
@@ -32,23 +32,20 @@ semantics to impure side effects.
 
 \lettrine{I}{n} our aim to verify compiler optimizations, we begin by
 focusing on the \emph{peephole rewriting} of SSA-based intermediate
-representations (IRs)---the workhorse transformation of modern compilers,
-whose vocabulary we fixed in the background (\cref{sec:bg:ssa}). Recall that
+representations (IRs). This is a workhorse of modern compilers. Recall that
 LLVM's InstCombine peephole optimizer alone accounts for roughly 10\% of the
 compiler's IR-transforming code---much more than its loop optimizer!---and
 that the Alive verifier~\citep{lopes2021alive2} made SMT-based validation of
 such rewrites part of the LLVM community's daily routine. There is, at the
 same time, an increasing need for \emph{domain-specific} reasoning in modern
 compilers, fuelling tailored SSA-based IRs as popularized by the MLIR compiler
-framework~\citep{lattner2021mlir}, and neither end of the verification
-spectrum surveyed earlier (\cref{sec:bg:compiler-verification}) serves these
-IRs well: CompCert-style end-to-end verification cannot keep pace with IRs
-that are still evolving, while Alive-style validation is push-button but
-bound to one fixed IR and an unverified toolchain.
-This is where the thesis begins: before we can automate the finite-domain
-obligations that rewrites leave behind, we need a framework in which the
-rewrites themselves can be stated, composed, and proved correct. In this
-chapter we combine the convenience of automation with the versatility
+framework~\citep{lattner2021mlir}.
+As CompCert-style end-to-end verification cannot keep pace with IRs
+that are still evolving, and Alive-style validation is push-button but
+bound to one fixed IR and an unverified toolchain, 
+we propose a new approach: we combine the convenience of automation of Alive-style validation
+with machine-checked proofs of correctness in an interactive theorem prover (ITP).
+
 of ITPs for verifying peephole rewrites across domain-specific IRs. We
 formalize a core calculus for SSA-based IRs that is generic over the IR and
 covers \emph{regions}, which are the nested scoping used by many domain-specific IRs in
@@ -77,10 +74,12 @@ This then naturally leads its way into decision procedures for proving equivalen
 \section{\texorpdfstring{\messa{\operatorname{QuotRing}}}{LeanMLIR(QuotRing)}: A Motivating Example}
 \label{sec:mlir:motivation}
 
+As an example of our framework,
+we model an IR aimed at FHE that manipulates objects in the algebraic structure $R \equiv (\mathbb{Z}/q\mathbb{Z})[X] / (X^{2^n} + 1)$.
+
 \subsection{Defining \texorpdfstring{\messa{\operatorname{QuotRing}}}{LeanMLIR(QuotRing)}: Syntax and Semantics}
 
-As an example of our framework, we model an IR aimed at FHE that manipulates objects in the algebraic structure $R \equiv (\mathbb{Z}/q\mathbb{Z})[X] / (X^{2^n} + 1)$.
-To model it, we instantiate an IR \messa{\operatorname{QuotRing}} in our framework.
+To model this, we instantiate an IR \messa{\operatorname{QuotRing}} in our framework.
 It has three simple operations: \texttt{arith\_const} and \texttt{monomial}, to construct values in $R$, and \texttt{add} to add two values of $R$.
 To define the syntax and semantics of \messa{\operatorname{QuotRing}}, we first declare the types and operations in the IR (\cref{fig:mlir:quotring-op-ty}).
 \texttt{QuotRing} has two types: \texttt{r}, which represents the ring $R$, and $\texttt{nat}$ for naturals.
@@ -206,8 +205,8 @@ def a_plus_generator_eq_a : PeepholeRewrite Op [.r] .r := {
 	}
 \end{figure}
 
-Both the left- and right-hand sides of the rewrite are written in MLIR syntax.
-Note that we also include a custom quasiquotation \texttt{\$\{2**n\}}, to inline the symbolic (universally quantified) value $n$, even though the IR would require $2^n$ to be a concrete constant.
+Both the left and right-hand sides of the rewrite are written in MLIR syntax.
+% Note that we also include a custom quasiquotation \texttt{\$\{2**n\}}, to inline the symbolic (universally quantified) value $n$, even though the IR would require $2^n$ to be a concrete constant.
 Using MLIR syntax matches the LLVM community's use of automation tooling, such as Alive: copy a code snippet and get a response.
 Our goal is to make the use of an interactive theorem prover part of the day-to-day workflow of compiler engineers.
 To enable this workflow, we implement a full MLIR syntax parser, along with facilities to convert from the generic MLIR abstract syntax into our framework type, such that we can use MLIR syntax in Lean.
@@ -238,8 +237,8 @@ theorem denote_rewritePeephole (fuel : ℕ) (rw : PeepholeRewrite Op Γ t)
 \end{lean}
 
 These typeclass definitions are all we need to define the \texttt{QuotRing} IR.
-Our framework takes care of building the intrinsically well-typed IR for \texttt{QuotRing} from this, and gives us a verified peephole rewriter, with other optimizations like CSE and DCE.
-We will now delve into the details of the framework and see how it achieves this.
+Our framework takes care of building the intrinsically well-typed IR for \texttt{QuotRing} from this, and gives us a verified peephole rewriter.
+Next, we describe the core design of our framework that enables such modular definitions of IRs and their semantics.
 
 \section{\texorpdfstring{\messa{X}}{LeanMLIR(X)}: A Framework for Intrinsically Well-Typed SSA}
 \label{sec:mlir:framework}
@@ -258,7 +257,10 @@ We want to statically ensure that the types of these variables are correct, so w
 is equivalent to a tuple \texttt{(f $\alpha_1$ $\times$ ... $\times$ f $\alpha_n$)}.
 
 
-\subsection{Semantics of \texorpdfstring{\messa{X}}{LeanMLIR(X)}}
+\subsection{Generic Semantics of \texorpdfstring{\messa{X}}{LeanMLIR(X)}}
+
+The semantics of a generic IR $X$ is supported by the framework, which sets up the infrastructure for defining the semantics of operations and types in $X$,
+and derives the semantics of full programs in $X$ from the semantics of operations and types.
 The core types for programs are \texttt{Expr} and \texttt{Com}, shown in \cref{fig:mlir:iexpr-icom-def}.
 The type \texttt{Expr~$\Gamma$~$\alpha$} describes individual SSA operations; we think of it as a function from values in the context $\Gamma$ (also called a \emph{valuation} for that context), to a value in the denotation of type $\alpha$.
 The type \texttt{Com~$\Gamma$~$\alpha$} has a similar interpretation but represents sequences of operations.
@@ -313,10 +315,8 @@ We extend Lean with a generic framework to build \texttt{Expr} and \texttt{Com} 
 This framework allows the user to pattern-match on the MLIR AST to build intrinsically well-typed terms, as well as to throw errors on syntactically correct, but malformed MLIR input.
 These are used by our framework to automatically convert MLIR syntax into our SSA encoding, along with the ability to provide precise error messages in cases of translation failure.
 This enables us to write all our examples in MLIR syntax, as demonstrated throughout this chapter.
-
-More concretely, we have an embedded domain-specific language (EDSL), which declares the MLIR grammar as a Lean syntax extension.
 As part of this work, we have found several inconsistencies with the MLIR language reference and contributed patches upstream to update them.\footnote{reviews.llvm.org/\{D122979, D122978, D122977, D119950, D117668\}}
-Overall, this gives users the ability to write idiomatic MLIR code into our framework and receive an MLIR AST.
+Overall, this EDSL gives users the ability to write idiomatic MLIR code into our framework and receive an MLIR AST.
 Moreover, as we will showcase in the examples, our EDSL is idiomatically embedded into Lean, which allows us to quasiquote Lean terms.
 This will come in handy to write programs that are generic over constants, such as parameterizing a program by $2^n$ for any choice of $n$.
 We build our intrinsically well-typed data structures from this MLIR AST by writing custom elaborators.
@@ -325,12 +325,15 @@ We build our intrinsically well-typed data structures from this MLIR AST by writ
 \label{sec:mlir:modelling-control-flow-in-mlirnatural}
 
 So far, our definition of \texttt{Com} only allows straight-line programs.
-To be able to model control flow, we add regions to our IR.
-Regions are an extension to SSA introduced by MLIR. They add the syntactic ability to nest IR definitions, thereby allowing syntactic encoding of concepts such as structured control flow.
-This is in contrast with the approach of having a sea of basic blocks in a control-flow graph (CFG) that are connected by branch instructions.
-More specifically, structured control flow with regions allows modeling reducible control flow~\cite{aho1985compilers}.
-General CFGs allow us to represent more complex, irreducible control flow, which makes them harder to reason about.
-Consequently, compiler frameworks such as MLIR encourage structured control flow (even though they allow for a sea of basic blocks). In our framework, we focus on the novel aspects of MLIR: structured control via nested regions.
+Traditionally, SSA-based IRs have been represented as a control-flow graph (CFG) of basic blocks,
+where each block is a sequence of instructions that ends with a branch instruction.
+However, this representation, while extremely flexible, makes it more complex to reason about programs,
+and complicates compiler analyses and transformations.
+Therefore, newer SSA-based compilers have opted for a hybrid approach,
+where structured control flow can be represented directly in the IR via \emph{regions},
+while still allowing for a sea of basic blocks to represent irreducible control flow~\cite{aho1985compilers}.
+In our framework, we focus on structured control via nested regions,
+since the IRs that are high-level and permit good equational reaasoning are typically structured into regions.
 
 \begin{figure}
 \begin{leanfootnotesize}
@@ -370,10 +373,18 @@ We also extend \texttt{OpSignature} with an extra argument for the input types a
 In parallel, we add the denotation of regions as an argument, extending \texttt{OpDenote}.
 Similarly, we extend the denotation of \texttt{Expr} to compute the denotation of the region \texttt{Com}s in the \texttt{Expr}, before handing off to \texttt{OpDenote}.
 
-This extension to our core calculus gives us the ability to model structured nesting of programs whose denotation is a bounded computation.\footnote{Since our semantics denote into Lean expressions, the user-given semantics must be provably terminating to be executable.
-We wish to explore richer denotations, such as (computable) coinductive and (noncomputable) domain theoretic semantics in future work.}
-This is used pervasively in MLIR, to represent \texttt{if} conditions, \texttt{for} loops, and higher-level looping patterns such as multidimensional strided array accesses over multidimensional arrays (tensors).
-We show how to model control flow in \cref{sec:mlir:structured-control-flow}.
+This extension to our core calculus gives us the ability to model structured nesting of programs whose denotation is a bounded computation.
+At the time of implementation, Lean did not support any form of reasoning for non-well-founded recursion,
+so we only support bounded recursion in our framework.
+At the time of writing, though, Lean has support for domain-theoretic reasoning,
+and allows equational reasoning about potentially non-well-founded recursion.
+This would increase the expressivity of our framework, allowing us to model unbounded loops.
+Regardless, the core proof strategy of our framework is agnostic to the underlying denotation, 
+and we stick to bounded recursion in the rest of the chapter.
+Such bounded recursion is used pervasively in MLIR, to represent \texttt{if} conditions, \texttt{for} loops,
+and higher-level looping patterns such as multidimensional strided array accesses over multidimensional arrays (tensors).
+We show how regions can be used to model control flow later in \cref{sec:mlir:structured-control-flow}.
+Next, we discuss how to reason about programs in \messa{X}.
 
 \section{Reasoning About \texorpdfstring{\messa{X}}{LeanMLIR(X)}}
 \label{sec:mlir:reasoning}
@@ -620,10 +631,14 @@ Simplification of the framework code with \texttt{simp\_peephole}, yields the pr
 for the first example.
 This proof obligation only concerns the semantics in the semantic domain of bitvectors, it does not feature MLIR and SSA anymore.
 This goal is automatically proven by our proof automation for bitvectors, \texttt{alive\_auto}.
-The proof for the second example (omitted) is slightly more involved and
-currently requires manual intervention. It yields the proof state: \noindent \LightGrayBlueBox{$\vdash$ (B \&\&\& A) + (B ||| A) = B + A},
+The proof for the second example (omitted) is slightly more involved and requires a manual proof.
+It yields the proof state: \noindent \LightGrayBlueBox{$\vdash$ (B \&\&\& A) + (B ||| A) = B + A},
 where the proof follows by reasoning about the addition as a state machine.
-In the longer term, we aim to also connect our work to a verified SAT checker that is under development.\footnote{\url{https://github.com/leanprover/leansat}}
+This anticipates our techniques in the next chapters,
+where we build proof automation to automatically dispatch such bitvector equivalences
+via parametric bitvector theory solvers.
+Next, we show how the framework supports control flow reasoning via regions.
+
 
 \subsection{Structured Control Flow}
 \label{sec:mlir:structured-control-flow}
@@ -635,7 +650,6 @@ To this end, we model structured control flow as a fragment of the \texttt{scf} 
 \texttt{if} conditions and bounded \texttt{for} loops.
 Note that we choose to model \emph{bounded} for loops, since these are the loops that are used in MLIR to model high-level operations such as tensor contractions.
 A pleasant upshot is that these are guaranteed to terminate, and can thus have a denotation as a Lean function without requiring modelling of nontermination (which is side-effectful).
-Our sketch of the extended framework with side effects will be used to pursue this line of research in the future.
 The conditionals and bounded for loops allow us to concisely express loop canonicalizations and transformations from MLIR in \messa{\texttt{scf}}.
 
 We built this parametrically over an existing IR $X$ to allow these constructs to be added to an existing IR $X$.
@@ -685,8 +699,10 @@ Similarly, we prove that $\texttt{if}~true~e~e' = e$, and $\texttt{if}~false~e~e
 
 These do \emph{not} count as peephole rewrites in our framework, as they are universally quantified over the loop body (which is a region).
 This is unsupported, as peephole rewrites in \messa{X} may only have free variables, not free region arguments.
+% This is a limitation of our framework, but can be alleviated with a trick.
+\sid{write about lambda theultimate SSA region encoding, and how it allows us to encode regions into SSA}
 
-Consider the loop optimization that converts iterated addition into a single multiplication.
+Now, consider the loop optimization that converts iterated addition into a single multiplication.
 Its proof obligation is \LightGrayBlueBox{$(\vdash \lambda x.~x + \delta)^{n}(c) = n\cdot \delta + c$}.
 This transformation is challenging to perform in a low-level IR, since there is no syntactic concept of a loop.
 However, this transformation \emph{is} a valid peephole rewrite in our framework since it uses a \emph{statically} known loop body.
@@ -696,7 +712,7 @@ See that the parametricity of our framework allows us to prove theorems that are
 \subsection{Fully Homomorphic Encryption}
 \label{sec:mlir:fully-homomorphic-encryption}
 
-A key motivation for \messa{X} is to enable specifying formal semantics for high-level, mathematical IRs.
+One of our motivations for \messa{X} is to enable specifying formal semantics for high-level, mathematical IRs.
 These IRs require access to complex mathematical objects that are available in proof assistants, and verifying rewrites on such IRs is out of practical reach for today's SMT solvers.
 As a case study, we formalize the complete ``Poly'' IR.\footnote{as of commit \href{https://github.com/google/heir/tree/2db7701de976f0277f7d3b8be9c65315c647cf79/include/Dialect/Poly}{2db7701de}}
 This IR is a work in progress and is in flux, as it is part of the discussion of an upcoming open standard for homomorphic encryption, developed in collaboration by Intel and Google.\footnote{\url{https://homomorphicencryption.org/}}
@@ -725,11 +741,8 @@ We prove all of these.
 \section{Related Work: Verified Compilation and Rewriting}
 \label{sec:mlir:related}
 
-The broad landscape of compiler verification---CompCert and CakeML,
-translation validation, and the Alive line of SMT-based peephole
-verifiers---was surveyed in the background
-(\cref{sec:bg:compiler-verification}); here we compare against the technical
-antecedents specific to our framework.
+The broad landscape of compiler verification was surveyed in the background.
+Hre we compare against the technical details of related work.
 
 In contrast to the Alive family of
 tools~\citep{lopes2015provably,lopes2021alive2,lee2019aliveinlean}, our work
@@ -759,19 +772,4 @@ Furthermore, their rewriter restricts source and target patterns to be of the sa
 Their patterns permit side effects, which we disallow since we are interested in higher-level, pure rewrites.
 Our patterns provide more flexibility since the source and target patterns are arbitrary programs, and are matched on sub-DAGs instead of a linear sequence.
 
-\section{Limitations}
-\label{sec:mlir:limitations}
-
-Several limitations bound what we prove, and each points to concrete future
-work. First, we model side effects coarsely: rewriting is proved sound only for
-\texttt{EffectKind.pure} operations, and the one genuinely side-effectful
-behaviour we encounter, which is the immediate undefined behaviour of division and remainder may raise,
-is collapsed together with poison, rather than being tracker as a first class effect.
-
-The case studies of \cref{sec:mlir:casestudies} exposes a limitation of the automation.
-Once \texttt{simp\_peephole} has stripped away the SSA scaffolding, each rewrite
-leaves behind a proof obligation over bitvectors of arbitrary width, and only
-$54$ of the $93$ translated Alive rewrites could be discharged by the automation
-available at the time. Closing this automation gap, and being able to decide such bitvector goals at scale,
-rather than proving them by hand, is precisely the subject we tackle next,
-and the reason the rest of the thesis is devoted to verified decision procedures.
+% \section{Limitations} \label{sec:mlir:limitations} Several limitations bound what we prove, and each points to concrete future work. First, we model side effects coarsely: rewriting is proved sound only for \texttt{EffectKind.pure} operations, and the one genuinely side-effectful behaviour we encounter, which is the immediate undefined behaviour of division and remainder may raise, is collapsed together with poison, rather than being tracker as a first class effect. The case studies of \cref{sec:mlir:casestudies} exposes a limitation of the automation. Once \texttt{simp\_peephole} has stripped away the SSA scaffolding, each rewrite leaves behind a proof obligation over bitvectors of arbitrary width, and only $54$ of the $93$ translated Alive rewrites could be discharged by the automation available at the time. Closing this automation gap, and being able to decide such bitvector goals at scale, rather than proving them by hand, is precisely the subject we tackle next, and the reason the rest of the thesis is devoted to verified decision procedures.
