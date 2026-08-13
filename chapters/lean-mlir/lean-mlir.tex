@@ -83,6 +83,51 @@ what the rest of this thesis is about.
 % As a result, the algebraic structure is completely lost and exploiting simple algebraic identities turns into a heroic effort of reasoning about side effects and stateful program behavior.
 % State-of-the-art compilers for FHE consequently use domain-specific IRs (often expressed with MLIR~\cite{viand2022heco,heaanmlir}) when generating optimized code for FHE, where algebraic optimizations can take place at an FHE-specific IR that has value-semantics (e.g., is referentially transparent) and is overall closer to the mathematical structure of the problem.
 % 
+\section{Preliminaries}
+\label{sec:mlir:preliminaries}
+
+Everything in this chapter is built from three pieces of dependently-typed
+tooling, which we gather here so that the exposition that follows can use them
+freely.
+
+\paragraph{Contexts.}
+Our encoding is \emph{intrinsically well-typed}: every inhabitant of the program
+types \texttt{Expr} and \texttt{Com} defined below is, by construction, a
+well-typed program. To arrange this we need a \emph{context} tracking the types
+of the variables that are allowed to occur, written \texttt{Ctxt Ty}. A context
+is a list of types; the context \texttt{[int, int, bool]}, for instance, says
+that we may refer to two variables of the user-defined type \texttt{int} and one
+of type \texttt{bool}.
+
+\paragraph{Variables.}
+The type \texttt{(Var $\Gamma$ $\alpha$)} encodes variables of type $\alpha$ in
+context $\Gamma$. We use De Bruijn indices~\cite{pierce2002types} in the standard
+way, with one addition: a variable with index $i$ also carries a proof witness
+that the $i$-th entry of $\Gamma$ is the type $\alpha$. Intuitively, a variable
+is not merely a pointer into the context; it is a pointer bundled with the
+evidence that it points at something of the right type, so an ill-typed variable
+reference cannot be written down in the first place.
+
+\paragraph{Heterogeneous vectors.}
+An operation's argument signature is a list of types, say \texttt{[int, int,
+bool]}, and an expression using that operation must store two variables of type
+\texttt{int} and one of type \texttt{bool}. To keep these statically checked we
+store them in a \emph{heterogeneous} vector: a value of type \texttt{HVector f
+[$\alpha_1$, ..., $\alpha_n$]} is equivalent to a tuple \texttt{(f $\alpha_1$
+$\times$ ... $\times$ f $\alpha_n$)}, so the vector's own type records the type
+of each element separately.
+
+\paragraph{Equality and refinement.}
+Two programs may be related in two ways. The stronger is denotational
+\emph{equality}, which we use wherever a rewrite preserves meaning exactly. The
+weaker is \emph{refinement}, written $p \sqsubseteq q$, which holds when $q$ is
+at least as defined as $p$; this is what LLVM's undefined behaviour and poison
+values force upon us, and it is the relation the LLVM case study
+(\cref{sec:mlir:bitvectors}) works with. Equality is the special case where the
+refinement holds in both directions. The exposition up to
+\cref{sec:mlir:effects} uses equality throughout, purely to keep the development
+readable; nothing in the framework depends on that choice.
+
 \section{\texorpdfstring{\messa{\operatorname{QuotRing}}}{LeanMLIR(QuotRing)}: A Motivating Example}
 \label{sec:mlir:motivation}
 
@@ -177,8 +222,8 @@ In $(\mathbb{Z}/q\mathbb{Z})[X] / (X^{2^n} + 1)$ this rewrite is simple to prove
 Any given peephole rewrite (of which \cref{fig:mlir:quotring-peephole-rewrite-example} is an example) consists of a context $\Gamma$ of free variables in the search pattern of the peephole rewrite.
 The search pattern is called \texttt{lhs}, and the replacement is \texttt{rhs}.
 The user has a proof obligation that the denotations of the left and right-hand sides are equal, which is given by the field \texttt{correct} of the peephole rewrite.
-In later examples, we reason upto semantic refinement to incorporate LLVM's notion of poison values \cite{lee2017taming}.
-For now, we stick to equality to simplify exposition.
+Here that obligation is an equality; later examples weaken it to refinement, to
+accommodate LLVM's poison values~\cite{lee2017taming}.
 
 We declare our desired peephole rewrite by defining \texttt{a\_plus\_generator\_eq\_a}.
 Its type is \texttt{PeepholeRewrite Op [.r] r}, where the \texttt{Op} specifies the IR the rewrite belongs to and \texttt{[.r]} is the list of types of free variables in the program.
@@ -256,18 +301,6 @@ Next, we describe the core design of our framework that enables such modular def
 \label{sec:mlir:framework}
 
 In this section, we describe the core design of the framework: the encoding of programs and their semantics in \messa{X} (\cref{fig:mlir:iexpr-icom-def}).
-We review some dependently-typed tooling we use to define our IR.
-\textbf{Contexts:}
-Our encoding is intrinsically well-typed (i.e., each inhabitant of \texttt{Expr} or \texttt{Com} described below is, by construction, well typed).
-Thus, we need a \emph{context} to track the types of variables that are allowed to occur (\texttt{Ctxt Ty}).
-A context is a list of types, where for example \texttt{[int, int, bool]} means that there are two variables of the (user-defined) type \texttt{int} and one variable of type \texttt{bool} we may refer to.
-\textbf{Variables:}
-The type \texttt{(Var $\Gamma$ $\alpha$)} encodes variables of type $\alpha$ in context $\Gamma$.
-We use De Bruijn indices~\cite{pierce2002types} in the standard way, but, additionally, a variable with index $i$ also carries a proof witness that the $i$-th entry of context $\Gamma$ is the type $\alpha$.
-\textbf{Heterogeneous Vectors:} To define an argument signature (\texttt{OpSignature.sig}), say, \texttt{[int, int, bool]}, we need an expression with this operation to store two variables of type \texttt{int} and one of type \texttt{bool}.
-We want to statically ensure that the types of these variables are correct, so we store them in a heterogeneous vector. A vector of type \texttt{HVector f [$\alpha_1$, ..., $\alpha_n$]}
-is equivalent to a tuple \texttt{(f $\alpha_1$ $\times$ ... $\times$ f $\alpha_n$)}.
-
 
 \subsection{Generic Semantics of \texorpdfstring{\messa{X}}{LeanMLIR(X)}}
 
