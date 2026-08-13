@@ -272,9 +272,10 @@
 %% and a bit, so three one-sentence notes on a page come out as six lines, half
 %% of them stubs.
 %%
-%% Give footnotes 185mm instead -- measure + \marginparsep + \marginparwidth,
-%% flush with the right edge of the margin captions. A one-sentence note then
-%% fits on one line.
+%% Give footnotes 160mm instead: measure + \marginparsep + 19mm, so they poke a
+%% short way into the margin without running out to the edge of the caption
+%% column. That is enough that a one-sentence note stops wrapping, but the notes
+%% still read as a column rather than as a second, wider page.
 %%
 %% Mechanism: \@footnotetext (footmisc's \FN@footnotetext, which classicthesis
 %% loads, or hyperref's wrapper around it) sets \hsize\columnwidth and builds
@@ -286,7 +287,7 @@
 \let\cam@orig@footnotetext\@footnotetext
 \long\def\@footnotetext#1{%
   \begingroup
-    \advance\columnwidth\dimexpr\marginparsep+\marginparwidth\relax
+    \advance\columnwidth\dimexpr\marginparsep+19mm\relax
     \cam@orig@footnotetext{#1}%
   \endgroup}
 

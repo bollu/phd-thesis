@@ -40,7 +40,8 @@ We build on \bvdecide{}, Lean's formally verified fixed-width bitblasting infras
 %Perhaps counterintuitively, the proof obligations a compiler hands us are not immediately bitblastable.
 %For example, a rewrite has to be correct at \emph{every} register width, whereas a bitblaster wants one fixed width,
 %and the standard remedy (used, for example, by the Alive peephole rewrite verifier) is to enumerate the widths and bitblast each one separately.
-In more detail, parametric bitvectors are a generalization of fixed-width bitvectors, where the width is a symbolic variable rather than a concrete number.
+Firstly, we create new state-of-the-art algorithms for parametric bitvector theory,
+which is a generalization of fixed-width bitvectors, where the width is a symbolic variable rather than a concrete number.
 This is necessary for verifying compiler rewrites, since a rewrite must be correct at every width.
 Until now, the standard technique, due to the unavailability of good decision procedures for PBV,
 has been to enumerate the widths and bitblast each one separately.
@@ -50,15 +51,15 @@ Next, by an encoding trick that writes widths as bitmasks,
 any formula over $n$ symbolic widths reduces to an equisatisfiable single-width one.
 This trades an exponential number of solver queries for a \emph{single} query,
 and carves out a new sound and complete fragment of the multi-width theory.
-Bitblasting, it turns out, can even reach parametric bitvector theory.
 
-Next, Floating point is one of the more intricate pieces of SMT-LIB theory,
-and is important for emerging applications in machine learning workloads.
-outcompetes the alternatives for floating-point SMT solving.
-We follow of SymFPU, a state of the art floating point bitblaster, and we mechanize the SMT-LIB \qffp{} theory,
+Secondly, we build the first formally verified floating point bitblaster.
+Floating point semantics is intrincate, and is very important for verification in emerging applications such as machine learning workloads.
+Toward trustworthy floating point verification, we mechanize the SMT-LIB \qffp{} theory,
 and build verified bitblasting circuits for almost all of its operations.
+Moreover, our bitblasting circuits are state of the art,
+following the design of the best unverified floating point bitblasting algorithms from SymFPU.
 
-Overall, our width-generic solvers prove more all-width problems than the unverified state of the art,
+In summary, our width-generic solvers prove more all-width problems than the unverified state of the art,
 and our floating-point bitblaster, while slower than Bitwuzla,
 offers in exchange end-to-end guarantees down to Lean's kernel.
 We hope that through our efforts, we demonstrate that foundational proof and push-button automation need not be at odds,
