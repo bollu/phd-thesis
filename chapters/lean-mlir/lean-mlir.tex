@@ -595,68 +595,37 @@ calculus of \cref{sec:mlir:framework} and the rewriter we have actually built:
     is ever applied. Correctness here is a safety property, not a completeness
     one.
 \end{itemize}
-With the rewriter and its boundaries in view, we can say precisely how it
-differs from previous approaches, before turning to the evidence that it works.
-
-\section{Related Work: Verified Compilation and Rewriting}
-\label{sec:mlir:related}
-
-The broad landscape of compiler verification was surveyed in the background.
-Here we compare against the technical details of related work.
-
-In contrast to the Alive family of
-tools~\citep{lopes2015provably,lopes2021alive2,lee2019aliveinlean}, our work
-builds a framework for describing full programs (rather than rewrite
-snippets), and formally defines and proves the correctness of peephole
-rewriting within a larger program context.
-The semantics and correctness of compiling compositionally have been explored by multiple authors, like Pilsner~\cite{neis2015pilsner} or many variants of CompCert~\cite{leroy2016compcert}:
-like compositional CompCert~\cite{stewart2015compositional}, CompCertX~\cite{wang2019abstract}, SepCompCert~\cite{kang2016lightweight}, CompCertM~\cite{song2019compcertm}, and CompCertO~\cite{koenig2021compcerto}.
-A great summary of the approaches to this problem (including the ones mentioned above), with their differences and similarities, is given by Patterson et al~\cite{patterson2019next}.
-All of these use fixed languages but are reasonable ways of giving semantics to relevant IRs in \messa{X}.
-
-The authors of~\cite{zakowski2021modular} introduce a more modular approach to LLVM's semantics, based on interaction trees~\cite{xia2019interaction}.
-Like theirs, our semantics is also denotational and can be executed.
-We currently only model a restricted set of side effects, whereas interaction trees shine when modeling more complex side effects such as memory or non-terminating behavior.
-An approach like this would thus be a great candidate for the semantics of a lower-level IR such as LLVM within MLIR.
-Similarly, the work of DimSum~\cite{sammler2023dimsum} deals with the boundaries between languages in the context of linking.
-This addresses an important aspect we don't model yet: what occurs at the boundaries of IRs, when mixing them.
-
-There is a longer line of work studying SSA and its relationship to functional programming. Our work is inspired by and builds on the ideas from~\cite{kelsey1995correspondence,appel1998ssa,barthe2014formal}.
-Complex compiler optimizations have also been studied formally and verified, like~\cite{courant2021verified} which implements verified polyhedral optimization.
-We focus on the simpler and more ubiquitous peephole rewrites.
-
-Our work differs from prior work on formalizing peephole rewrites by providing a framework for reasoning about SSA peephole rewrites.
-The closest similar work, Peek~\cite{mullen2016verified} defines peephole rewriting over an assembly instruction set.
-Their rewriter expects instructions to be adjacent to one another.
-Furthermore, their rewriter restricts source and target patterns to be of the same length, filling in the different lengths with \texttt{nop} instructions.
-Their patterns permit side effects, which we disallow since we are interested in higher-level, pure rewrites.
-Our patterns provide more flexibility since the source and target patterns are arbitrary programs, and are matched on sub-DAGs instead of a linear sequence.
-Having placed the framework against its neighbours, we now put it to work.
+With the rewriter and its boundaries in view, we turn to the evidence that it
+works.
 
 \section{Case Studies}
 \label{sec:mlir:casestudies}
 
-A framework generic over the IR is only worth its complexity if it is genuinely
-generic, and only worth using if instantiating it is cheaper than starting over.
-We mechanize three IRs drawn from the MLIR ecosystem to ask exactly that:
+A framework for verified rewriting is worth its complexity only if it can be
+pointed at the IRs people actually write, and only if rewriting in them is
+pleasant enough to do. We mechanize three IRs drawn from the MLIR ecosystem to
+ask exactly that:
 \begin{description}
-  \item[RQ1 (Generality).] Does one framework, fixed in advance, carry IRs that
-    make incompatible demands of it---a low-level IR needing bitvector reasoning
-    at every width, an IR needing control flow it was never designed for, and an
-    IR whose values are cosets of an ideal?
-  \item[RQ2 (Cost).] What does instantiating the framework cost, and where does
-    the residual cost sit once it is instantiated?
+  \item[RQ1 (Semantics).] Can we give formal semantics, inside \messa{X}, to
+    rich IRs as they exist in the MLIR ecosystem---not model languages built to
+    be easy to formalize, but IRs with poison values, with nested regions, and
+    with values drawn from nontrivial algebraic structures?
+  \item[RQ2 (Rewriting).] Once such an IR is defined, can we conveniently
+    perform peephole rewriting in it: state rewrites in the syntax a compiler
+    engineer already uses, and be left with a proof obligation in the IR's own
+    semantics rather than in the framework's encoding?
 \end{description}
-Each case study closes out part of RQ1: the three are chosen because a framework
-could plausibly succeed at any one of them by accident and fail the others.
-Bitvectors (\cref{sec:mlir:bitvectors}) test whether we can match a mature
-push-button tool on its home ground; structured control flow
-(\cref{sec:mlir:structured-control-flow}) tests whether the framework's
-parametricity survives contact with a feature added after the fact; and fully
-homomorphic encryption (\cref{sec:mlir:fully-homomorphic-encryption}) tests
-whether we can reach a domain no SMT solver can be pointed at. RQ2 is settled
-once all three are in hand (\cref{sec:mlir:cost}), and its answer is what
-carries the thesis into the chapters that follow.
+Each case study answers both. \messa{\operatorname{LLVM}}
+(\cref{sec:mlir:bitvectors}) is the arithmetic fragment of a production IR,
+poison and all, against which we replay Alive's test suite.
+\messa{\texttt{scf}} (\cref{sec:mlir:structured-control-flow}) is structured
+control flow, the feature that most distinguishes MLIR-style IRs from LLVM, and
+the one that exercises regions. The Poly IR
+(\cref{sec:mlir:fully-homomorphic-encryption}) is a real and still-evolving MLIR
+IR for homomorphic encryption whose values are cosets of an ideal. Together they
+span what MLIR IRs are made of: machine words, control flow, and mathematics.
+Where the answer to RQ2 runs out is recorded separately (\cref{sec:mlir:cost}),
+and it is what carries this thesis into the chapters that follow.
 
 \subsection{Reasoning About Bitvectors of Arbitrary Width}
 \label{sec:mlir:bitvectors}
@@ -786,14 +755,19 @@ This anticipates our techniques in the next chapters,
 where we build proof automation to automatically dispatch such bitvector equivalences
 via parametric bitvector theory solvers.
 
-\paragraph{RQ1: LLVM rewrites proved at every width.}
-The framework meets a mature push-button tool on its home ground and, on the
-fragment we model, improves on it in the way that matters for a compiler: an
-Alive proof holds at the width it was run at, whereas ours holds at all of them
-at once. The qualification is that we model a fragment---no \texttt{nsw} or
-\texttt{nuw} flags, no preconditions---and that $54$ of $93$ is where the
-automation of the day stopped. That shortfall is not evidence against
-generality; it is evidence about cost, and RQ2 is where we account for it.
+\paragraph{What LLVM shows: poison-aware semantics, and rewrites proved at every width.}
+On RQ1, we give semantics to the arithmetic fragment of a production IR rather
+than a model language: sixteen scalar operators, all \texttt{icmp} flags, and
+LLVM's poison values, with the semantics cross-checked against \texttt{opt} by
+exhaustive enumeration. We do not model everything---the \texttt{nsw} and
+\texttt{nuw} flags are absent, and immediate undefined behaviour is collapsed
+together with poison---but what we model is the real thing.
+On RQ2, rewrites are stated in the MLIR syntax an LLVM engineer already writes,
+and \texttt{simp\_peephole} hands back a goal about \texttt{BitVec w} with no
+trace of SSA in it. What we then get from that goal is better than what Alive
+gets: an Alive proof holds at the width it was run at, ours holds at every width
+at once. What we do not get is a proof without effort, and
+\cref{sec:mlir:cost} is where we account for that.
 Next, we show how the framework supports control flow reasoning via regions.
 
 
@@ -868,16 +842,21 @@ This transformation is challenging to perform in a low-level IR, since there is 
 However, this transformation \emph{is} a valid peephole rewrite in our framework since it uses a \emph{statically} known loop body.
 We showcase how regions permit MLIR (and, consequently, us) to easily encode and reason with commonplace loop transformations.
 
-\paragraph{RQ1: control flow added without reproving the metatheory.}
-Control flow was not designed into any of the IRs we had; it was added
-afterwards, to an arbitrary user IR $X$, by defining \messa{\texttt{scf}(X)} as
-a construction \emph{over} $X$ rather than a modification of it. Nothing in the
-core calculus changed, no metatheory was reproved, and the loop theorems we get
-hold uniformly for every extension $\texttt{scf}(X)$ rather than for one IR at a
-time. The qualification is the one recorded earlier: because these theorems
-quantify over the loop body, and a loop body is a region, they are theorems the
-user applies rather than rewrites the rewriter fires. Parametricity delivered
-the semantics and the proofs; it did not extend the peephole fragment.
+\paragraph{What \texttt{scf} shows: region semantics come cheaply, region rewrites do not.}
+On RQ1, this is the feature that most separates MLIR-style IRs from LLVM, and
+regions carry it: \texttt{if} and bounded \texttt{for} get denotations through
+\texttt{mathlib}'s theory of iterated functions, and because
+\messa{\texttt{scf}(X)} is a construction \emph{over} an arbitrary user IR $X$
+rather than a modification of it, the semantics and the loop theorems hold
+uniformly for every $X$. Nothing in the core calculus changed and no metatheory
+was reproved.
+On RQ2, this is the one case where the answer is partly negative, and it is
+worth being clear about. The loop theorems quantify over the loop body, a loop
+body is a region, and our rewrites may not quantify over regions; so dead loop
+deletion, fusion, and reversal are theorems a user applies by hand, not rewrites
+the rewriter fires. Only loops with a statically known body, such as iterated
+addition becoming multiplication, fall inside the peephole fragment.
+Parametricity bought us the semantics; it did not widen what can be rewritten.
 
 \subsection{Fully Homomorphic Encryption}
 \label{sec:mlir:fully-homomorphic-encryption}
@@ -908,24 +887,35 @@ Rewrites like \texttt{mul(p,q)} $\rightarrow$ \texttt{mul(q,p)} follow immediate
 Other rewrites like \texttt{from\_tensor(to\_tensor(p))} $\rightarrow$ \texttt{p}, or even \texttt{add(p,monomial(1,$2^n$))} $\rightarrow$ \texttt{sub(p,1)}, on the other hand, are more specific to this IR and have a higher manual-proof overhead.
 We prove all of these.
 
-\paragraph{RQ1: quotient-ring rewrites, out of reach for SMT.}
-This is the case that a bitvector-shaped framework could not have absorbed by
-accident. The values are cosets of an ideal, the easy rewrites are ring
-identities discharged by \texttt{mathlib}'s commutative algebra, and the hard
-ones (\texttt{from\_tensor(to\_tensor(p))} $\rightarrow$ \texttt{p}, or
-\texttt{leading\_term}) turn on a non-canonical choice of coset representative
-that has no first-order encoding to hand an SMT solver. We prove both kinds.
-Taking the three studies together, RQ1 is answered affirmatively: the same
-calculus, unchanged, carried a low-level IR reasoned about at all widths, an
-extension adding control flow to an arbitrary IR, and an IR living in a quotient
-ring---and the framework was fixed before any of them was written.
+\paragraph{What Poly shows: mathematical semantics, and rewrites \texttt{mathlib} closes.}
+On RQ1, this is an IR we did not design and could not simplify: a live MLIR IR
+whose values are cosets of an ideal, whose operations include three that depend
+on a non-canonical choice of coset representative, and which was in flux while
+we formalized it. Its semantics are written directly against \texttt{mathlib}'s
+commutative algebra, which is what makes them expressible at all.
+On RQ2, both kinds of rewrite go through: the ring identities such as
+\texttt{mul(p,q)} $\rightarrow$ \texttt{mul(q,p)} fall out of commutativity,
+and the representative-dependent ones such as
+\texttt{from\_tensor(to\_tensor(p))} $\rightarrow$ \texttt{p} take real but
+finite work. This is the clearest evidence for RQ2's premise, because here the
+proof obligation \texttt{simp\_peephole} leaves behind is one no SMT solver
+could have been handed at all; the convenience comes entirely from landing in a
+proof assistant's library.
 
-\subsection{What Instantiation Costs, and Where the Cost Moves}
+Taking the three together settles RQ1: the same calculus, fixed before any of
+them was written, gave semantics to a production IR with poison, to structured
+control flow over an arbitrary IR, and to an evolving IR over a quotient ring.
+RQ2 is answered too, but with a boundary, and the boundary is the subject of the
+next section.
+
+\subsection{What Rewriting Costs, and Where Convenience Stops}
 \label{sec:mlir:cost}
 
-RQ2 asks what instantiating \messa{X} costs, and where the cost goes afterwards.
+RQ2 asks whether rewriting in these IRs is convenient. Two things bear on that:
+what it costs to instantiate the framework at all, and what is left to do once
+it is instantiated.
 
-The first half is answered by counting. The core of the framework---the
+The first is answered by counting. The core of the framework---the
 definitions of \texttt{Expr}, \texttt{Com}, and \texttt{PeepholeRewrite}, the
 lemmas about them, and the peephole rewriting theorem---is $\approx 2.2k$ LoC,
 written once. Against that, the three case studies together come to $\approx
@@ -937,7 +927,7 @@ and semantics. A user supplies three typeclass instances and a denotation, and
 inherits a verified rewriter, DCE, CSE, an MLIR parser, and the automation that
 strips all of it back out of the goal.
 
-The second half is the more consequential finding, and it is not a happy one.
+The second is the more consequential finding, and it is not a happy one.
 Once instantiation is paid for, essentially none of the remaining cost is
 structural. \texttt{simp\_peephole} reduces a rewrite to a statement in the
 user's own semantics, and what is then left is a mathematical obligation that
@@ -978,10 +968,64 @@ under a side condition we check by hand for each division and remainder rewrite.
 Separating undefined behaviour from poison, and reasoning about rewrites that
 refine one into the other, remains open.
 
-That caveat aside, the answer to RQ2 is what carries this thesis forward. The
-cost of verified peephole rewriting has not gone away; it has moved, out of the
-framework and into the semantic obligations the framework hands back. The
-structural half of the problem is discharged by this chapter. The other half is
-a question about \emph{deciding} bitvector goals at universally quantified
-width, rather than proving them one by one, and that is the subject of the rest
-of this thesis.
+Placing this against prior work sharpens both claims. The broad landscape of
+compiler verification was surveyed in the background; here we compare against
+the technical details.
+
+In contrast to the Alive family of
+tools~\citep{lopes2015provably,lopes2021alive2,lee2019aliveinlean}, our work
+builds a framework for describing full programs rather than rewrite snippets,
+and formally defines and proves the correctness of peephole rewriting within a
+larger program context. That is the difference RQ1 turns on: Alive is bound to
+one fixed IR, and the point of a calculus generic over the IR is that
+\messa{\operatorname{QuotRing}} and \messa{\texttt{scf}} are expressible in the
+same breath as \messa{\operatorname{LLVM}}. The semantics and correctness of
+compiling compositionally have been explored by multiple authors, like
+Pilsner~\cite{neis2015pilsner} or many variants of
+CompCert~\cite{leroy2016compcert}: compositional
+CompCert~\cite{stewart2015compositional}, CompCertX~\cite{wang2019abstract},
+SepCompCert~\cite{kang2016lightweight}, CompCertM~\cite{song2019compcertm}, and
+CompCertO~\cite{koenig2021compcerto}. A great summary of the approaches to this
+problem, with their differences and similarities, is given by Patterson et
+al~\cite{patterson2019next}. All of these fix their languages, but are
+reasonable ways of giving semantics to relevant IRs in \messa{X}.
+
+The authors of~\cite{zakowski2021modular} introduce a more modular approach to
+LLVM's semantics, based on interaction trees~\cite{xia2019interaction}. Like
+theirs, our semantics is also denotational and can be executed. We model only a
+restricted set of side effects, whereas interaction trees shine when modelling
+memory or non-terminating behaviour; an approach like that would be a strong
+candidate for the semantics of a lower-level IR such as LLVM within MLIR, and
+would address the ub-versus-poison gap noted above. Similarly, the work of
+DimSum~\cite{sammler2023dimsum} deals with the boundaries between languages in
+the context of linking, which is an aspect we do not model: what occurs at the
+boundaries of IRs, when mixing them.
+
+There is a longer line of work studying SSA and its relationship to functional
+programming, and our work is inspired by and builds on the ideas
+from~\cite{kelsey1995correspondence,appel1998ssa,barthe2014formal}. Complex
+compiler optimizations have also been studied formally and verified,
+like~\cite{courant2021verified}, which implements verified polyhedral
+optimization; we focus on the simpler and more ubiquitous peephole rewrites. The
+closest work on peephole rewriting itself is Peek~\cite{mullen2016verified},
+which defines peephole rewriting over an assembly instruction set. Their
+rewriter expects instructions to be adjacent, and restricts source and target
+patterns to the same length, padding with \texttt{nop} instructions; their
+patterns permit side effects, which we disallow, since we are interested in
+higher-level, pure rewrites. Our patterns are arbitrary programs matched on
+sub-DAGs rather than on a linear sequence, which is what makes RQ2 a question
+about convenience rather than about expressiveness.
+
+Read together, the comparison and the case studies point the same way. Against
+Alive we gain generality over IRs and proofs that hold at every width; against
+CompCert-style verification we gain the ability to track an IR that is still
+changing. What we do not gain from any of them is a way to discharge the
+obligation that is left at the end. The cost of verified peephole rewriting has
+not gone away; it has moved, out of the framework and into the semantics the
+framework hands back. Alive's answer to that obligation is an SMT solver, which
+is fast, unverified, and fixed to a single width. Our answer has to be different
+on all three counts, and building it is what the next chapter begins: we take up
+Lean's verified bitblaster, \bvdecide{}, which decides bitvector goals by
+reduction to SAT with a certificate the kernel rechecks. That machinery settles
+the fixed-width case and gives us the substrate; the width-generic case, which
+is what a compiler actually needs, is what the chapters after it are for.
