@@ -30,32 +30,44 @@ of fully homomorphic encryption, and Alex Keizer helped generalize the pure
 semantics to impure side effects.
 
 
-\lettrine{I}{n} our aim to verify compiler optimizations, we begin by
-focusing on the \emph{peephole rewriting} of SSA-based intermediate
-representations (IRs). This is a workhorse of modern compilers. Recall that
-LLVM's InstCombine peephole optimizer alone accounts for roughly 10\% of the
-compiler's IR-transforming code---much more than its loop optimizer!---and
-that the Alive verifier~\citep{lopes2021alive2} made SMT-based validation of
-such rewrites part of the LLVM community's daily routine. There is, at the
-same time, an increasing need for \emph{domain-specific} reasoning in modern
-compilers, fuelling tailored SSA-based IRs as popularized by the MLIR compiler
-framework~\citep{lattner2021mlir}.
-As CompCert-style end-to-end verification cannot keep pace with IRs
-that are still evolving, and Alive-style validation is push-button but
-bound to one fixed IR and an unverified toolchain, 
-we propose a new approach: we combine the convenience of automation of Alive-style validation
-with machine-checked proofs of correctness in an interactive theorem prover (ITP).
+\lettrine{P}{eephole} rewriting is the workhorse of the modern compiler.
+LLVM's InstCombine alone accounts for roughly 10\% of the compiler's
+IR-transforming code---much more than its loop optimizer!---and the Alive
+verifier~\citep{lopes2021alive2} made SMT-based validation of such rewrites
+part of the LLVM community's daily routine. How, then, should we verify a
+peephole rewriter? The two answers on offer each give up something we need.
+CompCert-style end-to-end verification fixes the language up front, and so
+cannot keep pace with IRs that are still evolving---which is precisely the
+situation in the MLIR ecosystem~\citep{lattner2021mlir}, where every domain
+grows an IR of its own. Alive-style translation validation is push-button, but
+it is bound to one fixed IR and rests on an unverified toolchain. This chapter
+takes a third route, combining the convenience of Alive-style automation with
+machine-checked proof in an interactive theorem prover. I formalize a core
+calculus for SSA-based IRs that is generic over the IR and covers
+\emph{regions}, the nested scoping from which MLIR-style IRs are built, and
+mechanize it in Lean. The central result is a lifting theorem: a rewrite proved
+correct in isolation is correct wherever the rewriter fires it inside a whole
+program.
 
-of ITPs for verifying peephole rewrites across domain-specific IRs. We
-formalize a core calculus for SSA-based IRs that is generic over the IR and
-covers \emph{regions}, which are the nested scoping used by many domain-specific IRs in
-the MLIR ecosystem. Moreover, we mechanize these results in Lean,
-and create a framework that enables us to perform peephole rewrite verification,
-as our framework is coupled with a lifting theorem, that lifts the local correctness of a peephole rewrite
-into a global correctness theorem for the entire program transformation.
-Overall, this builds the foundation for a verified peephole rewriter,
-and reduces the problem to one where we must then reason about the semantics of the IR itself.
-This then naturally leads its way into decision procedures for proving equivalence of bitvector and floating-point programs.
+Around this theorem I build a framework in which a user defines an IR by giving
+three typeclass instances---the signature of each operation, and the
+denotations of the IR's types and operations into Lean---and receives a
+verified peephole rewriter in return. The encoding is intrinsically well-typed,
+so a rewritten program is well-typed by construction; the same machinery proves
+dead code elimination and common subexpression elimination correct; rewriting
+stays sound when islands of pure operations sit inside a side-effectful IR; and
+a proof automation tactic strips the framework away, leaving the proof engineer
+a goal stated purely in the semantics of the IR. Three case studies stress the
+framework: LLVM's integer arithmetic, structured control flow, and an IR for
+fully homomorphic encryption whose values inhabit a quotient ring that is out
+of practical reach for today's SMT solvers. The framework core is roughly 2.2k
+lines of Lean and the case studies together roughly 5.6k. The first case study
+is also where the boundary of this chapter shows: once the framework overhead
+is stripped away, each of the 93 Alive rewrites we translate leaves behind a
+proof obligation over bitvectors of universally quantified width, and only 54
+of them close automatically. The structural half of verified peephole rewriting
+is discharged here; closing that automation gap is the semantic half, and it is
+what the rest of this thesis is about.
 
 % \section{Motivation: Verifying Optimizations for High-Level IRs}
 % \label{sec:mlir:motivation}
