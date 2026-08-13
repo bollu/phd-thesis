@@ -625,8 +625,6 @@ Furthermore, their rewriter restricts source and target patterns to be of the sa
 Their patterns permit side effects, which we disallow since we are interested in higher-level, pure rewrites.
 Our patterns provide more flexibility since the source and target patterns are arbitrary programs, and are matched on sub-DAGs instead of a linear sequence.
 
-% \section{Limitations} \label{sec:mlir:limitations} Several limitations bound what we prove, and each points to concrete future work. First, we model side effects coarsely: rewriting is proved sound only for \texttt{EffectKind.pure} operations, and the one genuinely side-effectful behaviour we encounter, which is the immediate undefined behaviour of division and remainder may raise, is collapsed together with poison, rather than being tracker as a first class effect. The case studies of \cref{sec:mlir:casestudies} exposes a limitation of the automation. Once \texttt{simp\_peephole} has stripped away the SSA scaffolding, each rewrite leaves behind a proof obligation over bitvectors of arbitrary width, and only $54$ of the $93$ translated Alive rewrites could be discharged by the automation available at the time. Closing this automation gap, and being able to decide such bitvector goals at scale, rather than proving them by hand, is precisely the subject we tackle next, and the reason the rest of the thesis is devoted to verified decision procedures.
-
 \section{Case Studies}
 \label{sec:mlir:casestudies}
 
@@ -889,3 +887,45 @@ This allows us to define the semantics and prototype both the IR and rewrites in
 Rewrites like \texttt{mul(p,q)} $\rightarrow$ \texttt{mul(q,p)} follow immediately from the fact that $R$ is a commutative ring.
 Other rewrites like \texttt{from\_tensor(to\_tensor(p))} $\rightarrow$ \texttt{p}, or even \texttt{add(p,monomial(1,$2^n$))} $\rightarrow$ \texttt{sub(p,1)}, on the other hand, are more specific to this IR and have a higher manual-proof overhead.
 We prove all of these.
+This settles the third question. A domain whose values are cosets of an ideal,
+where the interesting rewrites are ring identities and the uninteresting ones
+depend on a non-canonical choice of coset representative, is not a domain an
+SMT solver can be pointed at; it is a domain where the ambient library of a
+proof assistant does the work, and \messa{X} is what connects that library to
+an IR.
+
+\section{Discussion}
+\label{sec:mlir:discussion}
+
+We set out to verify peephole rewriting without fixing the IR in advance, and
+what we have is a core calculus for SSA-based IRs, generic over the IR and
+covering regions, with a mechanized lifting theorem: a rewrite proved correct in
+isolation stays correct wherever the rewriter fires it inside a whole program.
+The same encoding carries dead code elimination and common subexpression
+elimination, and survives the move from a purely functional setting to one where
+islands of pure operations sit inside a side-effectful IR. Around it sits enough
+engineering---an MLIR parser, elaborators into intrinsically well-typed terms,
+and the \texttt{simp\_peephole} automation---that a user writes rewrites in MLIR
+syntax and is handed back a goal stated in the semantics of their own IR, with
+no trace of the framework in it.
+
+What the case studies show is narrower than what the theorems say, and the
+difference is worth stating plainly. The correctness results are about
+denotations, so a rewrite proved here is proved against \emph{our} model of the
+IR; for LLVM, the fidelity of that model to the real thing rests on exhaustive
+testing up to bitwidth $8$, and on collapsing immediate undefined behaviour
+together with poison into a single \texttt{Option.none}, which is sound only
+under a side condition we check by hand for each division and remainder rewrite.
+Separating undefined behaviour from poison, and reasoning about rewrites that
+refine one into the other, remains open. Against that, the framework did carry
+three genuinely different IRs, at a cost in Lean code that is dominated by the
+case studies rather than by the framework itself.
+
+The sharpest limit, though, is not structural but automatic. Once
+\texttt{simp\_peephole} has stripped the SSA scaffolding away, what is left is a
+proof obligation over bitvectors of universally quantified width, and only $54$
+of the $93$ translated Alive rewrites could be discharged by the automation
+available to us. The structural half of verified peephole rewriting is
+discharged by this chapter; the semantic half is a question about deciding
+bitvector goals at scale, rather than proving them by hand. That is the subject
+of the rest of this thesis.
