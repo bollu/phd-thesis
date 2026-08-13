@@ -590,6 +590,8 @@ calculus of \cref{sec:mlir:framework} and the rewriter we have actually built:
     is ever applied. Correctness here is a safety property, not a completeness
     one.
 \end{itemize}
+With the rewriter and its boundaries in view, we can say precisely how it
+differs from previous approaches, before turning to the evidence that it works.
 
 \section{Related Work: Verified Compilation and Rewriting}
 \label{sec:mlir:related}
@@ -624,6 +626,7 @@ Their rewriter expects instructions to be adjacent to one another.
 Furthermore, their rewriter restricts source and target patterns to be of the same length, filling in the different lengths with \texttt{nop} instructions.
 Their patterns permit side effects, which we disallow since we are interested in higher-level, pure rewrites.
 Our patterns provide more flexibility since the source and target patterns are arbitrary programs, and are matched on sub-DAGs instead of a linear sequence.
+Having placed the framework against its neighbours, we now put it to work.
 
 \section{Case Studies}
 \label{sec:mlir:casestudies}
