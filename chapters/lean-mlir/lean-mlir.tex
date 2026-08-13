@@ -450,7 +450,10 @@ The key idea is that to apply a rewrite at location $i$, we open up the \texttt{
 This zipping and rewriting at a location $i$ is implemented by \texttt{rewritePeepholeAt}.
 The zipper comprises of \texttt{Lets} to the left-hand side of $i$, and \texttt{Com} to the right (\cref{fig:mlir:zipper}).}
 
-\begin{figure}
+% Set in place rather than as a float: the caption explains a display that the
+% surrounding prose reads straight into, so it must not drift to another page.
+\vspace{.5em}
+\begingroup
 % Parens outside $...$ blocks. Only variables $x_1$ and sequences of variables $[x_1, x_2, x_3]$ in math-mode.
 {\small
 \colorbox{MediumGrayColor}{
@@ -466,7 +469,7 @@ The zipper comprises of \texttt{Lets} to the left-hand side of $i$, and \texttt{
 \texttt{(let $x_4$ = $x_3$; (return $x_3$)) : Com $[x_1, x_2, x_3]$ α}
 }
 }
-\caption{\label{fig:mlir:zipper}Splitting a \texttt{Com} into a zipper at the
+\captionof{figure}{Splitting a \texttt{Com} into a zipper at the
 third binding. Notice the inversion: in the \texttt{Com} the outermost
 constructor is the \emph{topmost} let-binding, while in the \texttt{Lets} it is
 the \emph{bottom-most} one, so walking rightwards through the program is
@@ -475,7 +478,9 @@ zipper work. Notice also the type indices. A \texttt{Com} records only its
 return type $\alpha$, whereas \texttt{Lets $\Gamma$ $\Delta$} records the whole
 context $\Delta$ it produces, which is exactly the context visible at the
 current position.}
-\end{figure}
+\label{fig:mlir:zipper}
+\endgroup
+\vspace{.5em}
 
 The use of a zipper enables us to easily traverse the sequence of let-bindings during transformation and exposes the current \texttt{let} binding being analyzed.
 This exposing is performed by \texttt{Lets}, which unzips a \texttt{Com} such that the outermost binding of a \texttt{Lets} is the innermost binding of a \texttt{Com}.
