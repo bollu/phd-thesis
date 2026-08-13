@@ -908,41 +908,6 @@ control flow over an arbitrary IR, and to an evolving IR over a quotient ring.
 RQ2 is answered too, but with a boundary, and the boundary is the subject of the
 next section.
 
-\subsection{What Rewriting Costs, and Where Convenience Stops}
-\label{sec:mlir:cost}
-
-RQ2 asks whether rewriting in these IRs is convenient. Two things bear on that:
-what it costs to instantiate the framework at all, and what is left to do once
-it is instantiated.
-
-The first is answered by counting. The core of the framework---the
-definitions of \texttt{Expr}, \texttt{Com}, and \texttt{PeepholeRewrite}, the
-lemmas about them, and the peephole rewriting theorem---is $\approx 2.2k$ LoC,
-written once. Against that, the three case studies together come to $\approx
-5.6k$ LoC, and the two whole-program optimizations cost little: DCE is
-$\approx 400$ LoC (\cref{sec:mlir:dce}), CSE comparably. The framework is thus
-substantially smaller than what has been built on it, which is the shape one
-wants: the fixed cost is paid once, and each new IR pays only for its own syntax
-and semantics. A user supplies three typeclass instances and a denotation, and
-inherits a verified rewriter, DCE, CSE, an MLIR parser, and the automation that
-strips all of it back out of the goal.
-
-The second is the more consequential finding, and it is not a happy one.
-Once instantiation is paid for, essentially none of the remaining cost is
-structural. \texttt{simp\_peephole} reduces a rewrite to a statement in the
-user's own semantics, and what is then left is a mathematical obligation that
-the framework can neither help with nor get out of the way of. For
-\messa{\operatorname{QuotRing}} that obligation is a ring identity and
-\texttt{mathlib} closes it. For \messa{\operatorname{LLVM}} it is a bitvector
-identity at universally quantified width, and there the automation of the day
-closed $54$ of $93$; the other $39$ were left to hand proof, and we completed
-only $6$ of them, chosen for being the ones an SMT solver struggles with even at
-a single fixed width. The cost of verified peephole rewriting, in other words,
-has moved. It is no longer in defining IRs or in proving the rewriter correct.
-It is entirely in deciding the semantic obligations that fall out the far end,
-and for the domain that matters most to a compiler---bitvectors at every
-width---no adequate decision procedure existed.
-
 \section{Discussion}
 \label{sec:mlir:discussion}
 
@@ -953,24 +918,9 @@ isolation stays correct wherever the rewriter fires it inside a whole program.
 The same encoding carries dead code elimination and common subexpression
 elimination, and survives the move from a purely functional setting to one where
 islands of pure operations sit inside a side-effectful IR. Around it sits enough
-engineering---an MLIR parser, elaborators into intrinsically well-typed terms,
-and the \texttt{simp\_peephole} automation---that a user writes rewrites in MLIR
-syntax and is handed back a goal stated in the semantics of their own IR, with
-no trace of the framework in it.
-
-What the case studies show is narrower than what the theorems say, and the
-difference is worth stating plainly. The correctness results are about
-denotations, so a rewrite proved here is proved against \emph{our} model of the
-IR; for LLVM, the fidelity of that model to the real thing rests on exhaustive
-testing up to bitwidth $8$, and on collapsing immediate undefined behaviour
-together with poison into a single \texttt{Option.none}, which is sound only
-under a side condition we check by hand for each division and remainder rewrite.
-Separating undefined behaviour from poison, and reasoning about rewrites that
-refine one into the other, remains open.
-
-Placing this against prior work sharpens both claims. The broad landscape of
-compiler verification was surveyed in the background; here we compare against
-the technical details.
+engineering: an MLIR parser, elaborators into intrinsically well-typed terms,
+and the \texttt{simp\_peephole} automation, that a user writes rewrites in MLIR
+syntax and is handed back a goal stated in the semantics of their own IR.
 
 In contrast to the Alive family of
 tools~\citep{lopes2015provably,lopes2021alive2,lee2019aliveinlean}, our work
@@ -1016,16 +966,9 @@ higher-level, pure rewrites. Our patterns are arbitrary programs matched on
 sub-DAGs rather than on a linear sequence, which is what makes RQ2 a question
 about convenience rather than about expressiveness.
 
-Read together, the comparison and the case studies point the same way. Against
-Alive we gain generality over IRs and proofs that hold at every width; against
-CompCert-style verification we gain the ability to track an IR that is still
-changing. What we do not gain from any of them is a way to discharge the
-obligation that is left at the end. The cost of verified peephole rewriting has
-not gone away; it has moved, out of the framework and into the semantics the
-framework hands back. Alive's answer to that obligation is an SMT solver, which
-is fast, unverified, and fixed to a single width. Our answer has to be different
-on all three counts, and building it is what the next chapter begins: we take up
-Lean's verified bitblaster, \bvdecide{}, which decides bitvector goals by
-reduction to SAT with a certificate the kernel rechecks. That machinery settles
-the fixed-width case and gives us the substrate; the width-generic case, which
-is what a compiler actually needs, is what the chapters after it are for.
+Overal, against Alive, we gain generality over IRs and proofs that hold at every width.
+However, so far, we have not gained a way to discharge the proof obligations that rewriting leaves behind.
+Alive uses existig SMT solvers, which makes it fast, unverified, and fixed to a single width.
+In the rest of this thesis, we will instead begin by using Lean's verified bitblaster, \bvdecide{},
+which settles the fixed-width case. Later, the width-generic case, which
+is what a compiler actually needs, is settled by the decision procedures we develop in the later part of thesis.
