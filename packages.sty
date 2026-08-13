@@ -264,6 +264,33 @@
 \setlength{\belowdisplayshortskip}{5pt plus 3pt minus 3pt}
 
 %%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%
+%% Footnote measure: footnotes run out into the wide outer margin.
+%%
+%% The body measure is 135mm and the outer margin is 50mm of caption column
+%% (see the geometry note above), which at the foot of the page is almost
+%% always empty. Footnotes set to the body measure therefore wrap after a line
+%% and a bit, so three one-sentence notes on a page come out as six lines, half
+%% of them stubs.
+%%
+%% Give footnotes 185mm instead -- measure + \marginparsep + \marginparwidth,
+%% flush with the right edge of the margin captions. A one-sentence note then
+%% fits on one line.
+%%
+%% Mechanism: \@footnotetext (footmisc's \FN@footnotetext, which classicthesis
+%% loads, or hyperref's wrapper around it) sets \hsize\columnwidth and builds
+%% the insertion there and then, so widening \columnwidth in a group around the
+%% call is enough and no internals need patching. \footnoterule is emitted
+%% later by the output routine and keeps its body-measure length, which is what
+%% we want: the rule marks the column, not the note.
+%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%
+\let\cam@orig@footnotetext\@footnotetext
+\long\def\@footnotetext#1{%
+  \begingroup
+    \advance\columnwidth\dimexpr\marginparsep+\marginparwidth\relax
+    \cam@orig@footnotetext{#1}%
+  \endgroup}
+
+%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%
 %% Contents pages.
 %% The body measure (135mm) is too narrow for this thesis's long section
 %% titles, so ToC entries wrapped onto a second line -- and with the dotted
