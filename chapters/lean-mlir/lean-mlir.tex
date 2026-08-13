@@ -786,7 +786,7 @@ This anticipates our techniques in the next chapters,
 where we build proof automation to automatically dispatch such bitvector equivalences
 via parametric bitvector theory solvers.
 
-\paragraph{RQ1: meeting Alive on its own ground.}
+\paragraph{RQ1: LLVM rewrites proved at every width.}
 The framework meets a mature push-button tool on its home ground and, on the
 fragment we model, improves on it in the way that matters for a compiler: an
 Alive proof holds at the width it was run at, whereas ours holds at all of them
@@ -868,7 +868,7 @@ This transformation is challenging to perform in a low-level IR, since there is 
 However, this transformation \emph{is} a valid peephole rewrite in our framework since it uses a \emph{statically} known loop body.
 We showcase how regions permit MLIR (and, consequently, us) to easily encode and reason with commonplace loop transformations.
 
-\paragraph{RQ1: parametricity after the fact.}
+\paragraph{RQ1: control flow added without reproving the metatheory.}
 Control flow was not designed into any of the IRs we had; it was added
 afterwards, to an arbitrary user IR $X$, by defining \messa{\texttt{scf}(X)} as
 a construction \emph{over} $X$ rather than a modification of it. Nothing in the
@@ -908,7 +908,7 @@ Rewrites like \texttt{mul(p,q)} $\rightarrow$ \texttt{mul(q,p)} follow immediate
 Other rewrites like \texttt{from\_tensor(to\_tensor(p))} $\rightarrow$ \texttt{p}, or even \texttt{add(p,monomial(1,$2^n$))} $\rightarrow$ \texttt{sub(p,1)}, on the other hand, are more specific to this IR and have a higher manual-proof overhead.
 We prove all of these.
 
-\paragraph{RQ1: past the reach of SMT.}
+\paragraph{RQ1: quotient-ring rewrites, out of reach for SMT.}
 This is the case that a bitvector-shaped framework could not have absorbed by
 accident. The values are cosets of an ideal, the easy rewrites are ring
 identities discharged by \texttt{mathlib}'s commutative algebra, and the hard
@@ -920,7 +920,7 @@ calculus, unchanged, carried a low-level IR reasoned about at all widths, an
 extension adding control flow to an arbitrary IR, and an IR living in a quotient
 ring---and the framework was fixed before any of them was written.
 
-\subsection{The Cost of Instantiation}
+\subsection{What Instantiation Costs, and Where the Cost Moves}
 \label{sec:mlir:cost}
 
 RQ2 asks what instantiating \messa{X} costs, and where the cost goes afterwards.
