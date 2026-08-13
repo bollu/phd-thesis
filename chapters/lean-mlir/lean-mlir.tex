@@ -448,8 +448,9 @@ which manipulates the IR encoding at elaboration time to eliminate all reference
 We now provide a sketch of the mechanized correctness proof of \texttt{rewritePeephole}.
 The key idea is that to apply a rewrite at location $i$, we open up the \texttt{Com} at location $i$ in terms of a zipper~\cite{huet1997zipper}.
 This zipping and rewriting at a location $i$ is implemented by \texttt{rewritePeepholeAt}.
-The zipper comprises of \texttt{Lets} to the left-hand side of $i$, and \texttt{Com} to the right:}
-\vspace{.5em}
+The zipper comprises of \texttt{Lets} to the left-hand side of $i$, and \texttt{Com} to the right (\cref{fig:mlir:zipper}).}
+
+\begin{figure}
 % Parens outside $...$ blocks. Only variables $x_1$ and sequences of variables $[x_1, x_2, x_3]$ in math-mode.
 {\small
 \colorbox{MediumGrayColor}{
@@ -465,16 +466,22 @@ The zipper comprises of \texttt{Lets} to the left-hand side of $i$, and \texttt{
 \texttt{(let $x_4$ = $x_3$; (return $x_3$)) : Com $[x_1, x_2, x_3]$ α}
 }
 }
-
-\vspace{.5em}
+\caption{\label{fig:mlir:zipper}Splitting a \texttt{Com} into a zipper at the
+third binding. Notice the inversion: in the \texttt{Com} the outermost
+constructor is the \emph{topmost} let-binding, while in the \texttt{Lets} it is
+the \emph{bottom-most} one, so walking rightwards through the program is
+walking outwards through the \texttt{Lets}. That inversion is what makes the
+zipper work. Notice also the type indices. A \texttt{Com} records only its
+return type $\alpha$, whereas \texttt{Lets $\Gamma$ $\Delta$} records the whole
+context $\Delta$ it produces, which is exactly the context visible at the
+current position.}
+\end{figure}
 
 The use of a zipper enables us to easily traverse the sequence of let-bindings during transformation and exposes the current \texttt{let} binding being analyzed.
 This exposing is performed by \texttt{Lets}, which unzips a \texttt{Com} such that the outermost binding of a \texttt{Lets} is the innermost binding of a \texttt{Com}.
 This forms the zipper, which splices the \texttt{Com} into a \texttt{Com} and a \texttt{Lets}.
 Also, while \texttt{Com} tracks only the return type $\alpha$ in the type index, \texttt{Lets} tracks the entire resulting context $\Delta$.
 That is, in \texttt{(lets : Lets $\Gamma$ $\Delta$)}, the first context, $\Gamma$, lists all free variables (just as in \texttt{Com $\Gamma$ t}), but the second context, $\Delta$, consists of all variables in $\Gamma$ plus a new variable for each let-binding in the sequence \texttt{lets}. We can thus think of $\Delta$ as the context at the current position of the zipper.
-Another difference is the order in which these sequences grow. Recall that in \texttt{Com}, the outermost constructor represents the topmost let-binding. In \texttt{Lets}, the outermost constructor instead corresponds to the bottom-most let-binding.
-This difference is what makes the zipper work.
 
 {\sloppypar
 	We have two functions to go from a program to a zipper and back:
