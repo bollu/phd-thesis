@@ -6,9 +6,9 @@
 Lean's bitvector library and the \bvdecide{} tactic, are based on
 \emph{Interactive Bitvector Reasoning using Verified
 Bit-Blasting}~\citep{leanbv} (OOPSLA 2025), joint work led by Henrik Böving on
-which I am a second author. the decision procedures and the
+which I am a second author. The decision procedures and the
 floating-point bitblaster developed in the chapters that follow are all built
-on top of the foundations of fixed width bitblasting. (\cref{ch:mono-width,ch:multi-width,ch:floating-point}).
+on top of the foundations of fixed-width bitblasting (\cref{ch:mono-width,ch:multi-width,ch:floating-point}).
 
 \lettrine{B}{itvectors} are the lingua franca of low-level verification.
 The pointer-free fragment of a programming language can be modelled by
@@ -18,7 +18,7 @@ as LLVM-IR~\citep{zhao2012formalizing}, machine
 code~\citep{armstrong2019isa,reid2016trustworthy}, combinational logic in
 hardware~\citep{bourgeat2020essence}, and are the substrate on which
 floating-point arithmetic is defined~\citep{boldo2011flocq}.
-Here, we review how SMT solving over the theory of fixed-width bitvectors (\qfbv{}) 
+Here, we review how SMT solving over the theory of fixed-width bitvectors (\qfbv{})
 is performed by reducing the problem to a SAT problem,
 followed by a verified certificate check.
 This work is integrated into Lean's verified bitblaster, \bvdecide{}.
@@ -29,56 +29,56 @@ This work is integrated into Lean's verified bitblaster, \bvdecide{}.
 
 Satisfiability Modulo Theories (SMT) can be viewed as a generalisation of Boolean satisfiability (SAT).
 In Boolean satisfiability, one asks whether a propositional formula is satisfiable.
-That is, we have boolean variables $x_1, \dots, x_n$ and a formula $\phi(x_1, \dots, x_n)$ built from them using the logical connectives $\land$, $\lor$, and $\lnot$,
+That is, we have Boolean variables $x_1, \dots, x_n$ and a formula $\phi(x_1, \dots, x_n)$ built from them using the logical connectives $\land$, $\lor$, and $\lnot$,
 and we ask whether there exists an assignment of truth values to the variables such that $\phi$ evaluates to true.
 SMT generalises this by allowing variables to range over richer domains,
 such as integers, real numbers, or bitvectors, and allowing formulae to include more operations, such as arithmetic or bitwise operations.
 The data that corresponds to the richer domains, and the operations that can be performed on them, is called a theory.
 A satisfying assignment for an SMT formula is an assignment of values to the variables such that the formula evaluates to true under the interpretation of the theory.
-This is called a model of the formula. We will not go into the details of SMT solving here, 
-but refer the reader to~\citep{kroening2016decision} for the algorithmics of SMT solving,
-to \citep{hodges1997shorter} for model theory, and \citep{boolos2002computability} for my favourite introduction to logic.
-Computability and logic also has an extremely slick proof of Godel's incompleteness as a corollary
+This is called a model of the formula. We will not go into the details of SMT solving here,
+but refer the reader to \citet{kroening2016decision} for the algorithmics of SMT solving,
+to \citet{hodges1997shorter} for model theory, and \citet{boolos2002computability} for my favourite introduction to logic.
+\emph{Computability and Logic} also has an extremely slick proof of G\"odel's incompleteness as a corollary
 of the halting problem, which I found very illuminating.
 
 SMT solvers such as Z3~\citep{de2008z3},
 cvc5~\citep{barrett2011cvc4,barbosa2022cvc5}, and Bitwuzla~\citep{niemetz2023bitwuzla}
-decide the satisfiability of these first order formulae. The SMT-LIB standard~\citep{barrett2010smt,smtlib}
-specifies these theories. The theories relevant to this chapter is \qfbv{}, the
+decide the satisfiability of these first-order formulae. The SMT-LIB standard~\citep{barrett2010smt,smtlib}
+specifies these theories. The theory relevant to this chapter is \qfbv{}, the
 \emph{quantifier-free theory of fixed-width bitvectors}. \qfbv{} exposes a
 large vocabulary of operations over bitvectors of a fixed, concrete width (say, $64$):
 modular arithmetic (addition, multiplication, signed and unsigned division and
 remainder), bitwise Boolean operations, shifts, comparisons, concatenation, extraction, and overflow predicates.
 Every \qfbv{} formula fixes the width of each of its variables to a concrete numeral.
 
-Because a bitvector of width $w$ ranges over the finite domain $\{0,1\}^w$
+Because a bitvector of width $w$ ranges over the finite domain $\{0,1\}^w$,
 \qfbv{} admits an effective reduction to Boolean satisfiability.
 Here, each bitvector variable is replaced by $w$ Boolean variables,
 and each operation by the Boolean circuit that computes it.
 For example, one builds a ripple-carry adder for addition,
 or a shift-and-add circuit for multiplication.
-To prove a universally quantified fixed-width statement, such as $\forall x y : \bitvec{64}, x + y = y + x$,
-one first negates it to get an existentially quantified statement $\exists x, y : \bitvec{64}, x + y \neq y + x$.
+To prove a universally quantified fixed-width statement, such as $\forall x, y : \bv{64}, x + y = y + x$,
+one first negates it to get an existentially quantified statement $\exists x, y : \bv{64}, x + y \neq y + x$.
 Intuitively, we are looking for a counterexample to the original statement, and if we find one, we have disproved it.
 If we can find no counterexample, then the original statement is a theorem.
 
-To find counterexamples, we covert the bitvector problem into a  boolean satisfiability problem by the bitblasting approach mentioned above.
+To find counterexamples, we convert the bitvector problem into a Boolean satisfiability problem by the bitblasting approach mentioned above.
 One then asks a SAT solver whether the resulting SAT formula/circuit is satisfiable.
-If the formula is satisfiabile, we have found a counterexample!
-On the other hand, If the formula is \emph{unsatisfiable}, then the original statement is a theorem.
+If the formula is satisfiable, we have found a counterexample!
+On the other hand, if the formula is \emph{unsatisfiable}, then the original statement is a theorem.
 Now, this immediately raises the question of trust: when the solver claims a formula is unsatisfiable, how do we know it is correct?
 After all, for satisfiability, it is trivial, since we can plug the claimed solution back into the original formula and check that it evaluates to true.
 However, this doesn't work for unsatisfiability, since we would have to check all possible assignments to the variables, which is infeasible.
-Intuitively, this is because while $SAT$ is in $NP$, which is defined by having a polynomially verifiable certificate,
-$UNSAT$ is in $coNP$, which is defined by having a polynomially verifiable refutation.
-This brings us to the wonderful world of UNSAT cerificates and proof complexity,
+Intuitively, this is because while $\mathrm{SAT}$ is in $\mathrm{NP}$, which is defined by having a polynomially verifiable certificate,
+$\mathrm{UNSAT}$ is in $\mathrm{coNP}$, which is defined by having a polynomially verifiable refutation.
+This brings us to the wonderful world of UNSAT certificates and proof complexity,
 which are ``compact proof traces'' that the formula is unsatisfiable.
 
 \paragraph*{UNSAT Certificates.}
 
 Modern SAT solvers emit \emph{UNSAT certificates},
-which convince a checker that the input formula is unsatisfiable by deriving the empty clause (a contradiction) from the input CNF. 
-The de facto standard here are the DRAT~\citep{heule2016drat} and LRAT~\citep{cruz2017efficient} formats.
+which convince a checker that the input formula is unsatisfiable by deriving the empty clause (a contradiction) from the input CNF.
+The de facto standards here are the DRAT~\citep{heule2016drat} and LRAT~\citep{cruz2017efficient} formats.
 The DRAT format is a sequence of derivation steps
 in which each step records only the clause derived,
 leaving the checker to rediscover why that step is sound.
@@ -88,8 +88,8 @@ Checking certificates removes the SAT solver from the trusted code base.
 A buggy solver can, at worst, produce a certificate that the checker rejects.
 
 A lot of research has gone into designing excellent UNSAT certificate formats for SAT solvers.
-LRAT is expression enough to express all the preprocessing tricks that SAT solvers perform,
-while being conicse enough to be checked efficiently.
+LRAT is expressive enough to express all the preprocessing tricks that SAT solvers perform,
+while being concise enough to be checked efficiently.
 Unfortunately, no comparable mature certificate format exists at the \emph{SMT} level for bitvectors~\citep{barrett2015proofs},
 which is why we perform bitblasting inside the proof assistant and outsource only the SAT search to an unverified solver.
 
@@ -130,7 +130,7 @@ The representation is \emph{signless}, so a bitvector carries no notion of being
 Instead, individual operations on the bitvector interpret it as one or the other.
 This matches the semantics of SMT-LIB and of compiler IRs such as LLVM,
 and also permits some fun hacker koans, where we interpret a signed number as an unsigned value for some cute effect.
-For example, one can perform a two sided range check of $0 \leq x \leq 128$ (say $x$ is a 32 bit signed integer)
+For example, one can perform a two-sided range check of $0 \leq x \leq 128$ (say $x$ is a 32-bit signed integer)
 by checking that $x$ is \emph{unsigned} less than or equal to $128$.
 If $x$ is a negative number, then it will be interpreted as a large unsigned number, and the check will fail!
 
@@ -146,7 +146,7 @@ value of an individual bit is retrieved with \texttt{v.getLsbD i} (``get the
 \texttt{i}-th least significant bit, with default value \texttt{0}'').
 Crucially, \texttt{getLsbD} is \emph{total}: it returns \texttt{false} for out-of-range
 indices instead of demanding a bounds proof, which avoids the repeated
-in-bounds obligations a list-based definition would incur. 
+in-bounds obligations a list-based definition would incur.
 
 \subsection{Arithmetic Operations}
 
@@ -162,7 +162,7 @@ These closed-form definitions are convenient to reason with but bear no
 resemblance to the circuits a bitblaster emits. The library therefore also
 provides \emph{recursive models} of those circuits.
 For example, \texttt{adc} for carry-propagating addition, \texttt{mulRec} for shift-and-add multiplication,
-all of which are proven equal to the corresponding closed-form operation at every width. 
+all of which are proven equal to the corresponding closed-form operation at every width.
 
 \section{\texorpdfstring{\bvdecide{}}{bv\_decide}: Verified Bitblasting for Fixed Widths}
 \label{sec:bg:bvdecide}
@@ -177,7 +177,7 @@ Because realistic UNSAT proofs are far too large for kernel type checking,
 the bitblaster and certificate checker do not produce proof terms; instead they run as compiled code via proof by reflection.
 The user thus trusts the Lean compiler in addition to the kernel, which is a much smaller leap of faith than trusting a full SMT solver.
 Also, a moment's thought shows that one already trusts the Lean compiler,
-by using Lean as a programming language, and is thus not an extreme assumption to make that the compiler is correct.
+by using Lean as a programming language, and so it is not an extreme assumption to make that the compiler is correct.
 
 To prove a fixed-width goal, \bvdecide{} performs the following steps
 (\cref{fig:bg:bvdecide}):
@@ -326,7 +326,7 @@ UNSAT (\cref{fig:bg:unsat-cert-check}), completing the contradiction proof.
 
 \section{Discussion}
 
-Overall, \bvdecide{} provides a fully verified decision procedure for the quantifier free theory of fixed-width bitvectors.
+Overall, \bvdecide{} provides a fully verified decision procedure for the quantifier-free theory of fixed-width bitvectors.
 This gives us the ability to automate proving fixed-width bitvector formulas in Lean.
 This is already very powerful, and lets us automate away the correctness of peephole rewrites at a fixed width.
 However, we'd like to go further, and automate reasoning about bitvector formulas at an \emph{arbitrary} width,
